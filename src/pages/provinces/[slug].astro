@@ -1,0 +1,83 @@
+---
+import Base from '../../layouts/Base.astro';
+import Faits from '../../components/Faits.astro';
+import Corps from '../../components/Corps.astro';
+import {
+  provinces, villesDeLaProvince, etatParId, burgParId,
+  habitants, nombre, superficie, lien, nomAffiche,
+} from '../../lib/monde';
+
+export function getStaticPaths() {
+  return provinces.map((province) => ({ params: { slug: province.slug }, props: { province } }));
+}
+
+const { province } = Astro.props;
+const etat = province.etatId ? etatParId.get(province.etatId) : undefined;
+const capitale = province.capitaleId ? burgParId.get(province.capitaleId) : undefined;
+const villes = villesDeLaProvince(province.id);
+---
+
+<Base titre={province.nomComplet}>
+  <div class="contenant">
+    <header class="cartouche entete-fiche">
+      {province.blason && <img class="blason" src={province.blason} alt={`Blason de ${province.nom}`} width="92" height="92" />}
+      <div>
+        <div class="cartouche__sur">
+          <i class="pastille" style={`background:${province.couleur}`}></i>
+          <span class="etiquette">
+            {province.titre}{etat ? ' · ' : ''}
+            {etat && <a href={lien('etat', etat.slug)}>{etat.nom}</a>}
+          </span>
+        </div>
+        <h1>{province.nomComplet}</h1>
+      </div>
+    </header>
+
+    <div class="pile" style="margin-top:2rem">
+      <Faits
+        faits={[
+          { cle: 'Chef-lieu', valeur: capitale?.nom, href: capitale && lien('burg', capitale.slug) },
+          { cle: 'Royaume', valeur: etat?.nom, href: etat && lien('etat', etat.slug) },
+          { cle: 'Habitants', valeur: habitants(province.population) },
+          { cle: 'Dont urbains', valeur: habitants(province.populationUrbaine) },
+          { cle: 'Superficie', valeur: superficie(province.superficieKm2) },
+          { cle: 'Villes', valeur: nombre(villes.length) },
+        ]}
+      />
+
+      <Corps section="provinces" slug={province.slug} />
+
+      {
+        villes.length > 0 && (
+          <section>
+            <h2 class="etiquette">Villes de la province</h2>
+            <div class="defilable" style="margin-top:0.75rem">
+              <table class="tableau">
+                <thead>
+                  <tr><th>Ville</th><th>Statut</th><th class="num">Habitants</th></tr>
+                </thead>
+                <tbody>
+                  {villes.map((b) => (
+                    <tr>
+                      <td><a href={lien('burg', b.slug)}>{nomAffiche(b.nom)}</a></td>
+                      <td class="discret">{b.capitale ? 'Capitale' : b.categorie}{b.port ? ' · port' : ''}</td>
+                      <td class="num">{nombre(b.population)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )
+      }
+    </div>
+  </div>
+</Base>
+
+<style>
+  .entete-fiche {
+    display: flex;
+    gap: 1.75rem;
+    align-items: center;
+  }
+</style>

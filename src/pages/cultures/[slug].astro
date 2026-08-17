@@ -1,0 +1,113 @@
+---
+import Base from '../../layouts/Base.astro';
+import Faits from '../../components/Faits.astro';
+import Corps from '../../components/Corps.astro';
+import {
+  cultures, religions, villesDeLaCulture, cultureParId, etatParId,
+  habitants, nombre, superficie, natureCulture, lien, nomAffiche,
+} from '../../lib/monde';
+
+export function getStaticPaths() {
+  return cultures.map((culture) => ({ params: { slug: culture.slug }, props: { culture } }));
+}
+
+const { culture } = Astro.props;
+const villes = villesDeLaCulture(culture.id);
+const origines = culture.origines.map((id) => cultureParId.get(id)).filter(Boolean);
+const cultes = religions.filter((r) => r.cultureId === culture.id);
+const etatsLies = etatParId.size
+  ? [...etatParId.values()].filter((e) => e.cultureId === culture.id)
+  : [];
+const population = villes.reduce((n, b) => n + b.population, 0);
+---
+
+<Base titre={culture.nom}>
+  <div class="contenant">
+    <header class="cartouche">
+      <div class="cartouche__sur">
+        <i class="pastille" style={`background:${culture.couleur}`}></i>
+        <span class="etiquette">Culture · {natureCulture(culture.nature)}</span>
+      </div>
+      <h1>{culture.nom}</h1>
+    </header>
+
+    <div class="pile" style="margin-top:2rem">
+      <Faits
+        faits={[
+          { cle: 'Mode de vie', valeur: natureCulture(culture.nature) },
+          { cle: 'Villes', valeur: nombre(villes.length) },
+          { cle: 'Population urbaine', valeur: habitants(population) },
+          { cle: 'Emprise', valeur: superficie(culture.superficieKm2) },
+          { cle: 'Issue de', valeur: origines[0]?.nom, href: origines[0] && lien('culture', origines[0].slug) },
+        ]}
+      />
+
+      <Corps section="cultures" slug={culture.slug} />
+
+      {
+        etatsLies.length > 0 && (
+          <section>
+            <h2 class="etiquette">Royaumes de cette culture</h2>
+            <div class="grille" style="margin-top:0.75rem">
+              {etatsLies.map((e) => (
+                <a class="carte" href={lien('etat', e.slug)}>
+                  <span class="carte__titre">
+                    <i class="pastille" style={`background:${e.couleur}`} />
+                    {e.nom}
+                  </span>
+                  <span class="carte__meta">{habitants(e.population)} habitants</span>
+                </a>
+              ))}
+            </div>
+          </section>
+        )
+      }
+
+      {
+        cultes.length > 0 && (
+          <section>
+            <h2 class="etiquette">Religions issues de cette culture</h2>
+            <div class="grille" style="margin-top:0.75rem">
+              {cultes.map((r) => (
+                <a class="carte" href={lien('religion', r.slug)}>
+                  <span class="carte__titre">
+                    <i class="pastille" style={`background:${r.couleur}`} />
+                    {r.nom}
+                  </span>
+                  <span class="carte__meta">{r.forme}</span>
+                </a>
+              ))}
+            </div>
+          </section>
+        )
+      }
+
+      {
+        villes.length > 0 && (
+          <section>
+            <h2 class="etiquette">Principales villes</h2>
+            <div class="defilable" style="margin-top:0.75rem">
+              <table class="tableau">
+                <thead>
+                  <tr><th>Ville</th><th>Royaume</th><th class="num">Habitants</th></tr>
+                </thead>
+                <tbody>
+                  {villes.slice(0, 25).map((b) => {
+                    const e = b.etatId ? etatParId.get(b.etatId) : undefined;
+                    return (
+                      <tr>
+                        <td><a href={lien('burg', b.slug)}>{nomAffiche(b.nom)}</a></td>
+                        <td>{e ? <a href={lien('etat', e.slug)}>{e.nom}</a> : <span class="discret">neutre</span>}</td>
+                        <td class="num">{nombre(b.population)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )
+      }
+    </div>
+  </div>
+</Base>

@@ -1,0 +1,31 @@
+---
+/**
+ * Le texte de la fiche, écrit par Romain — ou, à défaut, l'indication précise
+ * du fichier à créer. Rien n'est jamais rédigé automatiquement ici.
+ */
+import { texteDe } from '../lib/contenu';
+
+interface Props {
+  section: string;
+  slug: string;
+}
+
+const { section, slug } = Astro.props;
+const texte = texteDe(section, slug);
+const Contenu = texte?.Content as any;
+---
+
+{
+  texte ? (
+    <article class="prose">
+      <Contenu />
+    </article>
+  ) : (
+    <div class="a-ecrire">
+      <p class="etiquette">Page à écrire</p>
+      <p>Cette fiche n'affiche pour l'instant que les faits extraits de la carte. Pour l'écrire, crée le fichier :</p>
+      <p><code>{`src/contenu/${section}/${slug}.md`}</code></p>
+      <p class="discret">Ou demande-le-moi : « écris-moi la fiche de … » et je crée le fichier avec ton texte.</p>
+    </div>
+  )
+}

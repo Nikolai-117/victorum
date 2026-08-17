@@ -1,0 +1,71 @@
+---
+import Base from '../../layouts/Base.astro';
+import { etats, provincesDeLEtat, habitants, nombre, superficie, formeEtat, lien } from '../../lib/monde';
+
+const royaumes = [...etats].sort((a, b) => b.population - a.population);
+---
+
+<Base titre="Royaumes" description="Les états du monde, leurs provinces et leurs villes.">
+  <div class="contenant">
+    <header class="cartouche">
+      <p class="etiquette">{royaumes.length} états recensés</p>
+      <h1>Royaumes</h1>
+    </header>
+
+    <div class="pile" style="margin-top:2rem">
+      {
+        royaumes.map((e) => {
+          const provinces = provincesDeLEtat(e.id);
+          return (
+            <a class="bandeau" href={lien('etat', e.slug)}>
+              {e.blason && <img class="blason" src={e.blason} alt="" width="92" height="92" loading="lazy" />}
+              <div class="bandeau__corps">
+                <span class="etiquette">{formeEtat(e.forme)}</span>
+                <h2>
+                  <i class="pastille" style={`background:${e.couleur}`} />
+                  {e.nomComplet}
+                </h2>
+                <p class="discret">
+                  {nombre(e.nbBurgs)} villes · {nombre(provinces.length)} provinces ·
+                  {' '}{habitants(e.population)} habitants · {superficie(e.superficieKm2)}
+                </p>
+              </div>
+            </a>
+          );
+        })
+      }
+    </div>
+  </div>
+</Base>
+
+<style>
+  .bandeau {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    padding: 1.35rem 1.5rem;
+    background: var(--fond-2);
+    border: 1px solid var(--bord);
+    border-radius: var(--rayon);
+    text-decoration: none;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .bandeau:hover {
+    border-color: var(--bord-vif);
+    background: var(--surface);
+  }
+  .bandeau h2 {
+    font-size: 1.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0.25rem 0 0.4rem;
+  }
+  .bandeau p {
+    margin: 0;
+    font-size: 0.9375rem;
+  }
+  .bandeau__corps {
+    min-width: 0;
+  }
+</style>

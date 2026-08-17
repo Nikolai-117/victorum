@@ -1,0 +1,23 @@
+---
+/** Grille de faits chiffrés. Les entrées vides sont retirées silencieusement. */
+interface Props {
+  faits: { cle: string; valeur: string | number | null | undefined; href?: string }[];
+}
+
+const faits = Astro.props.faits.filter(
+  (f) => f.valeur !== null && f.valeur !== undefined && f.valeur !== '' && f.valeur !== '—'
+);
+---
+
+{
+  faits.length > 0 && (
+    <dl class="faits">
+      {faits.map((f) => (
+        <div class="fait">
+          <dt>{f.cle}</dt>
+          <dd>{f.href ? <a href={f.href}>{f.valeur}</a> : f.valeur}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}

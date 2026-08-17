@@ -1,0 +1,101 @@
+[
+ {
+  "id": 0,
+  "type": "zone",
+  "nom": "Fontian Plunder",
+  "nature": "Invasion",
+  "natureBrute": "Invasion",
+  "nbCellules": 7,
+  "slug": "fontian-plunder"
+ },
+ {
+  "id": 1,
+  "type": "zone",
+  "nom": "Marnomutuan Pillaging",
+  "nature": "Invasion",
+  "natureBrute": "Invasion",
+  "nbCellules": 24,
+  "slug": "marnomutuan-pillaging"
+ },
+ {
+  "id": 2,
+  "type": "zone",
+  "nom": "Asalanian Insurgents",
+  "nature": "Rébellion",
+  "natureBrute": "Rebels",
+  "nbCellules": 15,
+  "slug": "asalanian-insurgents"
+ },
+ {
+  "id": 3,
+  "type": "zone",
+  "nom": "Lauternach Proselytism",
+  "nature": "Prosélytisme",
+  "natureBrute": "Proselytism",
+  "nbCellules": 18,
+  "slug": "lauternach-proselytism"
+ },
+ {
+  "id": 4,
+  "type": "zone",
+  "nom": "Ikhkhanese Tornadoes",
+  "nature": "Catastrophe",
+  "natureBrute": "Disaster",
+  "nbCellules": 96,
+  "slug": "ikhkhanese-tornadoes"
+ },
+ {
+  "id": 5,
+  "type": "zone",
+  "nom": "Rothtonese Dearth",
+  "nature": "Catastrophe",
+  "natureBrute": "Disaster",
+  "nbCellules": 16,
+  "slug": "rothtonese-dearth"
+ },
+ {
+  "id": 6,
+  "type": "zone",
+  "nom": "Haydon Eruption",
+  "nature": "Éruption",
+  "natureBrute": "Eruption",
+  "nbCellules": 17,
+  "slug": "haydon-eruption"
+ },
+ {
+  "id": 7,
+  "type": "zone",
+  "nom": "Watchamber Eruption",
+  "nature": "Éruption",
+  "natureBrute": "Eruption",
+  "nbCellules": 21,
+  "slug": "watchamber-eruption"
+ },
+ {
+  "id": 8,
+  "type": "zone",
+  "nom": "Manchelese Flood",
+  "nature": "Inondation",
+  "natureBrute": "Flood",
+  "nbCellules": 1,
+  "slug": "manchelese-flood"
+ },
+ {
+  "id": 9,
+  "type": "zone",
+  "nom": "Erdenerenese Flood",
+  "nature": "Inondation",
+  "natureBrute": "Flood",
+  "nbCellules": 3,
+  "slug": "erdenerenese-flood"
+ },
+ {
+  "id": 10,
+  "type": "zone",
+  "nom": "Cleonehan Tsunami",
+  "nature": "Tsunami",
+  "natureBrute": "Tsunami",
+  "nbCellules": 31,
+  "slug": "cleonehan-tsunami"
+ }
+]

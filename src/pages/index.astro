@@ -1,0 +1,107 @@
+---
+import Base from '../layouts/Base.astro';
+import Faits from '../components/Faits.astro';
+import { texteDe } from '../lib/contenu';
+import {
+  monde, etats, chiffresDuMonde, habitants, nombre, superficie, formeEtat, lien,
+} from '../lib/monde';
+
+const c = chiffresDuMonde();
+const royaumes = [...etats].sort((a, b) => b.population - a.population);
+const intro = texteDe('articles', 'accueil');
+const Intro = intro?.Content as any;
+---
+
+<Base titre={monde.nom} description={`Le wiki et l'atlas du monde de ${monde.nom}.`}>
+  <section class="contenant ouverture">
+    <p class="etiquette">An {monde.annee} — {monde.ere}</p>
+    <h1>{monde.nom}</h1>
+    {
+      Intro ? (
+        <div class="prose"><Intro /></div>
+      ) : (
+        <p class="ouverture__vide discret">
+          L'accueil n'a pas encore de texte d'introduction. Crée
+          <code>src/contenu/articles/accueil.md</code> pour l'écrire.
+        </p>
+      )
+    }
+    <div class="ouverture__actions">
+      <a class="bouton bouton--or" href="/atlas">Ouvrir l'atlas</a>
+      <a class="bouton" href="/etats">Parcourir les royaumes</a>
+    </div>
+  </section>
+
+  <section class="contenant pile">
+    <Faits
+      faits={[
+        { cle: 'Royaumes', valeur: nombre(c.etats) },
+        { cle: 'Provinces', valeur: nombre(c.provinces) },
+        { cle: 'Villes', valeur: nombre(c.villes) },
+        { cle: 'Dont ports', valeur: nombre(c.ports) },
+        { cle: 'Lieux remarquables', valeur: nombre(c.lieux) },
+        { cle: 'Cultures', valeur: nombre(c.cultures) },
+        { cle: 'Religions', valeur: nombre(c.religions) },
+        { cle: 'Habitants', valeur: habitants(c.population) },
+        { cle: 'Terres connues', valeur: superficie(c.superficie) },
+      ]}
+    />
+  </section>
+
+  <section class="contenant pile" style="margin-top:3.5rem">
+    <h2 class="etiquette">Les royaumes</h2>
+    <div class="grille">
+      {
+        royaumes.map((e) => (
+          <a class="carte" href={lien('etat', e.slug)}>
+            <span class="carte__titre">
+              <i class="pastille" style={`background:${e.couleur}`} />
+              {e.nom}
+            </span>
+            <span class="carte__meta">
+              {formeEtat(e.forme)} · {nombre(e.nbBurgs)} villes · {habitants(e.population)} hab.
+            </span>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="contenant pile" style="margin-top:3.5rem">
+    <h2 class="etiquette">Explorer</h2>
+    <div class="grille">
+      <a class="carte" href="/villes"><span class="carte__titre">Villes</span><span class="carte__meta">{nombre(c.villes)} localités recensées</span></a>
+      <a class="carte" href="/lieux"><span class="carte__titre">Lieux</span><span class="carte__meta">{nombre(c.lieux)} donjons, ruines, champs de bataille…</span></a>
+      <a class="carte" href="/peuples"><span class="carte__titre">Peuples</span><span class="carte__meta">{c.cultures} cultures, {c.religions} religions</span></a>
+      <a class="carte" href="/chronologie"><span class="carte__titre">Chronologie</span><span class="carte__meta">Les guerres datées du monde</span></a>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .ouverture {
+    padding: 4.5rem 0 3rem;
+  }
+  .ouverture h1 {
+    font-size: clamp(3rem, 11vw, 6.5rem);
+    letter-spacing: -0.02em;
+    margin: 0.5rem 0 1.5rem;
+  }
+  .ouverture__vide {
+    max-width: 62ch;
+  }
+  .ouverture__vide code {
+    font-family: var(--mono);
+    font-size: 0.875rem;
+    background: var(--surface);
+    padding: 0.2em 0.45em;
+    border-radius: 2px;
+    margin-left: 0.35em;
+  }
+  .ouverture__actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 2rem;
+  }
+</style>

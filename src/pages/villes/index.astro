@@ -1,0 +1,124 @@
+---
+import Base from '../../layouts/Base.astro';
+import { burgs, etats, etatParId, provinceParId, nombre, lien, nomAffiche,
+} from '../../lib/monde';
+
+const villes = [...burgs].sort((a, b) => b.population - a.population);
+const royaumes = [...etats].sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+---
+
+<Base titre="Villes" description="Toutes les localités recensées sur la carte.">
+  <div class="contenant">
+    <header class="cartouche">
+      <p class="etiquette">{nombre(villes.length)} localités</p>
+      <h1>Villes</h1>
+    </header>
+
+    <div class="filtres">
+      <input id="filtre-nom" type="search" placeholder="Filtrer par nom…" autocomplete="off" aria-label="Filtrer par nom" />
+      <select id="filtre-royaume" aria-label="Filtrer par royaume">
+        <option value="">Tous les royaumes</option>
+        <option value="0">Terres neutres</option>
+        {royaumes.map((e) => <option value={e.id}>{e.nom}</option>)}
+      </select>
+      <span class="compteur discret" id="compteur"></span>
+    </div>
+
+    <div class="defilable">
+      <table class="tableau" id="table-villes">
+        <thead>
+          <tr>
+            <th>Ville</th>
+            <th>Statut</th>
+            <th>Royaume</th>
+            <th>Province</th>
+            <th class="num">Habitants</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            villes.map((b) => {
+              const etat = b.etatId ? etatParId.get(b.etatId) : undefined;
+              const province = b.provinceId ? provinceParId.get(b.provinceId) : undefined;
+              return (
+                <tr data-nom={b.nom.toLowerCase()} data-etat={b.etatId ?? 0}>
+                  <td><a href={lien('burg', b.slug)}>{nomAffiche(b.nom)}</a></td>
+                  <td class="discret">{b.capitale ? 'Capitale' : b.categorie}{b.port ? ' · port' : ''}</td>
+                  <td>{etat ? <a href={lien('etat', etat.slug)}>{etat.nom}</a> : <span class="discret">neutre</span>}</td>
+                  <td>{province ? <a href={lien('province', province.slug)}>{province.nom}</a> : <span class="discret">—</span>}</td>
+                  <td class="num">{nombre(b.population)}</td>
+                </tr>
+              );
+            })
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .filtres {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 1.75rem 0 1rem;
+  }
+  .filtres input,
+  .filtres select {
+    padding: 0.5rem 0.7rem;
+    background: var(--fond-2);
+    border: 1px solid var(--bord-vif);
+    border-radius: var(--rayon);
+    color: var(--texte);
+    font: inherit;
+    font-size: 0.9375rem;
+  }
+  .filtres input {
+    min-width: 240px;
+  }
+  .filtres input:focus,
+  .filtres select:focus {
+    outline: none;
+    border-color: var(--or-doux);
+  }
+  .compteur {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+  }
+</style>
+
+<script>
+  const champ = document.getElementById('filtre-nom');
+  const selectRoyaume = document.getElementById('filtre-royaume');
+  const compteur = document.getElementById('compteur');
+  const lignes = [...document.querySelectorAll('#table-villes tbody tr')];
+  const sansAccent = (s) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+  const cles = lignes.map((l) => sansAccent(l.dataset.nom));
+
+  function filtrer() {
+    const q = sansAccent(champ.value.trim());
+    const royaume = selectRoyaume.value;
+    let visibles = 0;
+    lignes.forEach((ligne, i) => {
+      const ok = (!q || cles[i].includes(q)) && (!royaume || ligne.dataset.etat === royaume);
+      ligne.hidden = !ok;
+      if (ok) visibles++;
+    });
+    compteur.textContent = `${visibles} ville${visibles > 1 ? 's' : ''}`;
+  }
+
+  champ.addEventListener('input', filtrer);
+  selectRoyaume.addEventListener('change', filtrer);
+
+  // Permet à une fiche de royaume de renvoyer vers sa liste filtrée.
+  const demande = new URLSearchParams(location.search).get('royaume');
+  if (demande) {
+    const option = [...selectRoyaume.options].find(
+      (o) => o.textContent.trim().toLowerCase() === demande.replace(/-/g, ' ')
+    );
+    if (option) selectRoyaume.value = option.value;
+  }
+  filtrer();
+</script>

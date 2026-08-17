@@ -1,0 +1,98 @@
+{
+  "largeur": 1920,
+  "hauteur": 919,
+  "defsOctets": 1426110,
+  "couches": [
+    {
+      "id": "ocean",
+      "libelle": "Océan",
+      "ordre": 0,
+      "octets": 202377,
+      "parDefaut": true
+    },
+    {
+      "id": "lakes",
+      "libelle": "Lacs",
+      "ordre": 1,
+      "octets": 7683,
+      "parDefaut": true
+    },
+    {
+      "id": "landmass",
+      "libelle": "Terres",
+      "ordre": 2,
+      "octets": 217,
+      "parDefaut": true
+    },
+    {
+      "id": "rivers",
+      "libelle": "Rivières",
+      "ordre": 3,
+      "octets": 884601,
+      "parDefaut": true
+    },
+    {
+      "id": "terrain",
+      "libelle": "Reliefs",
+      "ordre": 4,
+      "octets": 3348442,
+      "parDefaut": true
+    },
+    {
+      "id": "regions",
+      "libelle": "États",
+      "ordre": 5,
+      "octets": 54172,
+      "parDefaut": true
+    },
+    {
+      "id": "borders",
+      "libelle": "Frontières",
+      "ordre": 6,
+      "octets": 8158,
+      "parDefaut": true
+    },
+    {
+      "id": "routes",
+      "libelle": "Routes",
+      "ordre": 7,
+      "octets": 279640,
+      "parDefaut": true
+    },
+    {
+      "id": "coastline",
+      "libelle": "Littoral",
+      "ordre": 8,
+      "octets": 5530,
+      "parDefaut": true
+    },
+    {
+      "id": "ice",
+      "libelle": "Glaces",
+      "ordre": 9,
+      "octets": 6786,
+      "parDefaut": true
+    },
+    {
+      "id": "prec",
+      "libelle": "Vents",
+      "ordre": 10,
+      "octets": 522,
+      "parDefaut": false
+    },
+    {
+      "id": "labels",
+      "libelle": "Noms",
+      "ordre": 11,
+      "octets": 64699,
+      "parDefaut": true
+    },
+    {
+      "id": "icons",
+      "libelle": "Villes",
+      "ordre": 12,
+      "octets": 44574,
+      "parDefaut": true
+    }
+  ]
+}

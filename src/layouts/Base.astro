@@ -1,0 +1,62 @@
+---
+import '../styles/global.css';
+import { monde } from '../lib/monde';
+
+interface Props {
+  titre: string;
+  description?: string;
+  /** L'atlas occupe tout l'écran : ni marges, ni pied de page. */
+  pleinEcran?: boolean;
+}
+
+const { titre, description, pleinEcran = false } = Astro.props;
+const chemin = Astro.url.pathname.replace(/\/$/, '') || '/';
+const actif = (prefixe: string) => (chemin === prefixe || chemin.startsWith(prefixe + '/') ? 'page' : undefined);
+
+const NAV = [
+  { url: '/atlas', libelle: 'Atlas' },
+  { url: '/etats', libelle: 'Royaumes' },
+  { url: '/villes', libelle: 'Villes' },
+  { url: '/lieux', libelle: 'Lieux' },
+  { url: '/peuples', libelle: 'Peuples' },
+  { url: '/chronologie', libelle: 'Chronologie' },
+];
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{titre === monde.nom ? monde.nom : `${titre} — ${monde.nom}`}</title>
+    {description && <meta name="description" content={description} />}
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <header class="entete">
+      <div class="contenant entete__interne">
+        <a class="marque" href="/">{monde.nom}<span>.</span></a>
+        <nav class="nav">
+          {NAV.map((l) => <a href={l.url} aria-current={actif(l.url)}>{l.libelle}</a>)}
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    {
+      !pleinEcran && (
+        <footer class="pied contenant">
+          <div>
+            {monde.nom} — an {monde.annee} {monde.ereCourte}. Carte générée avec Azgaar's Fantasy Map
+            Generator {monde.versionAzgaar}.
+          </div>
+          <div>Échelle {monde.echelleKmParPixel} km/px.</div>
+        </footer>
+      )
+    }
+  </body>
+</html>

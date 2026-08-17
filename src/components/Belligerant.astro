@@ -1,0 +1,38 @@
+---
+/**
+ * Un camp d'une guerre.
+ *
+ * Azgaar efface entièrement les états supprimés : il n'en reste qu'un
+ * identifiant. Le nom du royaume vaincu ne survit donc que dans le nom de la
+ * campagne (« Rotham War », « Griesburg War »). On le dit franchement plutôt
+ * que d'inventer un belligérant.
+ */
+import { lien } from '../lib/monde';
+
+interface Props {
+  nom: string | null;
+  slug: string | null;
+  disparu?: boolean;
+}
+
+const { nom, slug, disparu } = Astro.props;
+---
+
+{
+  slug && !disparu ? (
+    <a href={lien('etat', slug)}>{nom}</a>
+  ) : nom ? (
+    <span title={disparu ? 'Ce royaume n’existe plus à la date courante' : undefined}>
+      {nom}
+      {disparu && <span class="disparu"> †</span>}
+    </span>
+  ) : (
+    <span class="disparu">un royaume aujourd’hui disparu</span>
+  )
+}
+
+<style>
+  .disparu {
+    color: var(--texte-faible);
+  }
+</style>

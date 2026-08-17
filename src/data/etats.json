@@ -1,0 +1,334 @@
+[
+ {
+  "id": 1,
+  "type": "etat",
+  "nom": "Levànzia",
+  "nomComplet": "Royaume de Levànzia",
+  "forme": "Monarchy",
+  "titre": "Kingdom",
+  "couleur": "#651179",
+  "capitaleId": 5,
+  "cultureId": 4,
+  "provinceIds": [
+   6,
+   7,
+   8,
+   9,
+   10,
+   11
+  ],
+  "nbBurgs": 77,
+  "superficieKm2": 198747,
+  "populationUrbaine": 1349950,
+  "populationRurale": 12465818,
+  "population": 13815768,
+  "voisinIds": [],
+  "x": 1237,
+  "y": 228,
+  "diplomatie": [
+   {
+    "etatId": 3,
+    "relation": "Friendly"
+   },
+   {
+    "etatId": 41,
+    "relation": "Neutral"
+   },
+   {
+    "etatId": 42,
+    "relation": "Neutral"
+   }
+  ],
+  "campagnes": [
+   {
+    "nom": "Rotham War",
+    "debut": 1114,
+    "fin": 1121,
+    "attaquantId": 1,
+    "defenseurId": 40,
+    "attaquant": "Royaume de Levànzia",
+    "defenseur": null,
+    "attaquantDisparu": false,
+    "defenseurDisparu": true
+   },
+   {
+    "nom": "Treitavan War",
+    "debut": 1137,
+    "fin": 1142,
+    "attaquantId": 1,
+    "defenseurId": 12,
+    "attaquant": "Royaume de Levànzia",
+    "defenseur": null,
+    "attaquantDisparu": false,
+    "defenseurDisparu": true
+   },
+   {
+    "nom": "Rejasian Conflict",
+    "debut": 1296,
+    "fin": 1301,
+    "attaquantId": 1,
+    "defenseurId": 38,
+    "attaquant": "Royaume de Levànzia",
+    "defenseur": null,
+    "attaquantDisparu": false,
+    "defenseurDisparu": true
+   }
+  ],
+  "regiments": [
+   {
+    "nom": "1st Regiment",
+    "effectif": 2253000,
+    "icone": "🐴",
+    "naval": false,
+    "x": 1168,
+    "y": 296.6,
+    "unites": {
+     "cavalry": 1050000,
+     "infantry": 742000,
+     "archers": 461000
+    }
+   },
+   {
+    "nom": "2nd (Retford) Regiment",
+    "effectif": 1839000,
+    "icone": "🐴",
+    "naval": false,
+    "x": 1110.7,
+    "y": 432.1,
+    "unites": {
+     "archers": 286000,
+     "artillery": 1000,
+     "infantry": 339000,
+     "cavalry": 1213000
+    }
+   },
+   {
+    "nom": "3rd (Selenor) Regiment",
+    "effectif": 620000,
+    "icone": "👑",
+    "naval": false,
+    "x": 1072.06,
+    "y": 292.91,
+    "unites": {
+     "archers": 259000,
+     "cavalry": 220000,
+     "infantry": 123000,
+     "artillery": 18000
+    }
+   },
+   {
+    "nom": "1st Fleet",
+    "effectif": 22000,
+    "icone": "🌊",
+    "naval": true,
+    "x": 1071.9,
+    "y": 294.8,
+    "unites": {
+     "fleet": 22000
+    }
+   },
+   {
+    "nom": "2nd Fleet",
+    "effectif": 1000,
+    "icone": "🌊",
+    "naval": true,
+    "x": 1113.94,
+    "y": 433.17,
+    "unites": {
+     "fleet": 1000
+    }
+   }
+  ],
+  "slug": "levanzia",
+  "blason": "/carte/blasons/etat-1.svg"
+ },
+ {
+  "id": 3,
+  "type": "etat",
+  "nom": "Varenhold",
+  "nomComplet": "Kingdom of Varenhold",
+  "forme": "Monarchy",
+  "titre": "Kingdom",
+  "couleur": "#ffcc1e",
+  "capitaleId": 6,
+  "cultureId": 5,
+  "provinceIds": [
+   2,
+   3,
+   4,
+   5,
+   12,
+   1,
+   13
+  ],
+  "nbBurgs": 68,
+  "superficieKm2": 315585,
+  "populationUrbaine": 678724,
+  "populationRurale": 7300000,
+  "population": 7978724,
+  "voisinIds": [],
+  "x": 1014,
+  "y": 118,
+  "diplomatie": [
+   {
+    "etatId": 1,
+    "relation": "Friendly"
+   },
+   {
+    "etatId": 41,
+    "relation": "Neutral"
+   },
+   {
+    "etatId": 42,
+    "relation": "Neutral"
+   }
+  ],
+  "campagnes": [
+   {
+    "nom": "Labrian Crusade",
+    "debut": 921,
+    "fin": 927,
+    "attaquantId": 3,
+    "defenseurId": 12,
+    "attaquant": "Kingdom of Varenhold",
+    "defenseur": null,
+    "attaquantDisparu": false,
+    "defenseurDisparu": true
+   },
+   {
+    "nom": "Frohnweian Invasion",
+    "debut": 1296,
+    "fin": 1301,
+    "attaquantId": 3,
+    "defenseurId": 0,
+    "attaquant": "Kingdom of Varenhold",
+    "defenseur": null,
+    "attaquantDisparu": false,
+    "defenseurDisparu": true
+   },
+   {
+    "nom": "Rotham War",
+    "debut": 1296,
+    "fin": 1301,
+    "attaquantId": 3,
+    "defenseurId": 40,
+    "attaquant": "Kingdom of Varenhold",
+    "defenseur": null,
+    "attaquantDisparu": false,
+    "defenseurDisparu": true
+   },
+   {
+    "nom": "Griesburg War",
+    "debut": 1296,
+    "fin": 1301,
+    "attaquantId": 3,
+    "defenseurId": 30,
+    "attaquant": "Kingdom of Varenhold",
+    "defenseur": null,
+    "attaquantDisparu": false,
+    "defenseurDisparu": true
+   }
+  ],
+  "regiments": [
+   {
+    "nom": "1st (Corwen) Regiment",
+    "effectif": 4439000,
+    "icone": "🐴",
+    "naval": false,
+    "x": 1059.01,
+    "y": 134.72,
+    "unites": {
+     "cavalry": 3384000,
+     "infantry": 463000,
+     "archers": 591000,
+     "artillery": 1000
+    }
+   },
+   {
+    "nom": "2nd (Veren) Regiment",
+    "effectif": 3526000,
+    "icone": "🏹",
+    "naval": false,
+    "x": 956.5,
+    "y": 178.73,
+    "unites": {
+     "archers": 1358000,
+     "infantry": 1095000,
+     "cavalry": 1052000,
+     "artillery": 21000
+    }
+   },
+   {
+    "nom": "3rd (Tylerion) Regiment",
+    "effectif": 1747000,
+    "icone": "🐴",
+    "naval": false,
+    "x": 865.99,
+    "y": 241.97,
+    "unites": {
+     "cavalry": 1233000,
+     "infantry": 259000,
+     "archers": 255000
+    }
+   },
+   {
+    "nom": "1st Fleet",
+    "effectif": 6000,
+    "icone": "🌊",
+    "naval": true,
+    "x": 954.43,
+    "y": 181.96,
+    "unites": {
+     "fleet": 6000
+    }
+   },
+   {
+    "nom": "2nd Fleet",
+    "effectif": 2000,
+    "icone": "🌊",
+    "naval": true,
+    "x": 934.8,
+    "y": 105.2,
+    "unites": {
+     "fleet": 2000
+    }
+   }
+  ],
+  "slug": "varenhold",
+  "blason": "/carte/blasons/etat-3.svg"
+ },
+ {
+  "id": 42,
+  "type": "etat",
+  "nom": "Ornebois",
+  "nomComplet": "Kingdom of Ornebois",
+  "forme": "Monarchy",
+  "titre": "Kingdom",
+  "couleur": "#5b9cd6",
+  "capitaleId": 436,
+  "cultureId": 12,
+  "provinceIds": [],
+  "nbBurgs": 5,
+  "superficieKm2": 124857,
+  "populationUrbaine": 54177,
+  "populationRurale": 7015687,
+  "population": 7069864,
+  "voisinIds": [],
+  "x": 1108,
+  "y": 193,
+  "diplomatie": [
+   {
+    "etatId": 1,
+    "relation": "Neutral"
+   },
+   {
+    "etatId": 3,
+    "relation": "Neutral"
+   }
+  ],
+  "campagnes": [],
+  "regiments": [],
+  "slug": "ornebois",
+  "blason": "/carte/blasons/etat-42.svg"
+ }
+]

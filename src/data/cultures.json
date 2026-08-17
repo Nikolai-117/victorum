@@ -1,0 +1,46 @@
+[
+ {
+  "id": 4,
+  "type": "culture",
+  "nom": "Romian",
+  "code": "Ro",
+  "couleur": "#e1c5eb",
+  "nature": "Naval",
+  "expansionnisme": 3.2,
+  "origines": [],
+  "superficieKm2": 1362870,
+  "populationUrbaine": 2169353,
+  "populationRurale": 57901864,
+  "slug": "romian"
+ },
+ {
+  "id": 5,
+  "type": "culture",
+  "nom": "Valor",
+  "code": "VA",
+  "couleur": "#dababf",
+  "nature": "Highland",
+  "expansionnisme": 4.1,
+  "origines": [],
+  "superficieKm2": 1304802,
+  "populationUrbaine": 1778004,
+  "populationRurale": 70673739,
+  "slug": "valor"
+ },
+ {
+  "id": 12,
+  "type": "culture",
+  "nom": "Lorlinces",
+  "code": "Ya",
+  "couleur": "#1bbfca",
+  "nature": "Naval",
+  "expansionnisme": 1,
+  "origines": [
+   5
+  ],
+  "superficieKm2": 146763,
+  "populationUrbaine": 99376,
+  "populationRurale": 8292606,
+  "slug": "lorlinces"
+ }
+]

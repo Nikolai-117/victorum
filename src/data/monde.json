@@ -1,0 +1,16 @@
+{
+ "nom": "Victorum",
+ "versionAzgaar": "1.134.2",
+ "dateExport": "2026-7-7",
+ "graine": "669424404",
+ "largeur": 1920,
+ "hauteur": 919,
+ "uniteDistance": "km",
+ "echelleKmParPixel": 3,
+ "tauxPopulation": 1000,
+ "urbanisation": 1,
+ "annee": 1302,
+ "ere": "Blechbury Era",
+ "ereCourte": "BE",
+ "importeLe": "2026-08-17T22:12:02.903Z"
+}

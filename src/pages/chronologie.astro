@@ -1,0 +1,132 @@
+---
+import Base from '../layouts/Base.astro';
+import Belligerant from '../components/Belligerant.astro';
+import { texteDe } from '../lib/contenu';
+import { chronologie, zones, monde, annee } from '../lib/monde';
+
+const evenements = [...chronologie].sort((a, b) => a.debut - b.debut);
+const premiere = evenements[0]?.debut ?? 0;
+const derniere = monde.annee ?? evenements.at(-1)?.fin ?? 0;
+const etendue = Math.max(1, derniere - premiere);
+
+const intro = texteDe('articles', 'chronologie');
+const Intro = intro?.Content as any;
+---
+
+<Base titre="Chronologie" description="Les guerres et bouleversements datés du monde.">
+  <div class="contenant">
+    <header class="cartouche">
+      <p class="etiquette">
+        De l'an {premiere} à l'an {derniere} — {monde.ere}
+      </p>
+      <h1>Chronologie</h1>
+    </header>
+
+    <div class="pile" style="margin-top:2rem">
+      {Intro && <div class="prose"><Intro /></div>}
+
+      <section>
+        <h2 class="etiquette">Campagnes militaires</h2>
+        <ol class="frise" style="margin-top:1rem">
+          {
+            evenements.map((e) => (
+              <li>
+                <div class="frise__dates chiffre">
+                  {annee(e.debut)}
+                  <span class="discret"> → {e.fin}</span>
+                </div>
+                <div class="frise__barre">
+                  <span
+                    style={`margin-left:${((e.debut - premiere) / etendue) * 100}%;width:${Math.max(
+                      1.5,
+                      ((e.fin - e.debut) / etendue) * 100
+                    )}%`}
+                  />
+                </div>
+                <div class="frise__corps">
+                  <h3>{e.nom}</h3>
+                  <p class="discret">
+                    <Belligerant nom={e.attaquant} slug={e.attaquantSlug} disparu={e.attaquantDisparu} />
+                    {' contre '}
+                    <Belligerant nom={e.defenseur} slug={e.defenseurSlug} disparu={e.defenseurDisparu} />
+                    {' · '}
+                    {e.fin - e.debut === 0 ? 'moins d’un an' : `${e.fin - e.debut} ans`}
+                  </p>
+                </div>
+              </li>
+            ))
+          }
+        </ol>
+      </section>
+
+      {
+        zones.length > 0 && (
+          <section>
+            <h2 class="etiquette">Troubles en cours</h2>
+            <p class="discret" style="margin:0.5rem 0 1rem">
+              Zones marquées sur la carte à la date de l'an {monde.annee}.
+            </p>
+            <div class="grille">
+              {zones.map((z) => (
+                <div class="carte" style="cursor:default">
+                  <span class="carte__titre">{z.nom}</span>
+                  <span class="carte__meta">{z.nature}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )
+      }
+    </div>
+  </div>
+</Base>
+
+<style>
+  .frise {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .frise li {
+    display: grid;
+    grid-template-columns: 9.5rem minmax(120px, 1fr) minmax(220px, 1.4fr);
+    gap: 1.25rem;
+    align-items: center;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--bord);
+  }
+  .frise__dates {
+    font-size: 0.875rem;
+    white-space: nowrap;
+  }
+  .frise__barre {
+    height: 6px;
+    background: var(--surface);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .frise__barre span {
+    display: block;
+    height: 100%;
+    background: var(--or-doux);
+    border-radius: 3px;
+  }
+  .frise__corps h3 {
+    font-size: 1.15rem;
+    margin: 0;
+  }
+  .frise__corps p {
+    margin: 0.2rem 0 0;
+    font-size: 0.875rem;
+  }
+
+  @media (max-width: 720px) {
+    .frise li {
+      grid-template-columns: 1fr;
+      gap: 0.4rem;
+    }
+  }
+</style>

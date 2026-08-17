@@ -1,0 +1,878 @@
+---
+import Base from '../layouts/Base.astro';
+import { monde } from '../lib/monde';
+---
+
+<Base titre="Atlas" description={`Carte interactive de ${monde.nom}`} pleinEcran>
+  <div class="scene">
+    <svg
+      id="carte"
+      viewBox={`0 0 ${monde.largeur} ${monde.hauteur}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="application"
+      aria-label={`Carte de ${monde.nom}`}
+    >
+      <defs id="defs-carte"></defs>
+      <g id="zoom">
+        <g id="couches"></g>
+        <g id="surbrillance"></g>
+        <g id="reperes"></g>
+      </g>
+    </svg>
+
+    <div id="progression" class="progression"><i></i></div>
+
+    <button id="bascule-rail" class="bascule-rail" aria-label="Afficher les réglages">☰</button>
+
+    <aside class="rail" id="rail">
+      <div class="rail__bloc">
+        <label class="etiquette" for="recherche">Rechercher</label>
+        <input
+          id="recherche"
+          type="search"
+          autocomplete="off"
+          placeholder="Ville, royaume, lieu…"
+          aria-describedby="aide-recherche"
+        />
+        <p id="aide-recherche" class="aide">Touche <kbd>/</kbd> pour chercher, <kbd>Échap</kbd> pour fermer.</p>
+        <ul id="resultats" class="resultats" role="listbox" aria-label="Résultats"></ul>
+      </div>
+
+      <div class="rail__bloc">
+        <p class="etiquette">Couches</p>
+        <div id="couches-controles" class="controles"></div>
+      </div>
+
+      <div class="rail__bloc">
+        <p class="etiquette">Lieux remarquables</p>
+        <label class="controle">
+          <input type="checkbox" id="afficher-reperes" checked />
+          <span>Afficher les 532 marqueurs</span>
+        </label>
+        <select id="filtre-categorie" class="select" aria-label="Filtrer par catégorie">
+          <option value="">Toutes les catégories</option>
+        </select>
+      </div>
+
+      <div class="rail__bloc">
+        <button id="reinit" class="bouton" type="button">Recadrer la vue</button>
+      </div>
+    </aside>
+
+    <aside class="panneau" id="panneau" hidden>
+      <button id="fermer-panneau" class="fermer" aria-label="Fermer">×</button>
+      <p class="etiquette" id="panneau-categorie"></p>
+      <h2 id="panneau-titre"></h2>
+      <dl class="panneau__faits" id="panneau-faits"></dl>
+      <div id="panneau-legende" class="panneau__legende"></div>
+      <a id="panneau-lien" class="bouton bouton--or" href="#">Ouvrir la fiche</a>
+    </aside>
+
+    <div class="jauge">
+      <div class="jauge__barre"><span id="jauge-trait"></span></div>
+      <span class="chiffre" id="jauge-texte">—</span>
+      <span class="jauge__zoom chiffre" id="jauge-zoom">×1</span>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .scene {
+    position: relative;
+    height: calc(100svh - 56px);
+    overflow: hidden;
+    background: #0a0c0f;
+  }
+
+  /* Vignettage discret : concentre l'œil au centre sans toucher au SVG. */
+  .scene::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+  }
+
+  #carte {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+    touch-action: none;
+  }
+  #carte.saisi {
+    cursor: grabbing;
+  }
+  /* Pendant l'interaction, on privilégie la fluidité à la finesse du tracé. */
+  #carte.saisi #zoom {
+    shape-rendering: optimizeSpeed;
+    text-rendering: optimizeSpeed;
+  }
+  #zoom {
+    will-change: transform;
+  }
+
+  #reperes text {
+    cursor: pointer;
+    text-anchor: middle;
+    dominant-baseline: central;
+    paint-order: stroke;
+    stroke: rgba(0, 0, 0, 0.55);
+    stroke-width: 0.25px;
+    transition: opacity 0.2s;
+  }
+
+  /* ------------------------------------------------------------ progression */
+
+  .progression {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: transparent;
+    pointer-events: none;
+  }
+  .progression i {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--or);
+    transition: width 0.3s ease-out, opacity 0.4s;
+  }
+
+  /* -------------------------------------------------------------------- rail */
+
+  .rail {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    width: 288px;
+    max-height: calc(100% - 2rem);
+    overflow-y: auto;
+    padding: 1.1rem;
+    background: color-mix(in srgb, var(--fond-2) 94%, transparent);
+    backdrop-filter: blur(14px);
+    border: 1px solid var(--bord);
+    border-radius: var(--rayon);
+    display: flex;
+    flex-direction: column;
+    gap: 1.35rem;
+  }
+
+  .rail__bloc {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  #recherche {
+    width: 100%;
+    padding: 0.55rem 0.7rem;
+    background: var(--fond);
+    border: 1px solid var(--bord-vif);
+    border-radius: var(--rayon);
+    color: var(--texte);
+    font: inherit;
+    font-size: 0.9375rem;
+  }
+  #recherche:focus {
+    outline: none;
+    border-color: var(--or-doux);
+  }
+
+  .aide {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--texte-faible);
+  }
+  kbd {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    border: 1px solid var(--bord-vif);
+    border-radius: 3px;
+    padding: 0 0.3em;
+  }
+
+  .resultats {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .resultats li button {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.4rem 0.5rem;
+    background: none;
+    border: 0;
+    border-radius: 2px;
+    color: var(--texte);
+    font: inherit;
+    font-size: 0.875rem;
+    text-align: left;
+    cursor: pointer;
+  }
+  .resultats li button:hover,
+  .resultats li button:focus-visible {
+    background: var(--surface-haute);
+    outline: none;
+  }
+  .resultats small {
+    color: var(--texte-faible);
+    font-size: 0.6875rem;
+    white-space: nowrap;
+  }
+
+  .controles {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+
+  .controle {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 0.875rem;
+    padding: 0.2rem 0;
+    cursor: pointer;
+    color: var(--texte-doux);
+  }
+  .controle:hover {
+    color: var(--texte);
+  }
+  .controle input {
+    accent-color: var(--or);
+    flex: none;
+  }
+  .controle .poids {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    color: var(--texte-faible);
+  }
+
+  .select {
+    width: 100%;
+    padding: 0.4rem 0.5rem;
+    background: var(--fond);
+    color: var(--texte);
+    border: 1px solid var(--bord-vif);
+    border-radius: var(--rayon);
+    font: inherit;
+    font-size: 0.8125rem;
+  }
+
+  .bascule-rail {
+    display: none;
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    z-index: 5;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--bord);
+    border-radius: var(--rayon);
+    background: var(--fond-2);
+    color: var(--texte);
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+
+  /* ---------------------------------------------------------------- panneau */
+
+  .panneau {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 320px;
+    max-height: calc(100% - 2rem);
+    overflow-y: auto;
+    padding: 1.25rem;
+    background: color-mix(in srgb, var(--fond-2) 96%, transparent);
+    backdrop-filter: blur(14px);
+    border: 1px solid var(--bord);
+    border-radius: var(--rayon);
+  }
+  .panneau[hidden] {
+    display: none;
+  }
+  .panneau h2 {
+    font-size: 1.5rem;
+    margin: 0.25rem 0 1rem;
+    padding-right: 1.5rem;
+  }
+  .fermer {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    background: none;
+    color: var(--texte-faible);
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .fermer:hover {
+    color: var(--texte);
+  }
+
+  .panneau__faits {
+    margin: 0 0 1rem;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.35rem 0.9rem;
+    font-size: 0.875rem;
+  }
+  .panneau__faits dt {
+    color: var(--texte-faible);
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    align-self: center;
+  }
+  .panneau__faits dd {
+    margin: 0;
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .panneau__legende {
+    font-size: 0.875rem;
+    color: var(--texte-doux);
+    margin-bottom: 1rem;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .panneau__legende:empty {
+    display: none;
+  }
+  .panneau__legende a {
+    color: var(--parchemin);
+  }
+
+  /* ------------------------------------------------------------------ jauge */
+
+  .jauge {
+    position: absolute;
+    left: 1rem;
+    bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.45rem 0.75rem;
+    background: color-mix(in srgb, var(--fond-2) 92%, transparent);
+    border: 1px solid var(--bord);
+    border-radius: var(--rayon);
+    font-size: 0.75rem;
+    color: var(--texte-doux);
+    pointer-events: none;
+  }
+  .jauge__barre {
+    width: 120px;
+    height: 8px;
+    border-left: 1px solid var(--texte-doux);
+    border-right: 1px solid var(--texte-doux);
+    border-bottom: 1px solid var(--texte-doux);
+    position: relative;
+  }
+  .jauge__barre span {
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 1px;
+  }
+  .jauge__zoom {
+    color: var(--texte-faible);
+  }
+
+  @media (max-width: 900px) {
+    .rail {
+      transform: translateX(calc(-100% - 1.5rem));
+      transition: transform 0.25s;
+      z-index: 6;
+    }
+    .rail.ouvert {
+      transform: none;
+    }
+    .bascule-rail {
+      display: block;
+    }
+    .rail.ouvert + .panneau,
+    .panneau {
+      width: min(320px, calc(100vw - 2rem));
+    }
+  }
+</style>
+
+<script>
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.getElementById('carte');
+  const gZoom = document.getElementById('zoom');
+  const gCouches = document.getElementById('couches');
+  const gReperes = document.getElementById('reperes');
+  const gSurbrillance = document.getElementById('surbrillance');
+  const defs = document.getElementById('defs-carte');
+  const progression = document.querySelector('#progression i');
+
+  const serrer = (v, min, max) => Math.min(max, Math.max(min, v));
+  let dimensions = { largeur: 1920, hauteur: 919 };
+  let kmParPixel = 3;
+
+  /* ------------------------------------------------------------ vue et zoom */
+
+  const vue = { k: 1, x: 0, y: 0 };
+  const ZOOM_MIN = 0.85;
+  const ZOOM_MAX = 90;
+
+  /** Échelle appliquée par le navigateur entre le viewBox et les pixels écran. */
+  const echelleEcran = () => svg.getScreenCTM()?.a || 1;
+
+  function appliquer() {
+    const { largeur, hauteur } = dimensions;
+    // On empêche la carte de sortir complètement du champ.
+    const gardeX = Math.min(240, largeur * vue.k * 0.5);
+    const gardeY = Math.min(240, hauteur * vue.k * 0.5);
+    vue.x = serrer(vue.x, gardeX - largeur * vue.k, largeur - gardeX);
+    vue.y = serrer(vue.y, gardeY - hauteur * vue.k, hauteur - gardeY);
+
+    gZoom.setAttribute('transform', `translate(${vue.x} ${vue.y}) scale(${vue.k})`);
+    // Les marqueurs gardent une taille constante à l'écran.
+    gReperes.style.fontSize = `${5 / vue.k}px`;
+    gSurbrillance.style.strokeWidth = `${2 / vue.k}px`;
+    majJauge();
+  }
+
+  function zoomerVers(px, py, facteur) {
+    const k = serrer(vue.k * facteur, ZOOM_MIN, ZOOM_MAX);
+    vue.x = px - ((px - vue.x) / vue.k) * k;
+    vue.y = py - ((py - vue.y) / vue.k) * k;
+    vue.k = k;
+    appliquer();
+  }
+
+  /** Coordonnées du pointeur dans le repère du viewBox (avant transformation). */
+  function pointeur(ev) {
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return { x: 0, y: 0 };
+    const p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(ctm.inverse());
+    return { x: p.x, y: p.y };
+  }
+
+  let minuteurInteraction;
+  function marquerInteraction() {
+    svg.classList.add('saisi');
+    clearTimeout(minuteurInteraction);
+    minuteurInteraction = setTimeout(() => svg.classList.remove('saisi'), 220);
+  }
+
+  svg.addEventListener(
+    'wheel',
+    (ev) => {
+      ev.preventDefault();
+      const p = pointeur(ev);
+      marquerInteraction();
+      zoomerVers(p.x, p.y, Math.exp(-ev.deltaY * 0.0016));
+    },
+    { passive: false }
+  );
+
+  // Déplacement et pincement : un seul jeu de pointeurs pour souris et tactile.
+  const pointeurs = new Map();
+  let glisse = null;
+  let pincement = null;
+
+  svg.addEventListener('pointerdown', (ev) => {
+    if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+    // La capture échoue si le pointeur n'est plus actif : sans garde, le
+    // déplacement de la carte serait perdu au lieu d'être simplement moins fluide.
+    try {
+      svg.setPointerCapture(ev.pointerId);
+    } catch {}
+    pointeurs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+
+    if (pointeurs.size === 1) {
+      glisse = { sx: ev.clientX, sy: ev.clientY, vx: vue.x, vy: vue.y, bouge: false };
+      svg.classList.add('saisi');
+    } else if (pointeurs.size === 2) {
+      glisse = null;
+      const [a, b] = [...pointeurs.values()];
+      pincement = {
+        distance: Math.hypot(a.x - b.x, a.y - b.y),
+        milieu: pointeur({ clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2 }),
+        k: vue.k,
+      };
+    }
+  });
+
+  svg.addEventListener('pointermove', (ev) => {
+    if (!pointeurs.has(ev.pointerId)) return;
+    pointeurs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+
+    if (pincement && pointeurs.size === 2) {
+      const [a, b] = [...pointeurs.values()];
+      const distance = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pincement.distance > 0) {
+        const k = serrer((pincement.k * distance) / pincement.distance, ZOOM_MIN, ZOOM_MAX);
+        const m = pincement.milieu;
+        vue.x = m.x - ((m.x - vue.x) / vue.k) * k;
+        vue.y = m.y - ((m.y - vue.y) / vue.k) * k;
+        vue.k = k;
+        marquerInteraction();
+        appliquer();
+      }
+      return;
+    }
+
+    if (!glisse) return;
+    const s = echelleEcran();
+    const dx = ev.clientX - glisse.sx;
+    const dy = ev.clientY - glisse.sy;
+    if (Math.abs(dx) + Math.abs(dy) > 3) glisse.bouge = true;
+    vue.x = glisse.vx + dx / s;
+    vue.y = glisse.vy + dy / s;
+    appliquer();
+  });
+
+  function relacher(ev) {
+    pointeurs.delete(ev.pointerId);
+    if (pointeurs.size < 2) pincement = null;
+    if (pointeurs.size === 0) {
+      svg.classList.remove('saisi');
+      if (glisse && !glisse.bouge) traiterClic(ev);
+      glisse = null;
+    }
+  }
+  svg.addEventListener('pointerup', relacher);
+  svg.addEventListener('pointercancel', relacher);
+
+  svg.addEventListener('dblclick', (ev) => {
+    const p = pointeur(ev);
+    zoomerVers(p.x, p.y, 2);
+  });
+
+  /* ------------------------------------------------------------- chargement */
+
+  let manifeste = null;
+  let index = [];
+
+  async function fragment(url) {
+    const reponse = await fetch(url);
+    if (!reponse.ok) throw new Error(`${url} : ${reponse.status}`);
+    const texte = await reponse.text();
+    const doc = new DOMParser().parseFromString(texte, 'image/svg+xml');
+    if (doc.querySelector('parsererror')) throw new Error(`${url} : SVG illisible`);
+    return doc.documentElement.firstElementChild;
+  }
+
+  let chargees = 0;
+  let aCharger = 1;
+  function avancer() {
+    chargees++;
+    const pct = Math.min(100, Math.round((chargees / aCharger) * 100));
+    progression.style.width = `${pct}%`;
+    if (pct >= 100) setTimeout(() => (progression.style.opacity = '0'), 400);
+  }
+
+  async function chargerCouche(id) {
+    const hote = gCouches.querySelector(`[data-couche="${id}"]`);
+    if (!hote || hote.dataset.charge === 'oui') return;
+    hote.dataset.charge = 'encours';
+    try {
+      const noeud = await fragment(`/carte/couches/${id}.svg`);
+      if (noeud) hote.appendChild(document.importNode(noeud, true));
+      hote.dataset.charge = 'oui';
+    } catch (err) {
+      hote.dataset.charge = 'non';
+      console.error(err);
+    }
+  }
+
+  async function demarrer() {
+    manifeste = await (await fetch('/carte/manifeste.json')).json();
+    dimensions = { largeur: manifeste.largeur, hauteur: manifeste.hauteur };
+
+    const parDefaut = manifeste.couches.filter((c) => c.parDefaut);
+    aCharger = parDefaut.length + 1;
+
+    // Les définitions (tracés de côtes, symboles, filtres) conditionnent le
+    // rendu de presque toutes les couches : elles passent en premier.
+    const noeudDefs = await fragment('/carte/couches/_defs.svg');
+    if (noeudDefs) defs.appendChild(document.importNode(noeudDefs, true));
+    avancer();
+
+    // Emplacements créés dans l'ordre du manifeste pour figer la superposition,
+    // quel que soit l'ordre d'arrivée des téléchargements.
+    for (const c of manifeste.couches) {
+      const g = document.createElementNS(NS, 'g');
+      g.dataset.couche = c.id;
+      if (!c.parDefaut) g.style.display = 'none';
+      gCouches.appendChild(g);
+    }
+
+    construireControles();
+    await Promise.all(parDefaut.map((c) => chargerCouche(c.id).then(avancer)));
+
+    index = await (await fetch('/carte/index.json')).json();
+    construireReperes();
+    construireFiltreCategories();
+    appliquer();
+  }
+
+  /* --------------------------------------------------------------- couches */
+
+  function construireControles() {
+    const hote = document.getElementById('couches-controles');
+    hote.innerHTML = '';
+    for (const c of manifeste.couches) {
+      const label = document.createElement('label');
+      label.className = 'controle';
+      const poids = c.octets > 102400 ? `${Math.round(c.octets / 1024)} Ko` : '';
+      label.innerHTML =
+        `<input type="checkbox" data-couche="${c.id}"${c.parDefaut ? ' checked' : ''}>` +
+        `<span></span><span class="poids">${poids}</span>`;
+      label.querySelector('span').textContent = c.libelle;
+      label.querySelector('input').addEventListener('change', async (ev) => {
+        const actif = ev.target.checked;
+        const g = gCouches.querySelector(`[data-couche="${c.id}"]`);
+        if (actif) {
+          g.style.display = '';
+          await chargerCouche(c.id);
+        } else {
+          g.style.display = 'none';
+        }
+      });
+      hote.appendChild(label);
+    }
+  }
+
+  /* -------------------------------------------------------------- marqueurs */
+
+  function construireReperes() {
+    const lieux = index.filter((e) => e.t === 'lieu');
+    const morceaux = document.createDocumentFragment();
+    for (const l of lieux) {
+      const t = document.createElementNS(NS, 'text');
+      t.setAttribute('x', l.x);
+      t.setAttribute('y', l.y);
+      t.dataset.repere = `${l.t}:${l.i}`;
+      t.dataset.categorie = l.d;
+      t.textContent = l.ic || '•';
+      morceaux.appendChild(t);
+    }
+    gReperes.appendChild(morceaux);
+  }
+
+  function construireFiltreCategories() {
+    const select = document.getElementById('filtre-categorie');
+    const categories = [...new Set(index.filter((e) => e.t === 'lieu').map((e) => e.d))].sort((a, b) =>
+      a.localeCompare(b, 'fr')
+    );
+    for (const c of categories) {
+      const option = document.createElement('option');
+      option.value = c;
+      option.textContent = c;
+      select.appendChild(option);
+    }
+    select.addEventListener('change', () => {
+      const choix = select.value;
+      for (const t of gReperes.children) {
+        t.style.display = !choix || t.dataset.categorie === choix ? '' : 'none';
+      }
+    });
+  }
+
+  document.getElementById('afficher-reperes').addEventListener('change', (ev) => {
+    gReperes.style.display = ev.target.checked ? '' : 'none';
+  });
+
+  /* ---------------------------------------------------------------- sélection */
+
+  const panneau = document.getElementById('panneau');
+  const NOMBRE = new Intl.NumberFormat('fr-FR');
+  const URLS = {
+    burg: 'villes', etat: 'etats', province: 'provinces',
+    culture: 'cultures', religion: 'religions', lieu: 'lieux',
+  };
+
+  function traiterClic(ev) {
+    const repere = ev.target.closest?.('[data-repere]');
+    if (repere) {
+      const [t, i] = repere.dataset.repere.split(':');
+      return selectionner(index.find((e) => e.t === t && e.i === Number(i)));
+    }
+    const cible = ev.target.closest?.('[data-id], [id^="stateLabel"]');
+    if (!cible) return;
+
+    let entree = null;
+    if (cible.id?.startsWith('stateLabel')) {
+      const id = Number(cible.id.replace('stateLabel', ''));
+      entree = index.find((e) => e.t === 'etat' && e.i === id);
+    } else if (/^(burg|anchor|burgLabel)/.test(cible.id || '')) {
+      const id = Number(cible.dataset.id);
+      entree = index.find((e) => e.t === 'burg' && e.i === id);
+    }
+    if (entree) selectionner(entree);
+  }
+
+  function selectionner(entree) {
+    if (!entree) return;
+    document.getElementById('panneau-categorie').textContent = entree.d || '';
+    document.getElementById('panneau-titre').textContent = entree.n;
+
+    const faits = document.getElementById('panneau-faits');
+    faits.innerHTML = '';
+    const f = entree.f || {};
+    const ajouter = (cle, valeur) => {
+      if (valeur === undefined || valeur === null || valeur === '') return;
+      const dt = document.createElement('dt');
+      dt.textContent = cle;
+      const dd = document.createElement('dd');
+      dd.textContent = valeur;
+      faits.append(dt, dd);
+    };
+    if (f.pop) ajouter('Habitants', NOMBRE.format(f.pop));
+    ajouter('Royaume', f.etat);
+    ajouter('Province', f.prov);
+    if (f.port) ajouter('Port', 'oui');
+    if (f.burgs) ajouter('Villes', NOMBRE.format(f.burgs));
+    if (f.km2) ajouter('Superficie', `${NOMBRE.format(f.km2)} km²`);
+
+    const legende = document.getElementById('panneau-legende');
+    legende.innerHTML = '';
+    if (f.leg) {
+      const bloc = document.createElement('div');
+      bloc.innerHTML = f.leg; // déjà assaini à l'import (ni script, ni iframe)
+      legende.appendChild(bloc);
+    }
+
+    document.getElementById('panneau-lien').href = `/${URLS[entree.t]}/${entree.s}`;
+    panneau.hidden = false;
+    surligner(entree);
+  }
+
+  function surligner(entree) {
+    gSurbrillance.innerHTML = '';
+    if (entree.x === null || entree.y === null) return;
+    const cercle = document.createElementNS(NS, 'circle');
+    cercle.setAttribute('cx', entree.x);
+    cercle.setAttribute('cy', entree.y);
+    cercle.setAttribute('r', 7);
+    cercle.setAttribute('fill', 'none');
+    cercle.setAttribute('stroke', '#d4a537');
+    cercle.setAttribute('vector-effect', 'non-scaling-stroke');
+    cercle.setAttribute('stroke-width', '2');
+    gSurbrillance.appendChild(cercle);
+  }
+
+  document.getElementById('fermer-panneau').addEventListener('click', () => {
+    panneau.hidden = true;
+    gSurbrillance.innerHTML = '';
+  });
+
+  /* ---------------------------------------------------------------- recherche */
+
+  const champ = document.getElementById('recherche');
+  const resultats = document.getElementById('resultats');
+  const sansAccent = (s) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+
+  champ.addEventListener('input', () => {
+    const q = sansAccent(champ.value.trim());
+    resultats.innerHTML = '';
+    if (q.length < 2) return;
+
+    const trouves = index
+      .map((e) => {
+        const n = sansAccent(e.n);
+        const position = n.indexOf(q);
+        return position < 0 ? null : { e, score: position === 0 ? 0 : 1, position };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.score - b.score || a.position - b.position || a.e.n.localeCompare(b.e.n, 'fr'))
+      .slice(0, 12);
+
+    for (const { e } of trouves) {
+      const li = document.createElement('li');
+      const bouton = document.createElement('button');
+      bouton.type = 'button';
+      const nom = document.createElement('span');
+      nom.textContent = e.n;
+      const meta = document.createElement('small');
+      meta.textContent = e.d || '';
+      bouton.append(nom, meta);
+      bouton.addEventListener('click', () => {
+        volerVers(e);
+        selectionner(e);
+      });
+      li.appendChild(bouton);
+      resultats.appendChild(li);
+    }
+  });
+
+  function volerVers(entree) {
+    if (entree.x === null || entree.y === null) return;
+    vue.k = entree.t === 'etat' ? 3 : 12;
+    // On centre la cible dans le viewBox.
+    vue.x = dimensions.largeur / 2 - entree.x * vue.k;
+    vue.y = dimensions.hauteur / 2 - entree.y * vue.k;
+    appliquer();
+  }
+
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === '/' && document.activeElement !== champ) {
+      ev.preventDefault();
+      champ.focus();
+      document.getElementById('rail').classList.add('ouvert');
+    } else if (ev.key === 'Escape') {
+      panneau.hidden = true;
+      gSurbrillance.innerHTML = '';
+      resultats.innerHTML = '';
+      champ.blur();
+    }
+  });
+
+  /* -------------------------------------------------------------- commandes */
+
+  document.getElementById('reinit').addEventListener('click', () => {
+    vue.k = 1;
+    vue.x = 0;
+    vue.y = 0;
+    appliquer();
+  });
+
+  const bascule = document.getElementById('bascule-rail');
+  bascule.addEventListener('click', () => document.getElementById('rail').classList.toggle('ouvert'));
+
+  /* ------------------------------------------------------------------ jauge */
+
+  const jaugeTrait = document.getElementById('jauge-trait');
+  const jaugeTexte = document.getElementById('jauge-texte');
+  const jaugeZoom = document.getElementById('jauge-zoom');
+
+  function majJauge() {
+    const pixelsParUnite = echelleEcran() * vue.k;
+    if (!pixelsParUnite) return;
+    const kmVises = (120 / pixelsParUnite) * kmParPixel;
+    // Longueur ronde la plus proche : 1, 2 ou 5 fois une puissance de dix.
+    const ordre = Math.pow(10, Math.floor(Math.log10(kmVises)));
+    const km = [1, 2, 5, 10].map((m) => m * ordre).find((v) => v >= kmVises) ?? ordre * 10;
+    const largeur = (km / kmParPixel) * pixelsParUnite;
+    jaugeTrait.parentElement.style.width = `${Math.round(largeur)}px`;
+    jaugeTexte.textContent = km >= 1 ? `${NOMBRE.format(km)} km` : `${km} km`;
+    jaugeZoom.textContent = `×${vue.k < 10 ? vue.k.toFixed(1) : Math.round(vue.k)}`;
+  }
+
+  window.addEventListener('resize', appliquer);
+
+  demarrer().catch((err) => {
+    console.error(err);
+    progression.style.background = '#b4432f';
+    progression.style.width = '100%';
+  });
+</script>

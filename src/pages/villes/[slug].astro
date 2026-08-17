@@ -1,0 +1,128 @@
+---
+import Base from '../../layouts/Base.astro';
+import Faits from '../../components/Faits.astro';
+import Corps from '../../components/Corps.astro';
+import {
+  burgs, etatParId, provinceParId, cultureParId,
+  habitants, nombre, natureBurg, lien, monde, nomAffiche, estSansNom,
+} from '../../lib/monde';
+
+export function getStaticPaths() {
+  return burgs.map((ville) => ({ params: { slug: ville.slug }, props: { ville } }));
+}
+
+const { ville } = Astro.props;
+const etat = ville.etatId ? etatParId.get(ville.etatId) : undefined;
+const province = ville.provinceId ? provinceParId.get(ville.provinceId) : undefined;
+const culture = ville.cultureId ? cultureParId.get(ville.cultureId) : undefined;
+
+const equipements = [
+  ville.remparts && 'Remparts',
+  ville.citadelle && 'Citadelle',
+  ville.temple && 'Temple',
+  ville.place && 'Place de marché',
+  ville.bidonville && 'Faubourgs pauvres',
+  ville.port && 'Port',
+].filter(Boolean) as string[];
+
+const voisines = burgs
+  .filter((b) => b.id !== ville.id)
+  .map((b) => ({ b, d: Math.hypot(b.x - ville.x, b.y - ville.y) }))
+  .sort((a, b) => a.d - b.d)
+  .slice(0, 6);
+---
+
+<Base titre={nomAffiche(ville.nom)}>
+  <div class="contenant">
+    <header class="cartouche">
+      <div class="cartouche__sur">
+        {etat && <i class="pastille" style={`background:${etat.couleur}`}></i>}
+        <span class="etiquette">
+          {ville.capitale ? 'Capitale' : ville.categorie || 'Localité'}
+          {etat && ' · '}
+          {etat && <a href={lien('etat', etat.slug)}>{etat.nom}</a>}
+        </span>
+      </div>
+      <h1>{nomAffiche(ville.nom)}</h1>
+      {
+        estSansNom(ville.nom) && (
+          <p class="sans-nom discret">
+            Cette localité n'a pas encore de nom sur la carte. Nomme-la dans Azgaar, réexporte, et
+            elle apparaîtra ici.
+          </p>
+        )
+      }
+    </header>
+
+    <div class="pile" style="margin-top:2rem">
+      <Faits
+        faits={[
+          { cle: 'Habitants', valeur: nombre(ville.population) },
+          { cle: 'Royaume', valeur: etat?.nom, href: etat && lien('etat', etat.slug) },
+          { cle: 'Province', valeur: province?.nom, href: province && lien('province', province.slug) },
+          { cle: 'Culture', valeur: culture?.nom, href: culture && lien('culture', culture.slug) },
+          { cle: 'Vocation', valeur: natureBurg(ville.nature) },
+          { cle: 'Position', valeur: `${Math.round(ville.x)}, ${Math.round(ville.y)}` },
+        ]}
+      />
+
+      {
+        equipements.length > 0 && (
+          <p class="equipements">
+            <span class="etiquette">Ce qu'on y trouve</span>
+            {equipements.map((e) => <span class="jeton">{e}</span>)}
+          </p>
+        )
+      }
+
+      <p>
+        <a class="bouton" href={`/atlas#${ville.slug}`}>Situer sur l'atlas</a>
+      </p>
+
+      <Corps section="villes" slug={ville.slug} />
+
+      <section>
+        <h2 class="etiquette">Alentours</h2>
+        <div class="grille" style="margin-top:0.75rem">
+          {
+            voisines.map(({ b, d }) => (
+              <a class="carte" href={lien('burg', b.slug)}>
+                <span class="carte__titre">{nomAffiche(b.nom)}</span>
+                <span class="carte__meta">
+                  à {nombre(Math.round(d * monde.echelleKmParPixel))} km · {habitants(b.population)} hab.
+                </span>
+              </a>
+            ))
+          }
+        </div>
+      </section>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .equipements {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin: 0;
+  }
+  .equipements .etiquette {
+    margin-right: 0.25rem;
+  }
+  .sans-nom {
+    margin: 0.75rem 0 0;
+    font-size: 0.9375rem;
+    max-width: 60ch;
+  }
+  .jeton {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border: 1px solid var(--bord);
+    border-radius: 999px;
+    background: var(--fond-2);
+    font-size: 0.8125rem;
+    color: var(--texte-doux);
+  }
+</style>

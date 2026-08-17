@@ -1,0 +1,121 @@
+---
+import Base from '../../layouts/Base.astro';
+import { lieuxParCategorie, lieux, nombre, lien } from '../../lib/monde';
+
+const groupes = lieuxParCategorie();
+---
+
+<Base titre="Lieux" description="Donjons, ruines, champs de bataille et curiosités de la carte.">
+  <div class="contenant">
+    <header class="cartouche">
+      <p class="etiquette">{nombre(lieux.length)} lieux remarquables</p>
+      <h1>Lieux</h1>
+    </header>
+
+    <div class="filtres">
+      <input id="filtre-lieu" type="search" placeholder="Filtrer par nom…" autocomplete="off" aria-label="Filtrer par nom" />
+      <span class="compteur discret" id="compteur-lieux"></span>
+    </div>
+
+    <div class="pile" style="margin-top:1.5rem">
+      {
+        groupes.map((g) => (
+          <section class="groupe" data-groupe>
+            <h2 class="etiquette">
+              {g.categorie} <span class="discret">· {g.lieux.length}</span>
+            </h2>
+            <ul class="liste">
+              {g.lieux.map((l) => (
+                <li data-nom={l.nom.toLowerCase()}>
+                  <a href={lien('lieu', l.slug)}>
+                    <span class="icone">{l.icone}</span>
+                    {l.nom}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))
+      }
+    </div>
+  </div>
+</Base>
+
+<style>
+  .filtres {
+    margin: 1.75rem 0 0;
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+  .filtres input {
+    padding: 0.5rem 0.7rem;
+    min-width: 260px;
+    background: var(--fond-2);
+    border: 1px solid var(--bord-vif);
+    border-radius: var(--rayon);
+    color: var(--texte);
+    font: inherit;
+  }
+  .filtres input:focus {
+    outline: none;
+    border-color: var(--or-doux);
+  }
+  .compteur {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+  }
+  .groupe h2 {
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--bord);
+  }
+  .liste {
+    list-style: none;
+    margin: 0.9rem 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.15rem 1rem;
+  }
+  .liste a {
+    display: flex;
+    gap: 0.55rem;
+    align-items: baseline;
+    padding: 0.25rem 0;
+    text-decoration: none;
+    font-size: 0.9375rem;
+    color: var(--texte-doux);
+  }
+  .liste a:hover {
+    color: var(--texte);
+  }
+  .icone {
+    flex: none;
+  }
+</style>
+
+<script>
+  const champ = document.getElementById('filtre-lieu');
+  const compteur = document.getElementById('compteur-lieux');
+  const elements = [...document.querySelectorAll('.liste li')];
+  const groupes = [...document.querySelectorAll('[data-groupe]')];
+  const sansAccent = (s) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+  const cles = elements.map((li) => sansAccent(li.dataset.nom));
+
+  function filtrer() {
+    const q = sansAccent(champ.value.trim());
+    let visibles = 0;
+    elements.forEach((li, i) => {
+      const ok = !q || cles[i].includes(q);
+      li.hidden = !ok;
+      if (ok) visibles++;
+    });
+    // Une catégorie entièrement filtrée disparaît, pour ne pas laisser de titres orphelins.
+    for (const g of groupes) {
+      g.hidden = ![...g.querySelectorAll('li')].some((li) => !li.hidden);
+    }
+    compteur.textContent = q ? `${visibles} lieu${visibles > 1 ? 'x' : ''}` : '';
+  }
+
+  champ.addEventListener('input', filtrer);
+</script>

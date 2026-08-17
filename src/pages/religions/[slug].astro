@@ -1,0 +1,62 @@
+---
+import Base from '../../layouts/Base.astro';
+import Faits from '../../components/Faits.astro';
+import Corps from '../../components/Corps.astro';
+import {
+  religions, cultureParId, habitants, superficie, natureReligion, formeReligion, lien,
+} from '../../lib/monde';
+
+export function getStaticPaths() {
+  return religions.map((religion) => ({ params: { slug: religion.slug }, props: { religion } }));
+}
+
+const { religion } = Astro.props;
+const culture = religion.cultureId ? cultureParId.get(religion.cultureId) : undefined;
+const soeurs = religions.filter((r) => r.id !== religion.id && r.cultureId === religion.cultureId);
+---
+
+<Base titre={religion.nom}>
+  <div class="contenant">
+    <header class="cartouche">
+      <div class="cartouche__sur">
+        <i class="pastille" style={`background:${religion.couleur}`}></i>
+        <span class="etiquette">Religion · {natureReligion(religion.nature)}</span>
+      </div>
+      <h1>{religion.nom}</h1>
+    </header>
+
+    <div class="pile" style="margin-top:2rem">
+      <Faits
+        faits={[
+          { cle: 'Forme', valeur: formeReligion(religion.forme) },
+          { cle: 'Nature', valeur: natureReligion(religion.nature) },
+          { cle: 'Divinité', valeur: religion.divinite },
+          { cle: 'Culture d’origine', valeur: culture?.nom, href: culture && lien('culture', culture.slug) },
+          { cle: 'Fidèles', valeur: habitants(religion.fideles) },
+          { cle: 'Emprise', valeur: superficie(religion.superficieKm2) },
+        ]}
+      />
+
+      <Corps section="religions" slug={religion.slug} />
+
+      {
+        soeurs.length > 0 && (
+          <section>
+            <h2 class="etiquette">Nées de la même culture</h2>
+            <div class="grille" style="margin-top:0.75rem">
+              {soeurs.map((r) => (
+                <a class="carte" href={lien('religion', r.slug)}>
+                  <span class="carte__titre">
+                    <i class="pastille" style={`background:${r.couleur}`} />
+                    {r.nom}
+                  </span>
+                  <span class="carte__meta">{formeReligion(r.forme)}</span>
+                </a>
+              ))}
+            </div>
+          </section>
+        )
+      }
+    </div>
+  </div>
+</Base>

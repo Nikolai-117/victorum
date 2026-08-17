@@ -1,0 +1,79 @@
+[
+ {
+  "nom": "Labrian Crusade",
+  "debut": 921,
+  "fin": 927,
+  "attaquant": "Kingdom of Varenhold",
+  "defenseur": null,
+  "attaquantSlug": "varenhold",
+  "defenseurSlug": null,
+  "attaquantDisparu": false,
+  "defenseurDisparu": true
+ },
+ {
+  "nom": "Rotham War",
+  "debut": 1114,
+  "fin": 1121,
+  "attaquant": "Royaume de Levànzia",
+  "defenseur": null,
+  "attaquantSlug": "levanzia",
+  "defenseurSlug": null,
+  "attaquantDisparu": false,
+  "defenseurDisparu": true
+ },
+ {
+  "nom": "Treitavan War",
+  "debut": 1137,
+  "fin": 1142,
+  "attaquant": "Royaume de Levànzia",
+  "defenseur": null,
+  "attaquantSlug": "levanzia",
+  "defenseurSlug": null,
+  "attaquantDisparu": false,
+  "defenseurDisparu": true
+ },
+ {
+  "nom": "Rejasian Conflict",
+  "debut": 1296,
+  "fin": 1301,
+  "attaquant": "Royaume de Levànzia",
+  "defenseur": null,
+  "attaquantSlug": "levanzia",
+  "defenseurSlug": null,
+  "attaquantDisparu": false,
+  "defenseurDisparu": true
+ },
+ {
+  "nom": "Frohnweian Invasion",
+  "debut": 1296,
+  "fin": 1301,
+  "attaquant": "Kingdom of Varenhold",
+  "defenseur": null,
+  "attaquantSlug": "varenhold",
+  "defenseurSlug": null,
+  "attaquantDisparu": false,
+  "defenseurDisparu": true
+ },
+ {
+  "nom": "Rotham War",
+  "debut": 1296,
+  "fin": 1301,
+  "attaquant": "Kingdom of Varenhold",
+  "defenseur": null,
+  "attaquantSlug": "varenhold",
+  "defenseurSlug": null,
+  "attaquantDisparu": false,
+  "defenseurDisparu": true
+ },
+ {
+  "nom": "Griesburg War",
+  "debut": 1296,
+  "fin": 1301,
+  "attaquant": "Kingdom of Varenhold",
+  "defenseur": null,
+  "attaquantSlug": "varenhold",
+  "defenseurSlug": null,
+  "attaquantDisparu": false,
+  "defenseurDisparu": true
+ }
+]

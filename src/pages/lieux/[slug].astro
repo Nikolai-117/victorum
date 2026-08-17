@@ -1,0 +1,85 @@
+---
+import Base from '../../layouts/Base.astro';
+import Faits from '../../components/Faits.astro';
+import Corps from '../../components/Corps.astro';
+import { lieux, burgs, etatParId, nombre, habitants, lien, monde, nomAffiche,
+} from '../../lib/monde';
+
+export function getStaticPaths() {
+  return lieux.map((lieu) => ({ params: { slug: lieu.slug }, props: { lieu } }));
+}
+
+const { lieu } = Astro.props;
+
+const proches = burgs
+  .map((b) => ({ b, d: Math.hypot(b.x - lieu.x, b.y - lieu.y) }))
+  .sort((a, b) => a.d - b.d)
+  .slice(0, 4);
+const laPlusProche = proches[0];
+const etat = laPlusProche?.b.etatId ? etatParId.get(laPlusProche.b.etatId) : undefined;
+---
+
+<Base titre={lieu.nom}>
+  <div class="contenant">
+    <header class="cartouche">
+      <div class="cartouche__sur">
+        <span class="icone-titre">{lieu.icone}</span>
+        <span class="etiquette">{lieu.categorie}</span>
+      </div>
+      <h1>{lieu.nom}</h1>
+    </header>
+
+    <div class="pile" style="margin-top:2rem">
+      <Faits
+        faits={[
+          { cle: 'Nature', valeur: lieu.categorie },
+          {
+            cle: 'Ville la plus proche',
+            valeur: laPlusProche && `${nomAffiche(laPlusProche.b.nom)} (${nombre(Math.round(laPlusProche.d * monde.echelleKmParPixel))} km)`,
+            href: laPlusProche && lien('burg', laPlusProche.b.slug),
+          },
+          { cle: 'Contrée', valeur: etat?.nom, href: etat && lien('etat', etat.slug) },
+          { cle: 'Position', valeur: `${Math.round(lieu.x)}, ${Math.round(lieu.y)}` },
+        ]}
+      />
+
+      <p>
+        <a class="bouton" href={`/atlas#${lieu.slug}`}>Situer sur l'atlas</a>
+      </p>
+
+      <Corps section="lieux" slug={lieu.slug} />
+
+      {
+        lieu.legendeSource && (
+          <details class="legende-source">
+            <summary>Note d'origine de la carte (anglais, générée par Azgaar)</summary>
+            <div set:html={lieu.legendeSource} />
+          </details>
+        )
+      }
+
+      <section>
+        <h2 class="etiquette">Aux alentours</h2>
+        <div class="grille" style="margin-top:0.75rem">
+          {
+            proches.map(({ b, d }) => (
+              <a class="carte" href={lien('burg', b.slug)}>
+                <span class="carte__titre">{nomAffiche(b.nom)}</span>
+                <span class="carte__meta">
+                  à {nombre(Math.round(d * monde.echelleKmParPixel))} km · {habitants(b.population)} hab.
+                </span>
+              </a>
+            ))
+          }
+        </div>
+      </section>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .icone-titre {
+    font-size: 1.5rem;
+    line-height: 1;
+  }
+</style>
