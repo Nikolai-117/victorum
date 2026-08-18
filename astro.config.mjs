@@ -9,10 +9,9 @@ export default defineConfig({
    * doivent lire ce que Romain a enregistré depuis le site lui-même.
    */
   output: 'static',
-  adapter: cloudflare({
-    // Donne accès aux liaisons Cloudflare (dont le stockage) pendant `astro dev`.
-    platformProxy: { enabled: true },
-  }),
+  // Les liaisons Cloudflare ne sont pas simulées pendant `astro dev` : on
+  // vérifie le Worker avec `npx wrangler dev`, qui exécute le vrai runtime.
+  adapter: cloudflare(),
   trailingSlash: 'ignore',
   build: {
     // Un dossier par page (/atlas/index.html) : URLs propres sans configuration serveur.

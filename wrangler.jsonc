@@ -4,7 +4,6 @@
   // Le site est presque entièrement statique : ce Worker ne s'exécute que pour
   // les fiches et l'API d'enregistrement. Tout le reste est servi directement
   // depuis le cache de Cloudflare.
-  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "victorum",
   "main": "./dist/_worker.js/index.js",
   "compatibility_date": "2026-01-01",
