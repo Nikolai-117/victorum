@@ -7,7 +7,7 @@ const villes = [...burgs].sort((a, b) => b.population - a.population);
 const royaumes = [...etats].sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
 ---
 
-<Base titre="Villes" description="Toutes les localités recensées sur la carte.">
+<Base titre="Villes" description="Les villes des trois royaumes.">
   <div class="contenant">
     <header class="cartouche">
       <p class="etiquette">{nombre(villes.length)} localités</p>
@@ -18,7 +18,6 @@ const royaumes = [...etats].sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
       <input id="filtre-nom" type="search" placeholder="Filtrer par nom…" autocomplete="off" aria-label="Filtrer par nom" />
       <select id="filtre-royaume" aria-label="Filtrer par royaume">
         <option value="">Tous les royaumes</option>
-        <option value="0">Terres neutres</option>
         {royaumes.map((e) => <option value={e.id}>{e.nom}</option>)}
       </select>
       <span class="compteur discret" id="compteur"></span>
@@ -68,10 +67,10 @@ const royaumes = [...etats].sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
   .filtres input,
   .filtres select {
     padding: 0.5rem 0.7rem;
-    background: var(--fond-2);
-    border: 1px solid var(--bord-vif);
+    background: var(--encre-2);
+    border: 1px solid var(--trait-vif);
     border-radius: var(--rayon);
-    color: var(--texte);
+    color: var(--parchemin);
     font: inherit;
     font-size: 0.9375rem;
   }
@@ -81,7 +80,7 @@ const royaumes = [...etats].sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
   .filtres input:focus,
   .filtres select:focus {
     outline: none;
-    border-color: var(--or-doux);
+    border-color: var(--or-sourd);
   }
   .compteur {
     font-family: var(--mono);

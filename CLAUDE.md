@@ -35,6 +35,26 @@ Levànzia »).
 - **Aucune dépendance hors Astro.** Le pan/zoom, la recherche et les filtres sont
   écrits à la main, en JavaScript simple.
 
+## Le moteur de mise en page
+
+Une fiche est une suite de blocs décrite en JSON, pas un gabarit figé.
+
+- `src/lib/blocs.js` est le **seul** moteur de rendu, en JavaScript sans
+  dépendance. Astro l'utilise à la construction, l'éditeur le recharge tel quel
+  dans le navigateur. Ne jamais dupliquer cette logique côté client : ce que
+  Romain voit en composant doit être exactement ce qui est publié.
+- `src/lib/contexte.ts` transforme une entité en faits sérialisables
+  (`faits`, `chiffres`, `groupes`). Les gabarits de page ne décrivent plus de
+  mise en page ; ils appellent `contexteDe.<type>()` et rendent `<Fiche>`.
+- Un groupe se présente soit en `items` (vignettes, jauges), soit en
+  `colonnes`/`lignes` (tableaux riches : ordre de bataille, campagnes). La
+  disposition par défaut doit tester les deux — l'oubli des `lignes` avait fait
+  disparaître deux tableaux.
+- Les styles des blocs sont **globaux** (`src/styles/blocs.css`) : le HTML est
+  injecté par `set:html` et ne porte pas les attributs de portée d'Astro.
+- L'éditeur enregistre dans `localStorage`. Une disposition ne devient celle du
+  site qu'une fois versionnée dans `src/contenu/mises-en-page/`.
+
 ## Pièges de l'export Azgaar, tous rencontrés et corrigés
 
 Le format `.map` est un fichier à lignes indexées. `scripts/import-map.mjs` les
@@ -69,6 +89,13 @@ entre versions d'Azgaar.
    pas un bug à contourner en inventant un nom.
 
 ## Particularités de cette carte
+
+- **Seules les villes des trois royaumes sont retenues** (150 sur 451) : les
+  bourgs neutres d'Azgaar n'appartiennent à aucune nation. Le filtrage vaut
+  aussi pour le SVG, sans quoi la carte afficherait des pastilles sans fiche.
+- Le relief est écarté sur demande de Romain (3,3 Mo de pictogrammes).
+- Les blasons extraits n'ont pas de déclaration `xmlns` : elle était portée par
+  la carte qui les contenait. Sans elle, ils ne s'affichent pas en `<img>`.
 
 - 42 villes s'appellent littéralement `???` dans les données. `nomAffiche()`
   les présente comme « Sans nom » ; ne pas leur inventer de nom.

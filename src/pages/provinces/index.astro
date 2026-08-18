@@ -1,0 +1,67 @@
+---
+import Base from '../../layouts/Base.astro';
+import { provinces, etatParId, burgParId, villesDeLaProvince, habitants, nombre, superficie, nomAffiche, lien } from '../../lib/monde';
+
+const liste = [...provinces].sort(
+  (a, b) => (a.etatId ?? 0) - (b.etatId ?? 0) || b.population - a.population
+);
+---
+
+<Base titre="Provinces" description="Les provinces des trois royaumes.">
+  <div class="contenant">
+    <header class="cartouche">
+      <p class="etiquette">{liste.length} provinces</p>
+      <h1>Provinces</h1>
+    </header>
+
+    <div class="defilable" style="margin-top:2rem">
+      <table class="tableau">
+        <thead>
+          <tr>
+            <th>Province</th>
+            <th>Royaume</th>
+            <th>Chef-lieu</th>
+            <th class="num">Villes</th>
+            <th class="num">Habitants</th>
+            <th class="num">Superficie</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            liste.map((p) => {
+              const etat = p.etatId ? etatParId.get(p.etatId) : undefined;
+              const capitale = p.capitaleId ? burgParId.get(p.capitaleId) : undefined;
+              return (
+                <tr>
+                  <td>
+                    <i class="pastille" style={`background:${p.couleur}`} />
+                    <a href={lien('province', p.slug)}>{p.nom}</a>
+                  </td>
+                  <td>{etat ? <a href={lien('etat', etat.slug)}>{etat.nom}</a> : <span class="discret">—</span>}</td>
+                  <td>
+                    {capitale ? (
+                      <a href={lien('burg', capitale.slug)}>{nomAffiche(capitale.nom)}</a>
+                    ) : (
+                      <span class="discret">—</span>
+                    )}
+                  </td>
+                  <td class="num">{nombre(villesDeLaProvince(p.id).length)}</td>
+                  <td class="num">{habitants(p.population)}</td>
+                  <td class="num">{superficie(p.superficieKm2)}</td>
+                </tr>
+              );
+            })
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .pastille {
+    display: inline-block;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+  }
+</style>

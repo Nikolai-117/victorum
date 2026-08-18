@@ -282,8 +282,12 @@ const religions = slugsUniques(
 );
 
 // — Burgs. On jette production/trade/coa : des centaines de Ko sans usage éditorial.
+//
+// Seules les villes rattachées à l'un des royaumes vivants sont retenues : les
+// centaines de bourgs neutres générés par Azgaar n'appartiennent à aucune nation
+// du monde de Victorum et noieraient le wiki sous des fiches sans objet.
 const burgs = slugsUniques(
-  (trouve.burgs || []).filter(vivant).map((b) => ({
+  (trouve.burgs || []).filter((b) => vivant(b) && etatsVivants.has(b.state)).map((b) => ({
     id: b.i,
     type: 'burg',
     nom: String(b.name).trim(),
@@ -432,6 +436,58 @@ function contientDuDessin(fragment) {
 }
 
 /**
+ * Aperçu de la carte, servi comme fond du bloc « Situation » des fiches.
+ *
+ * On ne réutilise pas les couches de l'atlas : elles pèsent trop lourd pour une
+ * vignette et dépendent d'un mégaoctet de définitions. On recompose donc une
+ * carte muette et autonome — mer, littoral, royaumes, frontières — dont les
+ * tracés se suffisent à eux-mêmes. Les renvois à des filtres ou des masques
+ * sont retirés, sans quoi le fichier ne s'afficherait pas seul.
+ */
+function composerApercu(fragments, largeur, hauteur) {
+  const autonome = (svg) =>
+    (svg || '')
+      .replace(/\s(?:filter|mask|clip-path)="[^"]*"/g, '')
+      .replace(/\sfilter:\s*url\([^)]*\);?/g, '');
+
+  const couches = ['coastline', 'lakes', 'regions', 'borders']
+    .map((id) => autonome(fragments.get(id)))
+    .filter(Boolean)
+    .join('\n');
+
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${largeur} ${hauteur}">\n` +
+    `<rect width="${largeur}" height="${hauteur}" fill="#22384f"/>\n` +
+    couches +
+    `\n</svg>\n`
+  );
+}
+
+/**
+ * Le SVG d'Azgaar dessine les 451 bourgs de la carte, y compris ceux qu'on
+ * vient d'écarter des données. Sans ce nettoyage, la carte afficherait des
+ * pastilles et des noms qui ne mènent à aucune fiche.
+ */
+function retirerVillesEcartees(fragment, idsRetenus) {
+  let retires = 0;
+  const garder = (id) => idsRetenus.has(Number(id));
+
+  // Pastilles de villes et ancres de ports : éléments auto-fermants.
+  let sortie = fragment.replace(/<use\b[^>]*?\bid="(?:burg|anchor)(\d+)"[^>]*?\/>/g, (tout, id) => {
+    if (garder(id)) return tout;
+    retires++;
+    return '';
+  });
+
+  // Étiquettes de villes : élément texte avec son contenu.
+  sortie = sortie.replace(/<text\b[^>]*?\bid="burgLabel(\d+)"[\s\S]*?<\/text>/g, (tout, id) =>
+    garder(id) ? tout : ''
+  );
+
+  return { fragment: sortie, retires };
+}
+
+/**
  * Azgaar conserve `display:none` sur les couches que l'auteur avait masquées
  * au moment de la sauvegarde. Ici, c'est l'interface du site qui décide de ce
  * qui s'affiche : on retire ce verrou du groupe racine, sinon la case à cocher
@@ -507,8 +563,14 @@ if (iEmblemes >= 0) {
   const bloc = elementComplet(defs, iEmblemes, 'g');
   for (const m of bloc.matchAll(/<svg\b[^>]*?\bid="(state|province)COA(\d+)"/g)) {
     const contenu = elementComplet(bloc, m.index, 'svg');
+    // Extrait d'une carte qui portait la déclaration de namespace, ce SVG en
+    // est dépourvu. Chargé seul dans une balise <img>, il serait rejeté.
+    const autonome = contenu.replace(
+      /^<svg/,
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"'
+    );
     const nom = `${m[1] === 'state' ? 'etat' : 'province'}-${m[2]}.svg`;
-    fs.writeFileSync(path.join(SORTIE_BLASONS, nom), contenu);
+    fs.writeFileSync(path.join(SORTIE_BLASONS, nom), autonome);
     blasons.set(`${m[1]}-${m[2]}`, `/carte/blasons/${nom}`);
   }
   defs = defs.slice(0, iEmblemes) + defs.slice(iEmblemes + bloc.length);
@@ -537,6 +599,9 @@ const COUCHES_EXCLUES = new Set([
   // dépourvu de transformation et le symbole s'étale alors sur 56 000 pixels.
   // Elle réapparaîtra ici dès qu'elle sera placée sur la carte d'origine.
   'compass',
+  // Relief écarté sur demande de Romain : les 42 000 pictogrammes de montagnes
+  // pesaient 3,3 Mo et chargeaient la carte au détriment de sa lisibilité.
+  'terrain',
 ]);
 
 /** Couches affichées d'emblée : de quoi lire la carte sans la surcharger. */
@@ -571,14 +636,23 @@ const tailleDefs = ecrireFragment('_defs', defs);
 const couches = [];
 const ignorees = [];
 const demasquees = [];
+const idsVillesRetenues = new Set(burgs.map((b) => b.id));
+const fragmentsRetenus = new Map();
+let villesRetireesDeLaCarte = 0;
 for (const c of couchesBrutes) {
   if (COUCHES_EXCLUES.has(c.id)) continue;
   if (!contientDuDessin(c.contenu)) {
     ignorees.push(c.id);
     continue;
   }
-  const { fragment, masquee } = rendreVisible(c.contenu);
+  let { fragment, masquee } = rendreVisible(c.contenu);
   if (masquee) demasquees.push(c.id);
+  if (c.id === 'icons' || c.id === 'labels') {
+    const nettoyage = retirerVillesEcartees(fragment, idsVillesRetenues);
+    fragment = nettoyage.fragment;
+    villesRetireesDeLaCarte += nettoyage.retires;
+  }
+  fragmentsRetenus.set(c.id, fragment);
   couches.push({
     id: c.id,
     libelle: LIBELLES_COUCHES[c.id] || c.id,
@@ -587,6 +661,9 @@ for (const c of couchesBrutes) {
     parDefaut: PAR_DEFAUT.has(c.id),
   });
 }
+
+const apercu = composerApercu(fragmentsRetenus, monde.largeur, monde.hauteur);
+fs.writeFileSync(path.join(SORTIE_CARTE, 'apercu.svg'), apercu);
 
 fs.writeFileSync(
   path.join(SORTIE_CARTE, 'manifeste.json'),
@@ -664,6 +741,7 @@ for (const c of [...couches].sort((a, b) => b.octets - a.octets)) {
 }
 if (ignorees.length) console.log(`\n  Couches vides dans l'export, ignorées : ${ignorees.join(', ')}`);
 if (demasquees.length) console.log(`  Couches masquées dans Azgaar, rendues pilotables : ${demasquees.join(', ')}`);
+console.log(`  Villes hors des trois royaumes effacées de la carte : ${villesRetireesDeLaCarte}`);
 
 const inconnus = [...new Set(marqueurs.map((m) => m.categorieBrute))].filter((t) => !LIBELLES_MARQUEURS[t]);
 if (inconnus.length) console.log(`\n  Types de marqueurs sans libellé français : ${inconnus.join(', ')}`);

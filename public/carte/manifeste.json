@@ -32,66 +32,59 @@
       "parDefaut": true
     },
     {
-      "id": "terrain",
-      "libelle": "Reliefs",
-      "ordre": 4,
-      "octets": 3348442,
-      "parDefaut": true
-    },
-    {
       "id": "regions",
       "libelle": "États",
-      "ordre": 5,
+      "ordre": 4,
       "octets": 54172,
       "parDefaut": true
     },
     {
       "id": "borders",
       "libelle": "Frontières",
-      "ordre": 6,
+      "ordre": 5,
       "octets": 8158,
       "parDefaut": true
     },
     {
       "id": "routes",
       "libelle": "Routes",
-      "ordre": 7,
+      "ordre": 6,
       "octets": 279640,
       "parDefaut": true
     },
     {
       "id": "coastline",
       "libelle": "Littoral",
-      "ordre": 8,
+      "ordre": 7,
       "octets": 5530,
       "parDefaut": true
     },
     {
       "id": "ice",
       "libelle": "Glaces",
-      "ordre": 9,
+      "ordre": 8,
       "octets": 6786,
       "parDefaut": true
     },
     {
       "id": "prec",
       "libelle": "Vents",
-      "ordre": 10,
+      "ordre": 9,
       "octets": 522,
       "parDefaut": false
     },
     {
       "id": "labels",
       "libelle": "Noms",
-      "ordre": 11,
-      "octets": 64699,
+      "ordre": 10,
+      "octets": 23741,
       "parDefaut": true
     },
     {
       "id": "icons",
       "libelle": "Villes",
-      "ordre": 12,
-      "octets": 44574,
+      "ordre": 11,
+      "octets": 18226,
       "parDefaut": true
     }
   ]

@@ -38,6 +38,25 @@ Les sections disponibles : `etats`, `provinces`, `villes`, `lieux`, `cultures`,
 `religions`, et `articles` pour les pages libres. `articles/accueil.md` remplit
 l'introduction de la page d'accueil, `articles/chronologie.md` celle de la frise.
 
+## Composer une page
+
+Chaque fiche s'ouvre avec une disposition déduite de ses faits. Pour la
+singulariser, le bouton **Mettre en page**, en bas à droite de la fiche :
+
+- **+ Bloc** ouvre le catalogue, rangé par famille (en-tête, identité, chiffres,
+  textes, relations, visuels, mise en forme).
+- Chaque bloc se déplace à la poignée ⣿ ou aux flèches, change de largeur
+  (pleine, 2/3, 1/2, 1/3), se duplique, se règle (⚙) et se supprime.
+- **Modèles** applique une disposition entière : Récit, Dossier, Vitrine.
+
+Le travail est gardé dans ton navigateur au fur et à mesure. Pour qu'il devienne
+la version publiée du site, clique **Exporter** : le JSON est copié dans le
+presse-papiers et téléchargé. Colle-le-moi et je l'enregistre dans
+`src/contenu/mises-en-page/<section>/<slug>.json`.
+
+Les illustrations se déposent dans `public/illustrations/` ; le bloc
+Illustration attend alors un chemin comme `/illustrations/mon-image.jpg`.
+
 ## Mettre à jour la carte
 
 1. Dans Azgaar, sauvegarde ta carte (`.map`).

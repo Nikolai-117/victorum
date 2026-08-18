@@ -1,36 +1,45 @@
 /* =========================================================================
    Victorum — système visuel
-   Un fond sombre et neutre pour que la carte, elle, reste éclatante.
+   -------------------------------------------------------------------------
+   Parti pris : un grand atlas relié, consulté à la lueur d'une lampe.
+   Noirs chauds plutôt que bleutés, parchemin plutôt que blanc, filets d'or
+   plutôt que bordures franches. Les capitales espacées et les chiffres
+   tabulaires donnent la densité d'instrument ; les serifs donnent l'âme.
    ========================================================================= */
 
+@import './polices.css';
+@import './blocs.css';
+
 :root {
-  /* Surfaces, du plus profond au plus clair */
-  --fond: #0b0d10;
-  --fond-2: #111419;
-  --surface: #171b21;
-  --surface-haute: #1d222a;
-  --bord: #262c36;
-  --bord-vif: #39414e;
+  /* Surfaces : de l'obscurité de la pièce au cuir de la reliure */
+  --encre: #0c0b09;
+  --encre-2: #121010;
+  --velin: #191614;
+  --velin-haut: #221d19;
+  --trait: #2e2822;
+  --trait-vif: #473d32;
 
-  /* Texte */
-  --texte: #e8e4dc;
-  --texte-doux: #a7adb8;
-  --texte-faible: #737a86;
+  /* Encres */
+  --parchemin: #e9dfcb;
+  --parchemin-doux: #b2a48c;
+  --parchemin-faible: #7c7162;
 
-  /* Accents : l'or des capitales sur la carte d'Azgaar */
-  --or: #d4a537;
-  --or-doux: #8a6d24;
-  --parchemin: #d9cbb0;
+  /* Accents : la feuille d'or des capitales, le sang des guerres */
+  --or: #c9a227;
+  --or-clair: #e2c257;
+  --or-sourd: #7e6620;
+  --sang: #9a4034;
+  --verdet: #55786a;
 
   /* Typographie */
-  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, ui-serif, serif;
-  --sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --mono: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  --display: 'Almendra SC', 'Iowan Old Style', Georgia, serif;
+  --texte-police: 'EB Garamond', 'Iowan Old Style', Georgia, serif;
+  --mono: ui-monospace, 'Cascadia Mono', Consolas, 'Liberation Mono', monospace;
 
   /* Rythme */
-  --gouttiere: 1.5rem;
-  --largeur-texte: 68ch;
-  --rayon: 3px;
+  --gouttiere: 1.6rem;
+  --mesure: 64ch;
+  --rayon: 2px;
 }
 
 *,
@@ -41,64 +50,88 @@
 
 html {
   color-scheme: dark;
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
-  background: var(--fond);
-  color: var(--texte);
-  font-family: var(--sans);
-  font-size: 16px;
-  line-height: 1.6;
+  min-height: 100svh;
+  background: var(--encre);
+  color: var(--parchemin);
+  font-family: var(--texte-police);
+  font-size: 19px;
+  line-height: 1.65;
+  font-feature-settings: 'kern' 1, 'liga' 1;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Grain de papier et lueur de lampe : deux voiles fixes, sans coût de rendu.
+   Le grain est un bruit SVG en donnée intégrée — aucun fichier à charger. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23b)'/%3E%3C/svg%3E");
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 120% 70% at 50% -10%, rgba(201, 162, 39, 0.07), transparent 60%);
+}
+
+body > * {
+  position: relative;
+  z-index: 1;
 }
 
 a {
   color: inherit;
-  text-decoration-color: var(--bord-vif);
-  text-underline-offset: 3px;
+  text-decoration: none;
+  background-image: linear-gradient(var(--or-sourd), var(--or-sourd));
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 100% 1px;
+  transition: background-size 0.2s, color 0.2s;
 }
 a:hover {
-  text-decoration-color: var(--or);
+  color: var(--or-clair);
+  background-image: linear-gradient(var(--or), var(--or));
 }
 
 h1,
 h2,
 h3,
 h4 {
-  font-family: var(--serif);
-  font-weight: 600;
-  line-height: 1.15;
+  font-family: var(--display);
+  font-weight: 400;
+  line-height: 1.1;
   margin: 0;
   text-wrap: balance;
+  letter-spacing: 0.01em;
 }
 
-hr {
-  border: 0;
-  border-top: 1px solid var(--bord);
-  margin: 2rem 0;
+::selection {
+  background: var(--or-sourd);
+  color: var(--parchemin);
+}
+
+:focus-visible {
+  outline: 1px solid var(--or);
+  outline-offset: 3px;
 }
 
 /* --------------------------------------------------------------- utilitaires */
 
-/** Petite capitale espacée : l'étiquette de section, omniprésente dans l'interface. */
-.etiquette {
-  font-family: var(--sans);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--texte-faible);
-}
-
-.chiffre {
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum";
-}
-
 .contenant {
-  width: min(100% - 2.5rem, 1180px);
+  width: min(100% - 2.5rem, 1200px);
   margin-inline: auto;
 }
 
@@ -107,7 +140,88 @@ hr {
 }
 
 .discret {
-  color: var(--texte-doux);
+  color: var(--parchemin-doux);
+}
+
+.chiffre {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/** L'étiquette de section : petite capitale espacée, omniprésente. */
+.etiquette {
+  font-family: var(--display);
+  font-size: 0.8125rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--parchemin-faible);
+  margin: 0;
+}
+
+/** Étiquette prolongée d'un filet, pour ouvrir une section. */
+.etiquette--filet {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: var(--or);
+}
+.etiquette--filet::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, var(--trait-vif), transparent);
+}
+
+/** Coins d'instrument : deux angles tracés, comme une mire de carte. */
+.cadre {
+  position: relative;
+}
+.cadre::before,
+.cadre::after {
+  content: '';
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--or-sourd);
+  pointer-events: none;
+}
+.cadre::before {
+  top: -1px;
+  left: -1px;
+  border-right: 0;
+  border-bottom: 0;
+}
+.cadre::after {
+  right: -1px;
+  bottom: -1px;
+  border-left: 0;
+  border-top: 0;
+}
+
+/** Séparateur orné, plutôt qu'un trait nu. */
+.ornement {
+  border: 0;
+  margin: 3rem auto;
+  width: 100%;
+  height: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  color: var(--trait-vif);
+}
+.ornement::before,
+.ornement::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: currentColor;
+}
+.ornement span {
+  font-family: var(--display);
+  color: var(--or-sourd);
+  font-size: 0.85rem;
+  letter-spacing: 0.3em;
 }
 
 /* --------------------------------------------------------------------- entête */
@@ -116,25 +230,30 @@ hr {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: color-mix(in srgb, var(--fond) 88%, transparent);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--bord);
+  background: color-mix(in srgb, var(--encre) 90%, transparent);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--trait);
 }
 
 .entete__interne {
   display: flex;
   align-items: center;
   gap: 2rem;
-  height: 56px;
+  min-height: 60px;
+  flex-wrap: wrap;
 }
 
 .marque {
-  font-family: var(--serif);
-  font-size: 1.0625rem;
-  letter-spacing: 0.06em;
+  font-family: var(--display);
+  font-size: 1.25rem;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  text-decoration: none;
+  background: none;
   white-space: nowrap;
+  color: var(--parchemin);
+}
+.marque:hover {
+  color: var(--or-clair);
 }
 .marque span {
   color: var(--or);
@@ -142,36 +261,37 @@ hr {
 
 .nav {
   display: flex;
-  gap: 1.5rem;
+  gap: 1.6rem;
   margin-left: auto;
   flex-wrap: wrap;
 }
 
 .nav a {
+  font-family: var(--display);
   font-size: 0.8125rem;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--texte-doux);
-  text-decoration: none;
-  padding: 2px 0;
+  color: var(--parchemin-doux);
+  background: none;
+  padding: 3px 0;
   border-bottom: 1px solid transparent;
 }
 .nav a:hover {
-  color: var(--texte);
+  color: var(--parchemin);
 }
-.nav a[aria-current="page"] {
-  color: var(--texte);
-  border-bottom-color: var(--or);
+.nav a[aria-current='page'] {
+  color: var(--or);
+  border-bottom-color: var(--or-sourd);
 }
 
 /* ---------------------------------------------------------------- pied de page */
 
 .pied {
-  margin-top: 5rem;
-  border-top: 1px solid var(--bord);
-  padding: 2rem 0 3rem;
-  font-size: 0.8125rem;
-  color: var(--texte-faible);
+  margin-top: 6rem;
+  border-top: 1px solid var(--trait);
+  padding: 2rem 0 3.5rem;
+  font-size: 0.9375rem;
+  color: var(--parchemin-faible);
   display: flex;
   gap: 1.5rem;
   flex-wrap: wrap;
@@ -180,103 +300,112 @@ hr {
 
 /* ------------------------------------------------------------------- cartouche */
 
-/** En-tête de fiche : titre, sous-titre, faits chiffrés. */
+/** En-tête de fiche. */
 .cartouche {
-  padding: 2.5rem 0 1.75rem;
-  border-bottom: 1px solid var(--bord);
+  padding: 3.5rem 0 2rem;
+  border-bottom: 1px solid var(--trait);
+  position: relative;
+}
+.cartouche::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 90px;
+  height: 1px;
+  background: var(--or);
 }
 
 .cartouche h1 {
-  font-size: clamp(2rem, 5vw, 3rem);
+  font-size: clamp(2.4rem, 5.5vw, 4rem);
+  letter-spacing: 0.02em;
 }
 
 .cartouche__sur {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  margin-bottom: 0.75rem;
+  gap: 0.7rem;
+  margin-bottom: 0.9rem;
+  flex-wrap: wrap;
 }
 
 .pastille {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   flex: none;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18) inset;
+  box-shadow: 0 0 0 1px rgba(233, 223, 203, 0.25) inset, 0 0 8px currentColor;
 }
 
 /* ----------------------------------------------------------------------- faits */
 
+/** Registre de faits : lu comme un livre de comptes. */
 .faits {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1px;
-  background: var(--bord);
-  border: 1px solid var(--bord);
-  border-radius: var(--rayon);
-  overflow: hidden;
+  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+  gap: 0;
+  border: 1px solid var(--trait);
+  background: var(--encre-2);
 }
 
 .fait {
-  background: var(--fond-2);
-  padding: 0.85rem 1rem;
+  padding: 1rem 1.15rem;
   min-width: 0;
+  border-right: 1px solid var(--trait);
+  border-bottom: 1px solid var(--trait);
 }
 
 .fait dt {
-  font-size: 0.625rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
+  font-family: var(--display);
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--texte-faible);
+  color: var(--parchemin-faible);
 }
 
 .fait dd {
-  margin: 0.3rem 0 0;
-  font-size: 1.0625rem;
-  font-family: var(--mono);
+  margin: 0.35rem 0 0;
+  font-size: 1.15rem;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
-}
-.fait dd a {
-  font-family: var(--sans);
+  color: var(--parchemin);
 }
 
 /* ---------------------------------------------------------------------- cartes */
 
 .grille {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 1rem;
 }
 
 .carte {
   display: block;
-  padding: 1rem 1.1rem;
-  background: var(--fond-2);
-  border: 1px solid var(--bord);
-  border-radius: var(--rayon);
-  text-decoration: none;
-  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+  padding: 1.1rem 1.2rem;
+  background: var(--encre-2);
+  border: 1px solid var(--trait);
+  transition: border-color 0.2s, background 0.2s, transform 0.2s;
 }
 .carte:hover {
-  border-color: var(--bord-vif);
-  background: var(--surface);
-  transform: translateY(-1px);
+  border-color: var(--or-sourd);
+  background: var(--velin);
+  transform: translateY(-2px);
 }
 
 .carte__titre {
-  font-family: var(--serif);
-  font-size: 1.15rem;
+  font-family: var(--display);
+  font-size: 1.2rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.55rem;
+  color: var(--parchemin);
 }
 
 .carte__meta {
-  margin-top: 0.3rem;
-  font-size: 0.8125rem;
-  color: var(--texte-faible);
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.9375rem;
+  color: var(--parchemin-faible);
 }
 
 /* --------------------------------------------------------------------- tableau */
@@ -284,29 +413,28 @@ hr {
 .tableau {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9375rem;
+  font-size: 1rem;
 }
 .tableau th {
   text-align: left;
-  font-size: 0.625rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
+  font-family: var(--display);
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--texte-faible);
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid var(--bord);
+  color: var(--parchemin-faible);
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--trait-vif);
   white-space: nowrap;
 }
 .tableau td {
-  padding: 0.55rem 0.75rem;
-  border-bottom: 1px solid var(--bord);
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--trait);
 }
 .tableau tbody tr:hover {
-  background: var(--fond-2);
+  background: var(--encre-2);
 }
 .tableau .num {
   text-align: right;
-  font-family: var(--mono);
   font-variant-numeric: tabular-nums;
 }
 .defilable {
@@ -317,102 +445,118 @@ hr {
 /* --------------------------------------------------------------------- prose */
 
 .prose {
-  max-width: var(--largeur-texte);
-  font-size: 1.0625rem;
+  max-width: var(--mesure);
+  font-size: 1.125rem;
   line-height: 1.75;
+  color: #ddd2bd;
 }
-.prose h2 {
-  font-size: 1.6rem;
-  margin: 2.5rem 0 0.75rem;
+.prose > h2 {
+  font-size: 1.9rem;
+  margin: 2.75rem 0 0.9rem;
+  color: var(--parchemin);
 }
-.prose h3 {
-  font-size: 1.25rem;
-  margin: 2rem 0 0.5rem;
+.prose > h3 {
+  font-family: var(--texte-police);
+  font-weight: 600;
+  font-size: 1.3rem;
+  margin: 2.2rem 0 0.6rem;
+  color: var(--parchemin);
 }
 .prose p,
 .prose ul,
 .prose ol,
 .prose blockquote {
-  margin: 0 0 1.1rem;
+  margin: 0 0 1.2rem;
 }
+
+/** Lettrine sur l'entrée en matière : la marque d'un texte qu'on a soigné. */
+.prose > p:first-of-type::first-letter {
+  float: left;
+  font-family: var(--display);
+  font-size: 3.6em;
+  line-height: 0.82;
+  padding: 0.06em 0.14em 0 0;
+  color: var(--or);
+}
+
 .prose blockquote {
-  border-left: 2px solid var(--or-doux);
-  padding-left: 1.1rem;
-  color: var(--texte-doux);
+  border-left: 2px solid var(--or-sourd);
+  padding-left: 1.3rem;
+  color: var(--parchemin-doux);
   font-style: italic;
 }
 .prose code {
   font-family: var(--mono);
-  font-size: 0.9em;
-  background: var(--surface);
-  padding: 0.1em 0.35em;
-  border-radius: 2px;
+  font-size: 0.85em;
+  background: var(--velin);
+  padding: 0.12em 0.4em;
 }
 .prose img {
   max-width: 100%;
   height: auto;
-  border-radius: var(--rayon);
+}
+.prose hr {
+  border: 0;
+  border-top: 1px solid var(--trait);
+  margin: 2.5rem 0;
 }
 
 /* ------------------------------------------------------------- page à écrire */
 
-/** État vide : indique à Romain le fichier exact à créer. Aucun texte inventé. */
+/** État vide : indique le fichier exact à créer. Aucun texte inventé. */
 .a-ecrire {
-  border: 1px dashed var(--bord-vif);
-  border-radius: var(--rayon);
-  padding: 1.5rem;
-  background: var(--fond-2);
-  max-width: var(--largeur-texte);
+  border: 1px dashed var(--trait-vif);
+  padding: 1.75rem;
+  background: var(--encre-2);
+  max-width: var(--mesure);
 }
 .a-ecrire p {
-  margin: 0 0 0.75rem;
-  color: var(--texte-doux);
+  margin: 0 0 0.8rem;
+  color: var(--parchemin-doux);
 }
 .a-ecrire code {
   font-family: var(--mono);
   font-size: 0.875rem;
-  color: var(--parchemin);
-  background: var(--surface-haute);
-  padding: 0.25em 0.5em;
-  border-radius: 2px;
+  color: var(--or-clair);
+  background: var(--velin-haut);
+  padding: 0.3em 0.55em;
   display: inline-block;
   overflow-wrap: anywhere;
 }
 
 /* --------------------------------------------------------------- légende brute */
 
-/** Texte généré par Azgaar, en anglais : nettement séparé de l'écriture de Romain. */
+/** Texte généré par Azgaar : nettement séparé de l'écriture de Romain. */
 .legende-source {
-  border: 1px solid var(--bord);
-  border-radius: var(--rayon);
-  background: var(--fond-2);
-  max-width: var(--largeur-texte);
+  border: 1px solid var(--trait);
+  background: var(--encre-2);
+  max-width: var(--mesure);
 }
 .legende-source > summary {
   cursor: pointer;
-  padding: 0.7rem 1rem;
+  padding: 0.8rem 1.1rem;
+  font-family: var(--display);
   font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--texte-faible);
+  color: var(--parchemin-faible);
+}
+.legende-source > summary:hover {
+  color: var(--parchemin-doux);
 }
 .legende-source > div {
-  padding: 0 1rem 1rem;
-  color: var(--texte-doux);
-  font-size: 0.9375rem;
-}
-.legende-source a {
-  color: var(--parchemin);
+  padding: 0 1.1rem 1.1rem;
+  color: var(--parchemin-doux);
+  font-size: 1rem;
 }
 
 /* --------------------------------------------------------------------- blason */
 
 .blason {
-  width: 92px;
-  height: 92px;
+  width: 104px;
+  height: 104px;
   flex: none;
-  border-radius: var(--rayon);
+  filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.55));
 }
 
 /* -------------------------------------------------------------------- boutons */
@@ -420,29 +564,46 @@ hr {
 .bouton {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 1rem;
-  border: 1px solid var(--bord-vif);
-  border-radius: var(--rayon);
-  background: var(--surface);
-  color: var(--texte);
+  gap: 0.55rem;
+  padding: 0.6rem 1.2rem;
+  border: 1px solid var(--trait-vif);
+  background: var(--velin);
+  color: var(--parchemin);
+  font-family: var(--display);
   font-size: 0.8125rem;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  text-decoration: none;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
 }
 .bouton:hover {
-  border-color: var(--or-doux);
-  background: var(--surface-haute);
+  border-color: var(--or-sourd);
+  background: var(--velin-haut);
+  color: var(--or-clair);
 }
 .bouton--or {
-  border-color: var(--or-doux);
+  border-color: var(--or-sourd);
   color: var(--or);
+}
+.bouton--or:hover {
+  background: rgba(201, 162, 39, 0.1);
+}
+
+/* -------------------------------------------------------------------- jetons */
+
+.jeton {
+  display: inline-block;
+  padding: 0.22rem 0.7rem;
+  border: 1px solid var(--trait);
+  background: var(--encre-2);
+  font-size: 0.9375rem;
+  color: var(--parchemin-doux);
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
   * {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;

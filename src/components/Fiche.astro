@@ -1,0 +1,39 @@
+---
+/**
+ * Une fiche du wiki : un contexte de faits, une disposition de blocs, et
+ * l'atelier qui permet de la recomposer.
+ *
+ * La disposition vient de `src/contenu/mises-en-page/` si Romain en a
+ * enregistré une ; sinon d'une disposition par défaut déduite des faits
+ * disponibles, pour qu'aucune fiche ne soit jamais nue.
+ */
+import Base from '../layouts/Base.astro';
+import Atelier from './Atelier.astro';
+import { rendrePage, dispositionParDefaut } from '../lib/blocs.js';
+import { dispositionDe } from '../lib/contenu';
+import { SECTIONS } from '../lib/monde';
+import type { Contexte } from '../lib/contexte';
+
+interface Props {
+  contexte: Contexte;
+}
+
+const { contexte } = Astro.props;
+const section = SECTIONS[contexte.type].url;
+const enregistree = dispositionDe(section, contexte.slug);
+const blocs = enregistree ?? dispositionParDefaut(contexte.type, contexte);
+const html = rendrePage(blocs, contexte);
+---
+
+<Base titre={contexte.titre}>
+  <div class="contenant">
+    <Atelier
+      contexte={contexte}
+      blocs={blocs}
+      section={section}
+      slug={contexte.slug}
+      publiee={Boolean(enregistree)}
+    />
+    <div id="fiche" set:html={html} />
+  </div>
+</Base>

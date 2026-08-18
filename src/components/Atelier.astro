@@ -1,0 +1,458 @@
+---
+/**
+ * L'atelier de mise en page.
+ *
+ * Il recompose la fiche dans le navigateur avec exactement le même moteur que
+ * celui utilisé à la construction du site (`src/lib/blocs.js`) : ce que Romain
+ * voit en composant est littéralement ce qui sera publié.
+ *
+ * Le travail en cours est gardé dans le navigateur. Pour qu'une mise en page
+ * devienne celle du site, elle doit être exportée puis versionnée dans
+ * `src/contenu/mises-en-page/` — c'est volontaire : rien ne se publie sans
+ * passer par un commit.
+ */
+import { CATALOGUE } from '../lib/blocs.js';
+
+interface Props {
+  contexte: unknown;
+  blocs: unknown[];
+  section: string;
+  slug: string;
+  publiee: boolean;
+}
+
+const { contexte, blocs, section, slug, publiee } = Astro.props;
+---
+
+<div class="atelier-barre contenant" id="atelier-barre" role="toolbar" aria-label="Mise en page">
+  <span class="atelier-barre__titre">Mise en page</span>
+  <span class="atelier-etat" id="atelier-etat"></span>
+  <button class="bouton" type="button" data-atelier="ajouter">+ Bloc</button>
+  <button class="bouton" type="button" data-atelier="modeles">Modèles</button>
+  <button class="bouton" type="button" data-atelier="exporter">Exporter</button>
+  <button class="bouton" type="button" data-atelier="reinitialiser">Réinitialiser</button>
+  <button class="bouton bouton--or" type="button" data-atelier="terminer">Terminer</button>
+</div>
+
+<button class="bouton atelier-ouvrir" type="button" id="atelier-ouvrir">Mettre en page</button>
+
+<div class="atelier-fenetre" id="atelier-fenetre" role="dialog" aria-modal="true" aria-labelledby="atelier-fenetre-titre">
+  <div class="atelier-fenetre__boite">
+    <div class="atelier-fenetre__tete">
+      <h2 id="atelier-fenetre-titre">Ajouter une section</h2>
+      <button class="bouton" type="button" data-atelier="fermer-fenetre">Fermer</button>
+    </div>
+    <div class="atelier-fenetre__corps">
+      <div class="atelier-familles" id="atelier-familles" role="tablist"></div>
+      <div class="atelier-choix" id="atelier-choix"></div>
+    </div>
+    <p class="atelier-fenetre__pied" id="atelier-fenetre-pied">
+      La section s'ajoute à la fin, puis se déplace par la poignée ⣿ ou les flèches.
+    </p>
+  </div>
+</div>
+
+<script type="application/json" id="atelier-contexte" set:html={JSON.stringify(contexte)}></script>
+<script type="application/json" id="atelier-blocs" set:html={JSON.stringify(blocs)}></script>
+<script type="application/json" id="atelier-catalogue" set:html={JSON.stringify(CATALOGUE)}></script>
+<script
+  type="application/json"
+  id="atelier-page"
+  set:html={JSON.stringify({ section, slug, publiee })}
+></script>
+
+<script>
+  import { rendrePage, nouveauBloc, LARGEURS, modeles, BLOCS_CONNUS } from '../lib/blocs.js';
+
+  const lire = (id) => JSON.parse(document.getElementById(id).textContent);
+  const contexte = lire('atelier-contexte');
+  const catalogue = lire('atelier-catalogue');
+  const page = lire('atelier-page');
+  const fiche = document.getElementById('fiche');
+  if (fiche) demarrer();
+
+  function demarrer() {
+    const CLE = `victorum:page:${page.section}/${page.slug}`;
+    const publie = lire('atelier-blocs');
+
+    let blocs = charger();
+    let modifie = Boolean(localStorage.getItem(CLE));
+    let ouvert = null; // index du bloc dont les réglages sont dépliés
+
+    function charger() {
+      try {
+        const brut = localStorage.getItem(CLE);
+        if (brut) {
+          const lu = JSON.parse(brut);
+          if (Array.isArray(lu) && lu.length) return lu;
+        }
+      } catch {}
+      return structuredClone(publie);
+    }
+
+    function enregistrer() {
+      localStorage.setItem(CLE, JSON.stringify(blocs));
+      modifie = true;
+      majEtat();
+    }
+
+    function majEtat() {
+      const etat = document.getElementById('atelier-etat');
+      etat.dataset.modifie = modifie ? 'oui' : 'non';
+      etat.textContent = modifie
+        ? `${blocs.length} blocs · brouillon local non publié`
+        : `${blocs.length} blocs · conforme au site publié`;
+    }
+
+    /* ------------------------------------------------------------- rendu */
+
+    function dessiner() {
+      fiche.innerHTML = rendrePage(blocs, contexte);
+      if (document.body.classList.contains('en-edition')) habiller();
+      majEtat();
+    }
+
+    /** Ajoute la barre d'outils et les réglages au-dessus de chaque bloc. */
+    function habiller() {
+      fiche.querySelectorAll('.bloc').forEach((section, index) => {
+        const bloc = blocs[index];
+        const modele = BLOCS_CONNUS.get(bloc.type);
+
+        const barre = document.createElement('div');
+        barre.className = 'bloc__barre';
+        barre.innerHTML =
+          `<span class="bloc__nom" draggable="true">${modele?.nom || bloc.type}</span>` +
+          `<select class="bloc__largeur" aria-label="Largeur">` +
+          LARGEURS.map(
+            (l) => `<option value="${l.valeur}"${l.valeur === bloc.largeur ? ' selected' : ''}>${l.libelle}</option>`
+          ).join('') +
+          `</select>` +
+          `<button class="bloc__action" data-agir="haut" title="Monter">↑</button>` +
+          `<button class="bloc__action" data-agir="bas" title="Descendre">↓</button>` +
+          `<button class="bloc__action" data-agir="reglages" title="Réglages">⚙</button>` +
+          `<button class="bloc__action" data-agir="dupliquer" title="Dupliquer">⧉</button>` +
+          `<button class="bloc__action bloc__action--danger" data-agir="supprimer" title="Supprimer">✕</button>`;
+        section.prepend(barre);
+
+        if (ouvert === index) {
+          section.classList.add('bloc--ouvert');
+          section.append(reglagesDe(bloc, index));
+        }
+      });
+    }
+
+    /* --------------------------------------------------------- réglages */
+
+    const CHAMPS = {
+      bandeau: [
+        { cle: 'titre', libelle: 'Titre', gabarit: 'input', substitut: contexte.titre },
+        { cle: 'sousTitre', libelle: 'Surtitre', gabarit: 'input', substitut: contexte.surtitre },
+        { cle: 'accroche', libelle: 'Accroche', gabarit: 'textarea' },
+      ],
+      titre: [{ cle: 'texte', libelle: 'Titre de la section', gabarit: 'input' }],
+      chapeau: [{ cle: 'texte', libelle: 'Accroche', gabarit: 'textarea' }],
+      citation: [
+        { cle: 'texte', libelle: 'Citation', gabarit: 'textarea' },
+        { cle: 'source', libelle: 'Source', gabarit: 'input' },
+      ],
+      note: [{ cle: 'md', libelle: 'Texte (gras **ainsi**, listes avec -)', gabarit: 'textarea' }],
+      identite: [{ cle: 'titre', libelle: 'Intitulé', gabarit: 'input', substitut: "Fiche d'identité" }],
+      blason: [{ cle: 'legende', libelle: 'Légende', gabarit: 'input', substitut: 'Armes' }],
+      liens: [
+        { cle: 'groupe', libelle: 'Contenu', gabarit: 'groupe' },
+        { cle: 'limite', libelle: 'Nombre maximum', gabarit: 'nombre' },
+      ],
+      tableau: [
+        { cle: 'groupe', libelle: 'Contenu', gabarit: 'groupe' },
+        { cle: 'limite', libelle: 'Nombre maximum', gabarit: 'nombre' },
+      ],
+      jauge: [
+        { cle: 'groupe', libelle: 'Contenu', gabarit: 'groupe' },
+        { cle: 'limite', libelle: 'Nombre maximum', gabarit: 'nombre' },
+      ],
+      carte: [{ cle: 'zoom', libelle: 'Agrandissement', gabarit: 'nombre' }],
+      image: [
+        { cle: 'src', libelle: 'Chemin (dépose le fichier dans public/illustrations/)', gabarit: 'input' },
+        { cle: 'alt', libelle: 'Description pour les lecteurs d’écran', gabarit: 'input' },
+        { cle: 'legende', libelle: 'Légende', gabarit: 'input' },
+      ],
+      separateur: [{ cle: 'motif', libelle: 'Motif', gabarit: 'input' }],
+      espace: [{ cle: 'hauteur', libelle: 'Hauteur (en rem)', gabarit: 'nombre' }],
+      texte: [],
+      chiffres: [],
+    };
+
+    function reglagesDe(bloc, index) {
+      const boite = document.createElement('div');
+      boite.className = 'bloc__reglages';
+      const champs = CHAMPS[bloc.type] || [];
+
+      if (!champs.length) {
+        boite.innerHTML =
+          `<p class="discret" style="margin:0">Ce bloc se remplit tout seul à partir des faits de la carte` +
+          (bloc.type === 'texte' ? ` et de <code>${contexte.cheminTexte}</code>` : '') +
+          `.</p>`;
+        return boite;
+      }
+
+      for (const champ of champs) {
+        const etiquette = document.createElement('label');
+        const valeur = bloc.options?.[champ.cle] ?? '';
+        let controle;
+
+        if (champ.gabarit === 'textarea') {
+          controle = document.createElement('textarea');
+          controle.value = valeur;
+        } else if (champ.gabarit === 'groupe') {
+          controle = document.createElement('select');
+          for (const [cle, groupe] of Object.entries(contexte.groupes || {})) {
+            const option = document.createElement('option');
+            option.value = cle;
+            option.textContent = groupe.titre;
+            if (cle === valeur) option.selected = true;
+            controle.appendChild(option);
+          }
+        } else {
+          controle = document.createElement('input');
+          controle.type = champ.gabarit === 'nombre' ? 'number' : 'text';
+          controle.value = valeur;
+          if (champ.substitut) controle.placeholder = champ.substitut;
+        }
+
+        controle.addEventListener('change', () => {
+          bloc.options = bloc.options || {};
+          const v = controle.value;
+          if (v === '') delete bloc.options[champ.cle];
+          else bloc.options[champ.cle] = champ.gabarit === 'nombre' ? Number(v) : v;
+          enregistrer();
+          dessiner();
+        });
+
+        etiquette.append(document.createTextNode(champ.libelle), controle);
+        boite.appendChild(etiquette);
+      }
+      return boite;
+    }
+
+    /* ---------------------------------------------------------- actions */
+
+    fiche.addEventListener('click', (ev) => {
+      const bouton = ev.target.closest('[data-agir]');
+      if (!bouton) return;
+      const index = Number(bouton.closest('.bloc').dataset.bloc);
+      const action = bouton.dataset.agir;
+
+      if (action === 'haut' && index > 0) {
+        [blocs[index - 1], blocs[index]] = [blocs[index], blocs[index - 1]];
+        ouvert = null;
+      } else if (action === 'bas' && index < blocs.length - 1) {
+        [blocs[index + 1], blocs[index]] = [blocs[index], blocs[index + 1]];
+        ouvert = null;
+      } else if (action === 'dupliquer') {
+        blocs.splice(index + 1, 0, structuredClone(blocs[index]));
+        ouvert = null;
+      } else if (action === 'supprimer') {
+        blocs.splice(index, 1);
+        ouvert = null;
+      } else if (action === 'reglages') {
+        ouvert = ouvert === index ? null : index;
+      } else {
+        return;
+      }
+      enregistrer();
+      dessiner();
+    });
+
+    fiche.addEventListener('change', (ev) => {
+      const select = ev.target.closest('.bloc__largeur');
+      if (!select) return;
+      blocs[Number(select.closest('.bloc').dataset.bloc)].largeur = select.value;
+      enregistrer();
+      dessiner();
+    });
+
+    /* -------------------------------------------------- glisser-déposer */
+
+    let source = null;
+    fiche.addEventListener('dragstart', (ev) => {
+      const poignee = ev.target.closest('.bloc__nom');
+      if (!poignee) return;
+      source = Number(poignee.closest('.bloc').dataset.bloc);
+      ev.dataTransfer.effectAllowed = 'move';
+      ev.dataTransfer.setData('text/plain', String(source));
+      poignee.closest('.bloc').classList.add('bloc--glisse');
+    });
+
+    fiche.addEventListener('dragover', (ev) => {
+      if (source === null) return;
+      ev.preventDefault();
+      const cible = ev.target.closest('.bloc');
+      fiche.querySelectorAll('.bloc--cible').forEach((b) => b.classList.remove('bloc--cible'));
+      if (cible) cible.classList.add('bloc--cible');
+    });
+
+    fiche.addEventListener('drop', (ev) => {
+      if (source === null) return;
+      ev.preventDefault();
+      const cible = ev.target.closest('.bloc');
+      if (cible) {
+        const destination = Number(cible.dataset.bloc);
+        const [deplace] = blocs.splice(source, 1);
+        blocs.splice(destination, 0, deplace);
+        ouvert = null;
+        enregistrer();
+      }
+      source = null;
+      dessiner();
+    });
+
+    fiche.addEventListener('dragend', () => {
+      source = null;
+      fiche.querySelectorAll('.bloc--glisse, .bloc--cible').forEach((b) =>
+        b.classList.remove('bloc--glisse', 'bloc--cible')
+      );
+    });
+
+    /* ----------------------------------------------------------- fenêtre */
+
+    const fenetre = document.getElementById('atelier-fenetre');
+    const familles = document.getElementById('atelier-familles');
+    const choix = document.getElementById('atelier-choix');
+    const titreFenetre = document.getElementById('atelier-fenetre-titre');
+    const piedFenetre = document.getElementById('atelier-fenetre-pied');
+
+    function ouvrirFenetre(mode) {
+      familles.innerHTML = '';
+      choix.innerHTML = '';
+
+      if (mode === 'modeles') {
+        titreFenetre.textContent = 'Modèles de page';
+        piedFenetre.textContent = 'Appliquer un modèle remplace la disposition actuelle.';
+        for (const modele of modeles(contexte)) {
+          const bouton = document.createElement('button');
+          bouton.type = 'button';
+          bouton.innerHTML = `<strong>${modele.nom}</strong><small>${modele.description}</small>`;
+          bouton.addEventListener('click', () => {
+            blocs = modele.blocs();
+            ouvert = null;
+            enregistrer();
+            dessiner();
+            fermerFenetre();
+          });
+          choix.appendChild(bouton);
+        }
+        fenetre.dataset.ouverte = 'oui';
+        return;
+      }
+
+      titreFenetre.textContent = 'Ajouter une section';
+      piedFenetre.textContent = 'La section s’ajoute à la fin, puis se déplace par la poignée ⣿.';
+
+      const montrer = (famille) => {
+        choix.innerHTML = '';
+        for (const b of famille.blocs) {
+          const bouton = document.createElement('button');
+          bouton.type = 'button';
+          bouton.innerHTML = `<strong>${b.nom}</strong><small>${b.apercu}</small>`;
+          bouton.addEventListener('click', () => {
+            blocs.push(nouveauBloc(b.type));
+            ouvert = blocs.length - 1;
+            enregistrer();
+            dessiner();
+            fermerFenetre();
+            fiche.querySelector('.bloc:last-of-type')?.scrollIntoView({ block: 'center' });
+          });
+          choix.appendChild(bouton);
+        }
+      };
+
+      catalogue.forEach((famille, i) => {
+        const onglet = document.createElement('button');
+        onglet.type = 'button';
+        onglet.role = 'tab';
+        onglet.textContent = famille.famille;
+        onglet.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
+        onglet.addEventListener('click', () => {
+          familles.querySelectorAll('button').forEach((b) => b.setAttribute('aria-selected', 'false'));
+          onglet.setAttribute('aria-selected', 'true');
+          montrer(famille);
+        });
+        familles.appendChild(onglet);
+        if (i === 0) montrer(famille);
+      });
+
+      fenetre.dataset.ouverte = 'oui';
+    }
+
+    const fermerFenetre = () => (fenetre.dataset.ouverte = 'non');
+    fenetre.addEventListener('click', (ev) => {
+      if (ev.target === fenetre) fermerFenetre();
+    });
+
+    /* ------------------------------------------------------------ barre */
+
+    function basculer(actif) {
+      document.body.classList.toggle('en-edition', actif);
+      ouvert = null;
+      dessiner();
+      if (actif) document.getElementById('atelier-barre').scrollIntoView({ block: 'nearest' });
+    }
+
+    document.getElementById('atelier-ouvrir').addEventListener('click', () => basculer(true));
+
+    document.getElementById('atelier-barre').addEventListener('click', (ev) => {
+      const action = ev.target.closest('[data-atelier]')?.dataset.atelier;
+      if (action === 'ajouter') ouvrirFenetre('blocs');
+      else if (action === 'modeles') ouvrirFenetre('modeles');
+      else if (action === 'terminer') basculer(false);
+      else if (action === 'exporter') exporter();
+      else if (action === 'reinitialiser') reinitialiser();
+    });
+
+    document.addEventListener('click', (ev) => {
+      if (ev.target.closest('[data-atelier="fermer-fenetre"]')) fermerFenetre();
+    });
+
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape') {
+        if (fenetre.dataset.ouverte === 'oui') fermerFenetre();
+        else if (document.body.classList.contains('en-edition')) basculer(false);
+      }
+    });
+
+    function reinitialiser() {
+      if (!confirm('Revenir à la mise en page publiée ? Le brouillon local sera perdu.')) return;
+      localStorage.removeItem(CLE);
+      blocs = structuredClone(publie);
+      modifie = false;
+      ouvert = null;
+      dessiner();
+    }
+
+    async function exporter() {
+      const contenu = JSON.stringify({ version: 1, blocs }, null, 2);
+      const nom = `${page.slug}.json`;
+
+      try {
+        await navigator.clipboard.writeText(contenu);
+      } catch {}
+
+      const lien = document.createElement('a');
+      lien.href = URL.createObjectURL(new Blob([contenu], { type: 'application/json' }));
+      lien.download = nom;
+      lien.click();
+      URL.revokeObjectURL(lien.href);
+
+      alert(
+        `Mise en page copiée dans le presse-papiers et téléchargée sous ${nom}.\n\n` +
+          `Pour la publier, elle doit être enregistrée dans :\n` +
+          `src/contenu/mises-en-page/${page.section}/${nom}\n\n` +
+          `Colle-la-moi dans la conversation et je m'en occupe.`
+      );
+    }
+
+    /* Un brouillon local reprend la main sur la version publiée. */
+    if (modifie) dessiner();
+    else majEtat();
+  }
+</script>

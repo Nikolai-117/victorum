@@ -17,9 +17,9 @@ const royaumes = [...etats].sort((a, b) => b.population - a.population);
         royaumes.map((e) => {
           const provinces = provincesDeLEtat(e.id);
           return (
-            <a class="bandeau" href={lien('etat', e.slug)}>
+            <a class="royaume-ligne" href={lien('etat', e.slug)}>
               {e.blason && <img class="blason" src={e.blason} alt="" width="92" height="92" loading="lazy" />}
-              <div class="bandeau__corps">
+              <div class="royaume-ligne__corps">
                 <span class="etiquette">{formeEtat(e.forme)}</span>
                 <h2>
                   <i class="pastille" style={`background:${e.couleur}`} />
@@ -39,33 +39,33 @@ const royaumes = [...etats].sort((a, b) => b.population - a.population);
 </Base>
 
 <style>
-  .bandeau {
+  .royaume-ligne {
     display: flex;
     gap: 1.5rem;
     align-items: center;
     padding: 1.35rem 1.5rem;
-    background: var(--fond-2);
-    border: 1px solid var(--bord);
+    background: var(--encre-2);
+    border: 1px solid var(--trait);
     border-radius: var(--rayon);
     text-decoration: none;
     transition: border-color 0.15s, background 0.15s;
   }
-  .bandeau:hover {
-    border-color: var(--bord-vif);
-    background: var(--surface);
+  .royaume-ligne:hover {
+    border-color: var(--trait-vif);
+    background: var(--velin);
   }
-  .bandeau h2 {
+  .royaume-ligne h2 {
     font-size: 1.75rem;
     display: flex;
     align-items: center;
     gap: 0.6rem;
     margin: 0.25rem 0 0.4rem;
   }
-  .bandeau p {
+  .royaume-ligne p {
     margin: 0;
     font-size: 0.9375rem;
   }
-  .bandeau__corps {
+  .royaume-ligne__corps {
     min-width: 0;
   }
 </style>
