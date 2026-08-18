@@ -1,0 +1,29 @@
+{
+  // Configuration du Worker qui sert Victorum.
+  //
+  // Le site est presque entièrement statique : ce Worker ne s'exécute que pour
+  // les fiches et l'API d'enregistrement. Tout le reste est servi directement
+  // depuis le cache de Cloudflare.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "victorum",
+  "main": "./dist/_worker.js/index.js",
+  "compatibility_date": "2026-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  }
+
+  // ------------------------------------------------------------------------
+  // STOCKAGE — à activer une fois l'espace KV créé (voir README, « Activer
+  // l'enregistrement »). Tant que cette liaison est absente, le site fonctionne
+  // normalement mais l'atelier refuse d'enregistrer sur le serveur et se
+  // rabat sur le navigateur, en le disant clairement.
+  //
+  // "kv_namespaces": [
+  //   { "binding": "VICTORUM", "id": "<identifiant de l'espace KV>" }
+  // ]
+}

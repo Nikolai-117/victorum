@@ -1,0 +1,40 @@
+---
+// Rendue à la demande : les fiches inexistantes y sont réécrites, ce qu'Astro
+// ne sait pas faire vers une page pré-générée.
+export const prerender = false;
+
+import Base from '../layouts/Base.astro';
+import { monde } from '../lib/monde';
+---
+
+<Base titre="Page introuvable">
+  <div class="contenant introuvable">
+    <p class="etiquette">Erreur 404</p>
+    <h1>Cette page n'existe pas</h1>
+    <p class="discret">
+      Le lieu que tu cherches n'a pas de fiche dans l'atlas de {monde.nom} — ou son nom
+      s'écrit autrement.
+    </p>
+    <div class="introuvable__actions">
+      <a class="bouton bouton--or" href="/atlas">Ouvrir l'atlas</a>
+      <a class="bouton" href="/">Revenir à l'accueil</a>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .introuvable {
+    padding: 6rem 0 4rem;
+    max-width: 60ch;
+  }
+  .introuvable h1 {
+    font-size: clamp(2.2rem, 6vw, 3.6rem);
+    margin: 0.6rem 0 1.2rem;
+  }
+  .introuvable__actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 2.5rem;
+  }
+</style>

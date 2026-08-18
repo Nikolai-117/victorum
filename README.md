@@ -38,6 +38,23 @@ Les sections disponibles : `etats`, `provinces`, `villes`, `lieux`, `cultures`,
 `religions`, et `articles` pour les pages libres. `articles/accueil.md` remplit
 l'introduction de la page d'accueil, `articles/chronologie.md` celle de la frise.
 
+## Activer l'enregistrement
+
+Le site sait enregistrer ce que tu y fais, mais il lui faut un espace de
+stockage et un mot de passe — deux choses qui vivent dans ton compte Cloudflare
+et que je ne peux pas créer à ta place.
+
+**1. Créer l'espace de stockage.** Sur [dash.cloudflare.com](https://dash.cloudflare.com),
+menu **Storage & Databases → KV → Create namespace**. Nomme-le `victorum`, puis
+copie l'identifiant affiché et donne-le-moi : je l'inscris dans `wrangler.jsonc`.
+
+**2. Choisir un mot de passe.** Sur le Worker `victorum` → **Settings →
+Variables and Secrets → Add** → type **Secret**, nom `MOT_DE_PASSE`, valeur au
+choix. C'est lui que l'atelier demandera avant d'enregistrer.
+
+Tant que ces deux éléments manquent, le site fonctionne normalement mais
+l'atelier le dit franchement et garde ton travail dans le navigateur.
+
 ## Composer une page
 
 Chaque fiche s'ouvre avec une disposition déduite de ses faits. Pour la
@@ -49,10 +66,14 @@ singulariser, le bouton **Mettre en page**, en bas à droite de la fiche :
   (pleine, 2/3, 1/2, 1/3), se duplique, se règle (⚙) et se supprime.
 - **Modèles** applique une disposition entière : Récit, Dossier, Vitrine.
 
-Le travail est gardé dans ton navigateur au fur et à mesure. Pour qu'il devienne
-la version publiée du site, clique **Exporter** : le JSON est copié dans le
-presse-papiers et téléchargé. Colle-le-moi et je l'enregistre dans
-`src/contenu/mises-en-page/<section>/<slug>.json`.
+Le bouton **Écrire** ouvre le pupitre : tu y rédiges le texte de la fiche, et il
+prend sa place dans la page à mesure que tu tapes.
+
+**Tout s'enregistre tout seul**, deux secondes après ta dernière frappe, sur le
+site lui-même. La pastille de la barre dit où en est l'enregistrement : verte,
+c'est parti ; dorée, c'est en cours ; rouge, ça a échoué — un clic dessus
+réessaie. Une copie est gardée dans le navigateur en permanence : ni une coupure
+réseau ni un onglet fermé trop vite ne font perdre une phrase.
 
 Les illustrations se déposent dans `public/illustrations/` ; le bloc
 Illustration attend alors un chemin comme `/illustrations/mon-image.jpg`.

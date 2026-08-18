@@ -3,11 +3,12 @@ import Fiche from '../../components/Fiche.astro';
 import { lieux } from '../../lib/monde';
 import { contexteDe } from '../../lib/contexte';
 
-export function getStaticPaths() {
-  return lieux.map((lieu) => ({ params: { slug: lieu.slug }, props: { lieu } }));
-}
+// Rendue à la demande : la fiche doit refléter le dernier enregistrement fait
+// depuis le site, pas l'état figé au moment de la construction.
+export const prerender = false;
 
-const { lieu } = Astro.props;
+const lieu = lieux.find((e) => e.slug === Astro.params.slug);
+if (!lieu) return Astro.rewrite('/404');
 ---
 
 <Fiche contexte={contexteDe.lieu(lieu)} />

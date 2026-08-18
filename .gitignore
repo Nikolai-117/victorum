@@ -7,3 +7,8 @@ dist/
 # La carte source Azgaar (14,8 Mo) reste sur le disque, hors du dépôt :
 # tout ce dont le site a besoin en est extrait dans src/data/ et public/carte/.
 data/source/*.map
+
+# Secrets de developpement local
+.dev.vars
+wrangler.essai.jsonc
+.wrangler/

@@ -3,11 +3,12 @@ import Fiche from '../../components/Fiche.astro';
 import { burgs } from '../../lib/monde';
 import { contexteDe } from '../../lib/contexte';
 
-export function getStaticPaths() {
-  return burgs.map((ville) => ({ params: { slug: ville.slug }, props: { ville } }));
-}
+// Rendue à la demande : la fiche doit refléter le dernier enregistrement fait
+// depuis le site, pas l'état figé au moment de la construction.
+export const prerender = false;
 
-const { ville } = Astro.props;
+const ville = burgs.find((e) => e.slug === Astro.params.slug);
+if (!ville) return Astro.rewrite('/404');
 ---
 
 <Fiche contexte={contexteDe.burg(ville)} />

@@ -1,15 +1,14 @@
 ---
 /**
- * L'atelier de mise en page.
+ * L'atelier : composer la fiche et y écrire, sans jamais quitter le site.
  *
- * Il recompose la fiche dans le navigateur avec exactement le même moteur que
- * celui utilisé à la construction du site (`src/lib/blocs.js`) : ce que Romain
- * voit en composant est littéralement ce qui sera publié.
+ * Il recompose la page avec exactement le même moteur que celui utilisé côté
+ * serveur (`src/lib/blocs.js`) : ce que Romain voit en composant est
+ * littéralement ce qui sera servi.
  *
- * Le travail en cours est gardé dans le navigateur. Pour qu'une mise en page
- * devienne celle du site, elle doit être exportée puis versionnée dans
- * `src/contenu/mises-en-page/` — c'est volontaire : rien ne se publie sans
- * passer par un commit.
+ * Tout enregistrement part vers le site. Le navigateur ne sert que de filet :
+ * une copie locale est gardée en permanence pour qu'une coupure réseau ou un
+ * onglet fermé ne fasse jamais perdre une phrase.
  */
 import { CATALOGUE } from '../lib/blocs.js';
 
@@ -18,20 +17,34 @@ interface Props {
   blocs: unknown[];
   section: string;
   slug: string;
-  publiee: boolean;
+  texte: string;
+  stockageActif: boolean;
 }
 
-const { contexte, blocs, section, slug, publiee } = Astro.props;
+const { contexte, blocs, section, slug, texte, stockageActif } = Astro.props;
 ---
 
 <div class="atelier-barre contenant" id="atelier-barre" role="toolbar" aria-label="Mise en page">
-  <span class="atelier-barre__titre">Mise en page</span>
+  <span class="atelier-barre__titre">Atelier</span>
   <span class="atelier-etat" id="atelier-etat"></span>
+  <button class="bouton" type="button" data-atelier="texte">Écrire</button>
   <button class="bouton" type="button" data-atelier="ajouter">+ Bloc</button>
   <button class="bouton" type="button" data-atelier="modeles">Modèles</button>
-  <button class="bouton" type="button" data-atelier="exporter">Exporter</button>
   <button class="bouton" type="button" data-atelier="reinitialiser">Réinitialiser</button>
   <button class="bouton bouton--or" type="button" data-atelier="terminer">Terminer</button>
+</div>
+
+<div class="atelier-texte" id="atelier-texte" hidden>
+  <div class="atelier-texte__tete">
+    <p class="etiquette">Texte de la fiche</p>
+    <span class="atelier-texte__compte" id="atelier-compte"></span>
+    <button class="bouton" type="button" data-atelier="fermer-texte">Replier</button>
+  </div>
+  <textarea
+    id="atelier-redaction"
+    spellcheck="true"
+    placeholder="Écris ici. Une ligne vide sépare deux paragraphes. ## pour un titre, - pour une liste, **gras**, *italique*, > pour une citation."
+  >{texte}</textarea>
 </div>
 
 <button class="bouton atelier-ouvrir" type="button" id="atelier-ouvrir">Mettre en page</button>
@@ -58,56 +71,147 @@ const { contexte, blocs, section, slug, publiee } = Astro.props;
 <script
   type="application/json"
   id="atelier-page"
-  set:html={JSON.stringify({ section, slug, publiee })}
+  set:html={JSON.stringify({ section, slug, stockageActif })}
 ></script>
 
 <script>
-  import { rendrePage, nouveauBloc, LARGEURS, modeles, BLOCS_CONNUS } from '../lib/blocs.js';
+  import { rendrePage, nouveauBloc, LARGEURS, modeles, BLOCS_CONNUS, markdownCourt } from '../lib/blocs.js';
 
   const lire = (id) => JSON.parse(document.getElementById(id).textContent);
-  const contexte = lire('atelier-contexte');
-  const catalogue = lire('atelier-catalogue');
-  const page = lire('atelier-page');
   const fiche = document.getElementById('fiche');
   if (fiche) demarrer();
 
   function demarrer() {
-    const CLE = `victorum:page:${page.section}/${page.slug}`;
-    const publie = lire('atelier-blocs');
+    const contexte = lire('atelier-contexte');
+    const catalogue = lire('atelier-catalogue');
+    const page = lire('atelier-page');
+    const servi = lire('atelier-blocs');
 
-    let blocs = charger();
-    let modifie = Boolean(localStorage.getItem(CLE));
+    const CLE_LOCALE = `victorum:page:${page.section}/${page.slug}`;
+    const CLE_MDP = 'victorum:mot-de-passe';
+    const redaction = document.getElementById('atelier-redaction');
+    const etatBarre = document.getElementById('atelier-etat');
+
+    let blocs = structuredClone(servi);
+    let texte = redaction.value;
     let ouvert = null; // index du bloc dont les réglages sont dépliés
+    let etat = 'synchro'; // synchro | attente | envoi | echec | local
 
-    function charger() {
+    /* ------------------------------------------------------- reprise locale */
+
+    /**
+     * Le filet de sécurité. Si une sauvegarde n'était pas partie la dernière
+     * fois — réseau coupé, onglet fermé trop vite — on la retrouve ici et on
+     * la renvoie plutôt que de la perdre en silence.
+     */
+    (function reprendre() {
       try {
-        const brut = localStorage.getItem(CLE);
-        if (brut) {
-          const lu = JSON.parse(brut);
-          if (Array.isArray(lu) && lu.length) return lu;
+        const brut = localStorage.getItem(CLE_LOCALE);
+        if (!brut) return;
+        const local = JSON.parse(brut);
+        if (!local?.enAttente) return;
+        if (Array.isArray(local.blocs)) blocs = local.blocs;
+        if (typeof local.texte === 'string') {
+          texte = local.texte;
+          redaction.value = texte;
         }
+        etat = 'attente';
+        dessiner();
+        planifierEnvoi(0);
       } catch {}
-      return structuredClone(publie);
-    }
+    })();
 
-    function enregistrer() {
-      localStorage.setItem(CLE, JSON.stringify(blocs));
-      modifie = true;
+    /* --------------------------------------------------------- enregistrement */
+
+    const memoriserLocalement = (enAttente) => {
+      try {
+        localStorage.setItem(CLE_LOCALE, JSON.stringify({ blocs, texte, enAttente }));
+      } catch {}
+    };
+
+    let minuteur;
+    /** Deux secondes après la dernière frappe : assez pour ne pas saturer le stockage. */
+    function planifierEnvoi(delai = 2000) {
+      memoriserLocalement(true);
+      etat = 'attente';
       majEtat();
+      clearTimeout(minuteur);
+      minuteur = setTimeout(envoyer, delai);
     }
 
-    function majEtat() {
-      const etat = document.getElementById('atelier-etat');
-      etat.dataset.modifie = modifie ? 'oui' : 'non';
-      etat.textContent = modifie
-        ? `${blocs.length} blocs · brouillon local non publié`
-        : `${blocs.length} blocs · conforme au site publié`;
+    function motDePasse(redemander) {
+      let mdp = sessionStorage.getItem(CLE_MDP);
+      if (!mdp || redemander) {
+        mdp = prompt("Mot de passe de l'atelier :");
+        if (mdp) sessionStorage.setItem(CLE_MDP, mdp);
+      }
+      return mdp;
+    }
+
+    async function envoyer(redemander = false) {
+      if (!page.stockageActif) {
+        etat = 'local';
+        memoriserLocalement(true);
+        majEtat();
+        return;
+      }
+
+      const mdp = motDePasse(redemander);
+      if (!mdp) {
+        etat = 'echec';
+        majEtat('Mot de passe non saisi.');
+        return;
+      }
+
+      etat = 'envoi';
+      majEtat();
+      try {
+        const reponse = await fetch('/api/page', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-mot-de-passe': mdp },
+          body: JSON.stringify({ section: page.section, slug: page.slug, blocs, texte }),
+        });
+        const donnees = await reponse.json().catch(() => ({}));
+
+        if (reponse.status === 401) {
+          sessionStorage.removeItem(CLE_MDP);
+          etat = 'echec';
+          majEtat(donnees.erreur || 'Mot de passe refusé.');
+          return;
+        }
+        if (!reponse.ok) {
+          etat = reponse.status === 503 ? 'local' : 'echec';
+          majEtat(donnees.erreur);
+          return;
+        }
+
+        memoriserLocalement(false);
+        etat = 'synchro';
+        majEtat();
+      } catch (erreur) {
+        etat = 'echec';
+        majEtat('Réseau indisponible — le brouillon est gardé dans ce navigateur.');
+      }
+    }
+
+    function majEtat(detail) {
+      const messages = {
+        synchro: `${blocs.length} blocs · enregistré sur le site`,
+        attente: 'Modifications en attente…',
+        envoi: 'Enregistrement…',
+        echec: detail || 'Échec de l’enregistrement',
+        local: detail || 'Stockage non relié — brouillon gardé dans ce navigateur',
+      };
+      etatBarre.dataset.etat = etat;
+      etatBarre.textContent = messages[etat];
+      etatBarre.title = detail || '';
     }
 
     /* ------------------------------------------------------------- rendu */
 
     function dessiner() {
-      fiche.innerHTML = rendrePage(blocs, contexte);
+      const contexteRendu = { ...contexte, corpsHtml: texte.trim() ? markdownCourt(texte) : contexte.corpsHtml };
+      fiche.innerHTML = rendrePage(blocs, contexteRendu);
       if (document.body.classList.contains('en-edition')) habiller();
       majEtat();
     }
@@ -187,11 +291,16 @@ const { contexte, blocs, section, slug, publiee } = Astro.props;
       boite.className = 'bloc__reglages';
       const champs = CHAMPS[bloc.type] || [];
 
+      if (bloc.type === 'texte') {
+        const p = document.createElement('p');
+        p.className = 'discret';
+        p.style.margin = '0';
+        p.textContent = 'Ce bloc affiche le texte de la fiche. Le bouton « Écrire » de la barre l’ouvre.';
+        boite.appendChild(p);
+        return boite;
+      }
       if (!champs.length) {
-        boite.innerHTML =
-          `<p class="discret" style="margin:0">Ce bloc se remplit tout seul à partir des faits de la carte` +
-          (bloc.type === 'texte' ? ` et de <code>${contexte.cheminTexte}</code>` : '') +
-          `.</p>`;
+        boite.innerHTML = `<p class="discret" style="margin:0">Ce bloc se remplit tout seul à partir des faits de la carte.</p>`;
         return boite;
       }
 
@@ -224,7 +333,7 @@ const { contexte, blocs, section, slug, publiee } = Astro.props;
           const v = controle.value;
           if (v === '') delete bloc.options[champ.cle];
           else bloc.options[champ.cle] = champ.gabarit === 'nombre' ? Number(v) : v;
-          enregistrer();
+          planifierEnvoi();
           dessiner();
         });
 
@@ -232,6 +341,35 @@ const { contexte, blocs, section, slug, publiee } = Astro.props;
         boite.appendChild(etiquette);
       }
       return boite;
+    }
+
+    /* ------------------------------------------------------------ écriture */
+
+    const panneauTexte = document.getElementById('atelier-texte');
+    const compte = document.getElementById('atelier-compte');
+
+    let minuteurRendu;
+    redaction.addEventListener('input', () => {
+      texte = redaction.value;
+      majCompte();
+      planifierEnvoi();
+      // Le rendu suit la frappe d'un peu loin : recomposer à chaque touche
+      // ferait sauter la page sous les yeux.
+      clearTimeout(minuteurRendu);
+      minuteurRendu = setTimeout(dessiner, 400);
+    });
+
+    function majCompte() {
+      const mots = texte.trim() ? texte.trim().split(/\s+/).length : 0;
+      compte.textContent = `${mots} mot${mots > 1 ? 's' : ''}`;
+    }
+
+    function basculerTexte(afficher) {
+      panneauTexte.hidden = !afficher;
+      if (afficher) {
+        majCompte();
+        redaction.focus();
+      }
     }
 
     /* ---------------------------------------------------------- actions */
@@ -256,10 +394,12 @@ const { contexte, blocs, section, slug, publiee } = Astro.props;
         ouvert = null;
       } else if (action === 'reglages') {
         ouvert = ouvert === index ? null : index;
+        dessiner();
+        return;
       } else {
         return;
       }
-      enregistrer();
+      planifierEnvoi();
       dessiner();
     });
 
@@ -267,7 +407,7 @@ const { contexte, blocs, section, slug, publiee } = Astro.props;
       const select = ev.target.closest('.bloc__largeur');
       if (!select) return;
       blocs[Number(select.closest('.bloc').dataset.bloc)].largeur = select.value;
-      enregistrer();
+      planifierEnvoi();
       dessiner();
     });
 
@@ -300,7 +440,7 @@ const { contexte, blocs, section, slug, publiee } = Astro.props;
         const [deplace] = blocs.splice(source, 1);
         blocs.splice(destination, 0, deplace);
         ouvert = null;
-        enregistrer();
+        planifierEnvoi();
       }
       source = null;
       dessiner();
@@ -335,7 +475,7 @@ const { contexte, blocs, section, slug, publiee } = Astro.props;
           bouton.addEventListener('click', () => {
             blocs = modele.blocs();
             ouvert = null;
-            enregistrer();
+            planifierEnvoi();
             dessiner();
             fermerFenetre();
           });
@@ -357,7 +497,7 @@ const { contexte, blocs, section, slug, publiee } = Astro.props;
           bouton.addEventListener('click', () => {
             blocs.push(nouveauBloc(b.type));
             ouvert = blocs.length - 1;
-            enregistrer();
+            planifierEnvoi();
             dessiner();
             fermerFenetre();
             fiche.querySelector('.bloc:last-of-type')?.scrollIntoView({ block: 'center' });
@@ -394,8 +534,8 @@ const { contexte, blocs, section, slug, publiee } = Astro.props;
     function basculer(actif) {
       document.body.classList.toggle('en-edition', actif);
       ouvert = null;
+      if (!actif) basculerTexte(false);
       dessiner();
-      if (actif) document.getElementById('atelier-barre').scrollIntoView({ block: 'nearest' });
     }
 
     document.getElementById('atelier-ouvrir').addEventListener('click', () => basculer(true));
@@ -404,55 +544,46 @@ const { contexte, blocs, section, slug, publiee } = Astro.props;
       const action = ev.target.closest('[data-atelier]')?.dataset.atelier;
       if (action === 'ajouter') ouvrirFenetre('blocs');
       else if (action === 'modeles') ouvrirFenetre('modeles');
-      else if (action === 'terminer') basculer(false);
-      else if (action === 'exporter') exporter();
+      else if (action === 'texte') basculerTexte(panneauTexte.hidden);
       else if (action === 'reinitialiser') reinitialiser();
+      else if (action === 'terminer') {
+        clearTimeout(minuteur);
+        envoyer().finally(() => basculer(false));
+      }
     });
 
     document.addEventListener('click', (ev) => {
       if (ev.target.closest('[data-atelier="fermer-fenetre"]')) fermerFenetre();
+      if (ev.target.closest('[data-atelier="fermer-texte"]')) basculerTexte(false);
+      // Un échec d'enregistrement se rejoue en cliquant l'état.
+      if (ev.target.closest('#atelier-etat') && etat === 'echec') envoyer(true);
     });
 
     document.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape') {
         if (fenetre.dataset.ouverte === 'oui') fermerFenetre();
+        else if (document.activeElement === redaction) redaction.blur();
         else if (document.body.classList.contains('en-edition')) basculer(false);
       }
     });
 
+    // Dernière chance : prévenir avant de fermer sur un travail non parti.
+    window.addEventListener('beforeunload', (ev) => {
+      if (etat === 'attente' || etat === 'envoi') {
+        ev.preventDefault();
+        ev.returnValue = '';
+      }
+    });
+
     function reinitialiser() {
-      if (!confirm('Revenir à la mise en page publiée ? Le brouillon local sera perdu.')) return;
-      localStorage.removeItem(CLE);
-      blocs = structuredClone(publie);
-      modifie = false;
+      if (!confirm('Revenir à la disposition d’origine de cette fiche ? Le texte est conservé.')) return;
+      blocs = structuredClone(servi);
       ouvert = null;
+      planifierEnvoi(0);
       dessiner();
     }
 
-    async function exporter() {
-      const contenu = JSON.stringify({ version: 1, blocs }, null, 2);
-      const nom = `${page.slug}.json`;
-
-      try {
-        await navigator.clipboard.writeText(contenu);
-      } catch {}
-
-      const lien = document.createElement('a');
-      lien.href = URL.createObjectURL(new Blob([contenu], { type: 'application/json' }));
-      lien.download = nom;
-      lien.click();
-      URL.revokeObjectURL(lien.href);
-
-      alert(
-        `Mise en page copiée dans le presse-papiers et téléchargée sous ${nom}.\n\n` +
-          `Pour la publier, elle doit être enregistrée dans :\n` +
-          `src/contenu/mises-en-page/${page.section}/${nom}\n\n` +
-          `Colle-la-moi dans la conversation et je m'en occupe.`
-      );
-    }
-
-    /* Un brouillon local reprend la main sur la version publiée. */
-    if (modifie) dessiner();
-    else majEtat();
+    majEtat();
+    majCompte();
   }
 </script>

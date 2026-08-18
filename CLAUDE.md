@@ -55,6 +55,25 @@ Une fiche est une suite de blocs décrite en JSON, pas un gabarit figé.
 - L'éditeur enregistre dans `localStorage`. Une disposition ne devient celle du
   site qu'une fois versionnée dans `src/contenu/mises-en-page/`.
 
+## L'enregistrement depuis le site
+
+- Les fiches sont **rendues à la demande** (`export const prerender = false`) :
+  c'est ce qui permet de servir le dernier enregistrement sans clignotement.
+  Tout le reste (accueil, index, atlas) reste statique — voir `dist/_routes.json`.
+- `src/lib/stockage.ts` lit et écrit dans l'espace KV lié sous le nom
+  `VICTORUM`. La liaison est **facultative par construction** : sans elle le site
+  marche, l'atelier le signale et se rabat sur le navigateur.
+- Toute écriture exige la variable secrète `MOT_DE_PASSE`. Sans elle, on refuse
+  tout : le site est public, un point d'écriture ouvert serait une porte ouverte
+  sur le lore de Romain. Comparaison à durée constante, adresses validées contre
+  une liste blanche de sections.
+- `Astro.rewrite()` ne sait pas cibler une page pré-générée depuis une route à
+  la demande. C'est pourquoi `404.astro` porte aussi `prerender = false`.
+- Le quota gratuit de KV est de 1 000 écritures par jour : l'envoi est différé
+  de deux secondes après la dernière frappe, jamais déclenché à chaque touche.
+- Une disposition enregistrée vide retombe sur celle par défaut : une page
+  blanche n'est jamais un résultat voulu.
+
 ## Pièges de l'export Azgaar, tous rencontrés et corrigés
 
 Le format `.map` est un fichier à lignes indexées. `scripts/import-map.mjs` les

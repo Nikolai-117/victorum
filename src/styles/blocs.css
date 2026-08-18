@@ -604,3 +604,96 @@ body.en-edition .bloc__barre {
     border-bottom-color: var(--or);
   }
 }
+
+/* ------------------------------------------------------------- écriture */
+
+/**
+ * Le pupitre. Il s'ouvre sous la barre de l'atelier et reste visible pendant
+ * qu'on compose : Romain voit son texte prendre sa place dans la fiche à
+ * mesure qu'il l'écrit.
+ */
+.atelier-texte {
+  position: sticky;
+  top: 108px;
+  z-index: 54;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--trait-vif);
+  background: var(--encre-2);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+}
+.atelier-texte[hidden] {
+  display: none;
+}
+.atelier-texte__tete {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--trait);
+}
+.atelier-texte__tete > .etiquette {
+  color: var(--or);
+  margin-right: auto;
+}
+.atelier-texte__compte {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--parchemin-faible);
+}
+.atelier-texte textarea {
+  display: block;
+  width: 100%;
+  min-height: 42vh;
+  resize: vertical;
+  border: 0;
+  padding: 1.4rem 1.6rem;
+  background: transparent;
+  color: var(--parchemin);
+  font-family: var(--texte-police);
+  font-size: 1.15rem;
+  line-height: 1.75;
+}
+.atelier-texte textarea:focus {
+  outline: none;
+}
+.atelier-texte textarea::placeholder {
+  color: var(--parchemin-faible);
+}
+
+/* ------------------------------------------------------- état d'enregistrement */
+
+.atelier-etat {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--parchemin-faible);
+  padding-left: 1.1rem;
+  position: relative;
+}
+/* Une pastille dit l'état d'un coup d'œil, sans avoir à lire. */
+.atelier-etat::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: var(--parchemin-faible);
+}
+.atelier-etat[data-etat='synchro']::before {
+  background: var(--verdet);
+}
+.atelier-etat[data-etat='attente']::before,
+.atelier-etat[data-etat='envoi']::before {
+  background: var(--or);
+}
+.atelier-etat[data-etat='echec']::before,
+.atelier-etat[data-etat='local']::before {
+  background: var(--sang);
+}
+.atelier-etat[data-etat='echec'],
+.atelier-etat[data-etat='local'] {
+  color: var(--sang);
+  cursor: pointer;
+}
