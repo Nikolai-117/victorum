@@ -74,6 +74,20 @@ réseau ni un onglet fermé trop vite ne font perdre une phrase.
 Les illustrations se déposent dans `public/illustrations/` ; le bloc
 Illustration attend alors un chemin comme `/illustrations/mon-image.jpg`.
 
+## Poser un lieu
+
+Les lieux remarquables ne viennent pas de la carte : Azgaar en générait des
+centaines de « Dungeon » identiques, sans rapport avec ton monde. Ce sont les
+tiens, et tu les poses toi-même.
+
+Sur l'atlas, bouton **Placer un lieu**, puis clique à l'endroit voulu. Une
+fiche te demande son nom, sa nature, son icône parmi soixante, et sa couleur.
+Il apparaît aussitôt sur la carte et dans la liste des lieux, avec sa propre
+page prête à être écrite.
+
+Pour en corriger un : reste en mode pose et clique dessus. Le même écran
+permet de le renommer, de le déplacer d'icône ou de l'effacer.
+
 ## Mettre à jour la carte
 
 1. Dans Azgaar, sauvegarde ta carte (`.map`).

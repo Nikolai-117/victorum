@@ -91,7 +91,6 @@ const SIGNATURES = {
   cultures: ['name', 'base', 'shield', 'center', 'i', 'expansionism'],
   provinces: ['i', 'state', 'center', 'burg', 'formName', 'fullName'],
   religions: ['name', 'type', 'form', 'culture', 'deity', 'expansion'],
-  marqueurs: ['icon', 'type', 'dx', 'px', 'x', 'y', 'cell', 'i'],
   notes: ['id', 'name', 'legend'],
   zones: ['i', 'name', 'type', 'cells', 'color'],
 };
@@ -313,38 +312,14 @@ const provinceParBurg = new Map();
 for (const p of provinces) for (const bid of p.burgIds) provinceParBurg.set(bid, p.id);
 for (const b of burgs) b.provinceId = provinceParBurg.get(b.id) ?? null;
 
-// — Marqueurs (donjons, ruines, champs de bataille…), nommés par les notes
-const LIBELLES_MARQUEURS = {
-  volcanoes: 'Volcan', lakes: 'Lac', 'hot-springs': 'Source chaude', 'water-sources': 'Source',
-  mines: 'Mine', bridges: 'Pont', inns: 'Auberge', lighthouses: 'Phare', waterfalls: 'Cascade',
-  battlefields: 'Champ de bataille', dungeons: 'Donjon', ruins: 'Ruines', monuments: 'Monument',
-  portals: 'Portail', encounters: 'Rencontre', migrations: 'Migration', 'sea-monsters': 'Monstre marin',
-  'lake-monsters': 'Monstre lacustre', 'hill-monsters': 'Monstre des collines', brigands: 'Brigands',
-  pirates: 'Pirates', statues: 'Statue', caves: 'Grotte', camps: 'Campement',
-  necropolises: 'Nécropole', taverns: 'Taverne', temples: 'Temple', castles: 'Château',
-  migration: 'Migration', mounts: 'Sommet', rifts: 'Faille', mirage: 'Mirage', libraries: 'Bibliothèque',
-  circuses: 'Cirque', jousts: 'Tournoi', fairs: 'Foire', dances: 'Fête',
-  'sacred-forests': 'Bois sacré', 'sacred-pineries': 'Pinède sacrée',
-  'sacred-palm-groves': 'Palmeraie sacrée',
-};
-const libelleMarqueur = (t) => LIBELLES_MARQUEURS[t] || (t ? t.replace(/-/g, ' ') : 'Lieu');
-
-const marqueurs = slugsUniques(
-  (trouve.marqueurs || []).map((m) => {
-    const note = notesParId.get(`marker${m.i}`);
-    return {
-      id: m.i,
-      type: 'lieu',
-      nom: note?.name || libelleMarqueur(m.type),
-      categorie: libelleMarqueur(m.type),
-      categorieBrute: m.type || 'inconnu',
-      icone: m.icon,
-      x: m.x,
-      y: m.y,
-      legendeSource: assainir(note?.legend), // texte brut d'Azgaar, en anglais
-    };
-  })
-);
+// — Lieux remarquables : plus rien n'est importé ici.
+//
+// Azgaar en génère des centaines, tous identiques : 140 « Dungeon », 71
+// « Encounter », 41 « Ruins »… Des noms de remplissage, en anglais, sans
+// rapport avec le monde de Romain. Ils noyaient le wiki et la carte.
+// Les lieux sont désormais posés par Romain lui-même depuis l'atlas, avec
+// leur nom, leur icône et leur couleur, et vivent dans le stockage du site.
+const marqueurs = [];
 
 // — Zones (invasions, rébellions, catastrophes)
 const NATURES_ZONES = {
@@ -685,7 +660,6 @@ ecrire('provinces.json', provinces);
 ecrire('burgs.json', burgs);
 ecrire('cultures.json', cultures);
 ecrire('religions.json', religions);
-ecrire('lieux.json', marqueurs);
 ecrire('zones.json', zones);
 ecrire('chronologie.json', chronologie);
 
@@ -705,11 +679,6 @@ const index = [
       prov: nomProvince.get(b.provinceId) || null,
       port: b.port || undefined,
     },
-  })),
-  ...marqueurs.map((m) => ({
-    t: 'lieu', s: m.slug, n: m.nom, x: m.x, y: m.y, i: m.id, d: m.categorie,
-    ic: m.icone,
-    f: { leg: m.legendeSource || undefined },
   })),
   ...etats.map((e) => ({
     t: 'etat', s: e.slug, n: e.nomComplet, x: e.x, y: e.y, i: e.id, d: 'État',
@@ -731,7 +700,7 @@ console.log(`  Monde   ${monde.nom} — an ${monde.annee} ${monde.ereCourte || '
 console.log(`\n  Entités`);
 for (const [nom, arr] of [
   ['États', etats], ['Provinces', provinces], ['Burgs', burgs], ['Cultures', cultures],
-  ['Religions', religions], ['Lieux', marqueurs], ['Zones', zones], ['Campagnes', chronologie],
+  ['Religions', religions], ['Zones', zones], ['Campagnes', chronologie],
 ]) console.log(`    ${String(arr.length).padStart(5)}  ${nom}`);
 console.log(`    ${String(blasons.size).padStart(5)}  Blasons extraits`);
 
@@ -743,8 +712,6 @@ if (ignorees.length) console.log(`\n  Couches vides dans l'export, ignorées : $
 if (demasquees.length) console.log(`  Couches masquées dans Azgaar, rendues pilotables : ${demasquees.join(', ')}`);
 console.log(`  Villes hors des trois royaumes effacées de la carte : ${villesRetireesDeLaCarte}`);
 
-const inconnus = [...new Set(marqueurs.map((m) => m.categorieBrute))].filter((t) => !LIBELLES_MARQUEURS[t]);
-if (inconnus.length) console.log(`\n  Types de marqueurs sans libellé français : ${inconnus.join(', ')}`);
 const zonesInconnues = [...new Set(zones.map((z) => z.natureBrute))].filter((t) => !NATURES_ZONES[t]);
 if (zonesInconnues.length) console.log(`  Types de zones sans libellé français : ${zonesInconnues.join(', ')}`);
 console.log(`\n  Aucun fichier Markdown touché : les textes de lore sont intacts.\n`);

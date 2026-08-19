@@ -12,18 +12,16 @@ import provinces from '../data/provinces.json';
 import burgs from '../data/burgs.json';
 import cultures from '../data/cultures.json';
 import religions from '../data/religions.json';
-import lieux from '../data/lieux.json';
 import zones from '../data/zones.json';
 import chronologie from '../data/chronologie.json';
 
-export { monde, etats, provinces, burgs, cultures, religions, lieux, zones, chronologie };
+export { monde, etats, provinces, burgs, cultures, religions, zones, chronologie };
 
 export type Etat = (typeof etats)[number];
 export type Province = (typeof provinces)[number];
 export type Burg = (typeof burgs)[number];
 export type Culture = (typeof cultures)[number];
 export type Religion = (typeof religions)[number];
-export type Lieu = (typeof lieux)[number];
 
 /* ------------------------------------------------------------------ index */
 
@@ -160,19 +158,6 @@ export function villesDeLaCulture(cultureId: number): Burg[] {
   return burgs.filter((b) => b.cultureId === cultureId).sort((a, b) => b.population - a.population);
 }
 
-/** Lieux remarquables regroupés par catégorie, catégories les plus fournies d'abord. */
-export function lieuxParCategorie(): { categorie: string; lieux: Lieu[] }[] {
-  const groupes = new Map<string, Lieu[]>();
-  for (const l of lieux) {
-    const g = groupes.get(l.categorie);
-    if (g) g.push(l);
-    else groupes.set(l.categorie, [l]);
-  }
-  return [...groupes.entries()]
-    .map(([categorie, lieux]) => ({ categorie, lieux: lieux.sort((a, b) => a.nom.localeCompare(b.nom, FR)) }))
-    .sort((a, b) => b.lieux.length - a.lieux.length || a.categorie.localeCompare(b.categorie, FR));
-}
-
 /** Chiffres d'ouverture affichés sur l'accueil. */
 export function chiffresDuMonde() {
   const population = etats.reduce((n, e) => n + e.population, 0);
@@ -182,7 +167,6 @@ export function chiffresDuMonde() {
     etats: etats.length,
     provinces: provinces.length,
     villes: burgs.length,
-    lieux: lieux.length,
     cultures: cultures.length,
     religions: religions.length,
     population,

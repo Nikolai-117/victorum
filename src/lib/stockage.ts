@@ -152,3 +152,124 @@ export async function ecrirePage(
   await espace.put(clePage(section, slug), JSON.stringify(fusion));
   return fusion;
 }
+
+/* ---------------------------------------------------------------- lieux */
+
+/**
+ * Les lieux remarquables.
+ *
+ * Ils ne viennent plus d'Azgaar — qui en générait des centaines d'identiques —
+ * mais de Romain, qui les pose lui-même sur la carte avec leur nom, leur icône
+ * et leur couleur. Ils vivent donc dans le stockage du site, pas dans l'export.
+ */
+export interface Lieu {
+  id: string;
+  slug: string;
+  nom: string;
+  categorie: string;
+  icone: string;
+  couleur: string;
+  x: number;
+  y: number;
+  creeLe: string;
+}
+
+const CLE_LIEUX = 'lieux';
+
+/** Slug d'URL : sans accents, sans espaces. */
+function slugifier(nom: string): string {
+  return (
+    nom
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/['’]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'lieu'
+  );
+}
+
+export async function listerLieux(locals: App.Locals): Promise<Lieu[]> {
+  const espace = stockage(locals);
+  if (!espace) return [];
+  try {
+    return (await espace.get<Lieu[]>(CLE_LIEUX, 'json')) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function lieuParSlug(locals: App.Locals, slug: string): Promise<Lieu | null> {
+  return (await listerLieux(locals)).find((l) => l.slug === slug) ?? null;
+}
+
+/**
+ * Une icône est un pictogramme, pas du texte libre : on exige au moins un
+ * symbole et on écarte tout ce qui ressemble à du balisage. Sans cela, un
+ * « <img onerror=…> » se retrouverait stocké tel quel, en attente d'un endroit
+ * où il finirait par être interprété.
+ */
+function iconeValide(brut: unknown): string {
+  const propose = [...String(brut ?? '')].slice(0, 2).join('');
+  if (!propose || /[<>&"'\\]/.test(propose)) return '📍';
+  return /[\p{Extended_Pictographic}\p{Symbol}]/u.test(propose) ? propose : '📍';
+}
+
+/** Découpe un lieu reçu du navigateur en ne gardant que ce qui est attendu. */
+function assainirLieu(brut: Record<string, unknown>): Omit<Lieu, 'id' | 'slug' | 'creeLe'> | null {
+  const nom = String(brut.nom ?? '').trim().slice(0, 120);
+  const x = Number(brut.x);
+  const y = Number(brut.y);
+  if (!nom || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return {
+    nom,
+    categorie: String(brut.categorie ?? '').trim().slice(0, 60) || 'Lieu',
+    icone: iconeValide(brut.icone),
+    couleur: /^#[0-9a-f]{6}$/i.test(String(brut.couleur)) ? String(brut.couleur) : '#c9a227',
+    x: Math.round(x * 100) / 100,
+    y: Math.round(y * 100) / 100,
+  };
+}
+
+/** Crée ou met à jour un lieu. Les slugs restent uniques entre eux. */
+export async function enregistrerLieu(
+  locals: App.Locals,
+  brut: Record<string, unknown>
+): Promise<Lieu> {
+  const espace = stockage(locals);
+  if (!espace) throw new Error('stockage indisponible');
+
+  const propre = assainirLieu(brut);
+  if (!propre) throw new Error('Lieu incomplet : il lui faut un nom et une position.');
+
+  const lieux = await listerLieux(locals);
+  const id = typeof brut.id === 'string' && brut.id ? brut.id : crypto.randomUUID().slice(0, 8);
+  const existant = lieux.find((l) => l.id === id);
+
+  let slug = slugifier(propre.nom);
+  const prisPar = (s: string) => lieux.some((l) => l.slug === s && l.id !== id);
+  if (prisPar(slug)) {
+    let n = 2;
+    while (prisPar(`${slug}-${n}`)) n++;
+    slug = `${slug}-${n}`;
+  }
+
+  const lieu: Lieu = { ...propre, id, slug, creeLe: existant?.creeLe ?? new Date().toISOString() };
+  const suite = existant ? lieux.map((l) => (l.id === id ? lieu : l)) : [...lieux, lieu];
+  await espace.put(CLE_LIEUX, JSON.stringify(suite));
+  return lieu;
+}
+
+/** Retire un lieu, et le texte qui lui était attaché. */
+export async function supprimerLieu(locals: App.Locals, id: string): Promise<boolean> {
+  const espace = stockage(locals);
+  if (!espace) throw new Error('stockage indisponible');
+
+  const lieux = await listerLieux(locals);
+  const cible = lieux.find((l) => l.id === id);
+  if (!cible) return false;
+
+  await espace.put(CLE_LIEUX, JSON.stringify(lieux.filter((l) => l.id !== id)));
+  await espace.delete(clePage('lieux', cible.slug));
+  return true;
+}

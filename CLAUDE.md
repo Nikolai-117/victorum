@@ -139,6 +139,20 @@ entre versions d'Azgaar.
    perdu. Les adversaires des guerres passées sont donc anonymes — c'est un fait,
    pas un bug à contourner en inventant un nom.
 
+## Les lieux remarquables
+
+- **Ils ne sont plus importés.** Azgaar en produisait 532 dont 140 « Dungeon »
+  strictement identiques : du remplissage anglais qui noyait le wiki. Romain a
+  demandé leur retrait ; ne pas les réintroduire.
+- Ils vivent dans le stockage KV (clé `lieux`), posés depuis l’atlas avec nom,
+  nature, icône et couleur. `/lieux` et `/lieux/[slug]` se rendent donc à la
+  demande, comme les fiches.
+- L'icône est validée côté serveur (`iconeValide`) : au moins un pictogramme,
+  aucun caractère de balisage. Une saisie libre finirait sinon stockée telle
+  quelle, en attente d'un endroit où elle serait interprétée.
+- Chaque lieu est un `<g>` mis à l’échelle inverse du zoom, pour garder sa
+  taille à l'écran. Supprimer un lieu efface aussi le texte de sa fiche.
+
 ## Particularités de cette carte
 
 - **Seules les villes des trois royaumes sont retenues** (150 sur 451) : les

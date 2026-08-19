@@ -1,13 +1,13 @@
 ---
 import Fiche from '../../components/Fiche.astro';
-import { lieux } from '../../lib/monde';
 import { contexteDe } from '../../lib/contexte';
+import { lieuParSlug } from '../../lib/stockage';
 
-// Rendue à la demande : la fiche doit refléter le dernier enregistrement fait
-// depuis le site, pas l'état figé au moment de la construction.
+// Les lieux sont posés par Romain depuis l'atlas et vivent dans le stockage
+// du site : leurs fiches se rendent donc à la demande.
 export const prerender = false;
 
-const lieu = lieux.find((e) => e.slug === Astro.params.slug);
+const lieu = await lieuParSlug(Astro.locals, Astro.params.slug ?? '');
 if (!lieu) return Astro.rewrite('/404');
 ---
 

@@ -1,43 +1,86 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { lieuxParCategorie, lieux, nombre, lien } from '../../lib/monde';
+import { lien, nombre } from '../../lib/monde';
+import { listerLieux } from '../../lib/stockage';
 
-const groupes = lieuxParCategorie();
+export const prerender = false;
+
+const lieux = await listerLieux(Astro.locals);
+
+// Regroupés par nature, les catégories les plus fournies d'abord.
+const groupes = [...lieux.reduce((carte, l) => {
+  const liste = carte.get(l.categorie) ?? [];
+  liste.push(l);
+  carte.set(l.categorie, liste);
+  return carte;
+}, new Map<string, typeof lieux>())]
+  .map(([categorie, liste]) => ({
+    categorie,
+    lieux: liste.sort((a, b) => a.nom.localeCompare(b.nom, 'fr')),
+  }))
+  .sort((a, b) => b.lieux.length - a.lieux.length || a.categorie.localeCompare(b.categorie, 'fr'));
 ---
 
-<Base titre="Lieux" description="Donjons, ruines, champs de bataille et curiosités de la carte.">
+<Base titre="Lieux" description="Les lieux remarquables du monde.">
   <div class="contenant">
     <header class="cartouche">
-      <p class="etiquette">{nombre(lieux.length)} lieux remarquables</p>
+      <p class="etiquette">
+        {lieux.length ? `${nombre(lieux.length)} lieux remarquables` : 'Aucun lieu pour l’instant'}
+      </p>
       <h1>Lieux</h1>
     </header>
 
-    <div class="filtres">
-      <input id="filtre-lieu" type="search" placeholder="Filtrer par nom…" autocomplete="off" aria-label="Filtrer par nom" />
-      <span class="compteur discret" id="compteur-lieux"></span>
-    </div>
+    {
+      lieux.length === 0 ? (
+        <div class="a-ecrire" style="margin-top:2.5rem">
+          <p class="etiquette">À peupler</p>
+          <p>
+            Les lieux ne viennent pas de la carte : c'est toi qui les poses, avec leur nom, leur
+            icône et leur couleur.
+          </p>
+          <p>
+            Ouvre l'atlas, clique sur <strong>Placer un lieu</strong>, puis sur l'endroit voulu.
+          </p>
+          <p style="margin-top:1.25rem">
+            <a class="bouton bouton--or" href="/atlas">Ouvrir l'atlas</a>
+          </p>
+        </div>
+      ) : (
+        <>
+          <div class="filtres">
+            <input
+              id="filtre-lieu"
+              type="search"
+              placeholder="Filtrer par nom…"
+              autocomplete="off"
+              aria-label="Filtrer par nom"
+            />
+            <span class="compteur discret" id="compteur-lieux" />
+            <a class="bouton" href="/atlas">Placer un lieu</a>
+          </div>
 
-    <div class="pile" style="margin-top:1.5rem">
-      {
-        groupes.map((g) => (
-          <section class="groupe" data-groupe>
-            <h2 class="etiquette">
-              {g.categorie} <span class="discret">· {g.lieux.length}</span>
-            </h2>
-            <ul class="liste">
-              {g.lieux.map((l) => (
-                <li data-nom={l.nom.toLowerCase()}>
-                  <a href={lien('lieu', l.slug)}>
-                    <span class="icone">{l.icone}</span>
-                    {l.nom}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))
-      }
-    </div>
+          <div class="pile" style="margin-top:1.5rem">
+            {groupes.map((g) => (
+              <section class="groupe" data-groupe>
+                <h2 class="etiquette etiquette--filet">
+                  {g.categorie} <span class="discret">· {g.lieux.length}</span>
+                </h2>
+                <ul class="liste">
+                  {g.lieux.map((l) => (
+                    <li data-nom={l.nom.toLowerCase()}>
+                      <a href={lien('lieu', l.slug)}>
+                        <span class="icone" style={`color:${l.couleur}`}>{l.icone}</span>
+                        {l.nom}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        </>
+      )
+    }
   </div>
 </Base>
 
@@ -47,13 +90,13 @@ const groupes = lieuxParCategorie();
     display: flex;
     gap: 0.75rem;
     align-items: center;
+    flex-wrap: wrap;
   }
   .filtres input {
     padding: 0.5rem 0.7rem;
     min-width: 260px;
     background: var(--encre-2);
     border: 1px solid var(--trait-vif);
-    border-radius: var(--rayon);
     color: var(--parchemin);
     font: inherit;
   }
@@ -64,10 +107,7 @@ const groupes = lieuxParCategorie();
   .compteur {
     font-family: var(--mono);
     font-size: 0.8125rem;
-  }
-  .groupe h2 {
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--trait);
+    margin-right: auto;
   }
   .liste {
     list-style: none;
@@ -79,15 +119,15 @@ const groupes = lieuxParCategorie();
   }
   .liste a {
     display: flex;
-    gap: 0.55rem;
+    gap: 0.6rem;
     align-items: baseline;
     padding: 0.25rem 0;
-    text-decoration: none;
-    font-size: 0.9375rem;
+    background: none;
+    font-size: 1rem;
     color: var(--parchemin-doux);
   }
   .liste a:hover {
-    color: var(--parchemin);
+    color: var(--or-clair);
   }
   .icone {
     flex: none;
@@ -96,26 +136,24 @@ const groupes = lieuxParCategorie();
 
 <script>
   const champ = document.getElementById('filtre-lieu');
-  const compteur = document.getElementById('compteur-lieux');
-  const elements = [...document.querySelectorAll('.liste li')];
-  const groupes = [...document.querySelectorAll('[data-groupe]')];
-  const sansAccent = (s) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
-  const cles = elements.map((li) => sansAccent(li.dataset.nom));
+  if (champ) {
+    const compteur = document.getElementById('compteur-lieux');
+    const elements = [...document.querySelectorAll('.liste li')];
+    const groupes = [...document.querySelectorAll('[data-groupe]')];
+    const sansAccent = (s) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+    const cles = elements.map((li) => sansAccent(li.dataset.nom));
 
-  function filtrer() {
-    const q = sansAccent(champ.value.trim());
-    let visibles = 0;
-    elements.forEach((li, i) => {
-      const ok = !q || cles[i].includes(q);
-      li.hidden = !ok;
-      if (ok) visibles++;
+    champ.addEventListener('input', () => {
+      const q = sansAccent(champ.value.trim());
+      let visibles = 0;
+      elements.forEach((li, i) => {
+        const ok = !q || cles[i].includes(q);
+        li.hidden = !ok;
+        if (ok) visibles++;
+      });
+      // Une catégorie entièrement filtrée disparaît, pour ne pas laisser de titre orphelin.
+      for (const g of groupes) g.hidden = ![...g.querySelectorAll('li')].some((li) => !li.hidden);
+      compteur.textContent = q ? `${visibles} lieu${visibles > 1 ? 'x' : ''}` : '';
     });
-    // Une catégorie entièrement filtrée disparaît, pour ne pas laisser de titres orphelins.
-    for (const g of groupes) {
-      g.hidden = ![...g.querySelectorAll('li')].some((li) => !li.hidden);
-    }
-    compteur.textContent = q ? `${visibles} lieu${visibles > 1 ? 'x' : ''}` : '';
   }
-
-  champ.addEventListener('input', filtrer);
 </script>

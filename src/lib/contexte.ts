@@ -9,7 +9,7 @@
  */
 
 import {
-  etats, provinces, burgs, cultures, religions, lieux, monde,
+  etats, provinces, burgs, cultures, religions, monde,
   etatParId, provinceParId, cultureParId, burgParId,
   villesDeLEtat, villesDeLaProvince, provincesDeLEtat, villesDeLaCulture,
   habitants, nombre, superficie, annee, formeEtat, natureCulture, natureReligion,
@@ -17,6 +17,7 @@ import {
   type TypeEntite,
 } from './monde';
 import { htmlDe } from './contenu';
+import type { Lieu as LieuEnregistre } from './stockage';
 
 export interface Fait {
   cle: string;
@@ -382,7 +383,7 @@ function contexteReligion(r: (typeof religions)[number]): Contexte {
   };
 }
 
-function contexteLieu(l: (typeof lieux)[number]): Contexte {
+function contexteLieu(l: LieuEnregistre): Contexte {
   const proches = burgs
     .map((b) => ({ b, d: Math.hypot(b.x - l.x, b.y - l.y) }))
     .sort((a, x) => a.d - x.d)
@@ -394,8 +395,8 @@ function contexteLieu(l: (typeof lieux)[number]): Contexte {
     type: 'lieu',
     slug: l.slug,
     titre: l.nom,
-    surtitre: `${l.icone ?? ''} ${l.categorie}`.trim(),
-    couleur: null,
+    surtitre: `${l.icone} ${l.categorie}`.trim(),
+    couleur: l.couleur,
     blason: null,
     url: lien('lieu', l.slug),
     cheminTexte: cheminTexte('lieu', l.slug),

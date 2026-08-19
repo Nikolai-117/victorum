@@ -44,18 +44,65 @@ import { monde } from '../lib/monde';
       </div>
 
       <div class="rail__bloc">
-        <p class="etiquette">Lieux remarquables</p>
-        <label class="controle">
-          <input type="checkbox" id="afficher-reperes" checked />
-          <span>Afficher les 532 marqueurs</span>
-        </label>
-        <select id="filtre-categorie" class="select" aria-label="Filtrer par catégorie">
-          <option value="">Toutes les catégories</option>
+        <p class="etiquette">Lieux</p>
+        <p class="aide" id="lieux-compte">Aucun lieu posé pour l'instant.</p>
+        <select id="filtre-categorie" class="select" aria-label="Filtrer par nature" hidden>
+          <option value="">Toutes les natures</option>
         </select>
+        <label class="controle" id="bascule-lieux" hidden>
+          <input type="checkbox" id="afficher-reperes" checked />
+          <span>Afficher les lieux</span>
+        </label>
+        <button id="placer-lieu" class="bouton" type="button">Placer un lieu</button>
       </div>
 
       <div class="rail__bloc">
         <button id="reinit" class="bouton" type="button">Recadrer la vue</button>
+      </div>
+    </aside>
+
+    <!-- Fiche de pose d'un lieu : nom, nature, icône, couleur. -->
+    <aside class="lieu-editeur" id="lieu-editeur" hidden>
+      <div class="lieu-editeur__tete">
+        <p class="etiquette" id="lieu-editeur-titre">Nouveau lieu</p>
+        <button class="fermer" type="button" data-lieu="annuler" aria-label="Fermer">×</button>
+      </div>
+
+      <label class="champ">
+        <span>Nom</span>
+        <input id="lieu-nom" type="text" maxlength="120" placeholder="Le Gouffre de Selenor" />
+      </label>
+
+      <label class="champ">
+        <span>Nature</span>
+        <input id="lieu-categorie" type="text" maxlength="60" list="natures-lieu" placeholder="Donjon" />
+      </label>
+      <datalist id="natures-lieu">
+        <option value="Donjon"></option>
+        <option value="Ruines"></option>
+        <option value="Sanctuaire"></option>
+        <option value="Champ de bataille"></option>
+        <option value="Repaire"></option>
+        <option value="Passage"></option>
+        <option value="Cité perdue"></option>
+        <option value="Curiosité"></option>
+        <option value="Relais"></option>
+        <option value="Mine"></option>
+      </datalist>
+
+      <p class="etiquette">Icône</p>
+      <div class="palette" id="lieu-icones" role="radiogroup" aria-label="Icône du lieu"></div>
+
+      <p class="etiquette">Couleur</p>
+      <div class="palette-couleurs" id="lieu-couleurs" role="radiogroup" aria-label="Couleur du lieu">
+        <input type="color" id="lieu-couleur-libre" value="#c9a227" aria-label="Couleur libre" />
+      </div>
+
+      <p class="aide" id="lieu-message"></p>
+
+      <div class="lieu-editeur__actions">
+        <button class="bouton bouton--or" type="button" data-lieu="enregistrer">Enregistrer</button>
+        <button class="bouton" type="button" data-lieu="supprimer" hidden>Supprimer</button>
       </div>
     </aside>
 
@@ -498,6 +545,184 @@ import { monde } from '../lib/monde';
   .panneau__indice[hidden] {
     display: none;
   }
+
+  /* ----------------------------------------------------------------- lieux */
+
+  /**
+   * Chaque lieu est un groupe mis à l'échelle inverse du zoom : sa pastille et
+   * son icône gardent ainsi la même taille à l'écran, qu'on survole le monde
+   * entier ou une seule vallée.
+   */
+  .lieu {
+    cursor: pointer;
+  }
+  .lieu__fond {
+    stroke: rgba(0, 0, 0, 0.65);
+    stroke-width: 1.2;
+    transition: r 0.12s ease;
+  }
+  .lieu__icone {
+    font-size: 8px;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+    paint-order: stroke;
+    stroke: rgba(0, 0, 0, 0.5);
+    stroke-width: 0.4px;
+  }
+  .lieu:hover .lieu__fond {
+    r: 9;
+    stroke: var(--or);
+  }
+  .lieu--choisi .lieu__fond {
+    stroke: var(--or-clair);
+    stroke-width: 2;
+  }
+
+  /* En mode pose, la carte annonce qu'un clic va planter quelque chose. */
+  #carte.pose {
+    cursor: crosshair;
+  }
+  #carte.pose .lieu {
+    cursor: crosshair;
+  }
+
+  /* -------------------------------------------------------- fiche de pose */
+
+  .lieu-editeur {
+    position: absolute;
+    right: 1.1rem;
+    bottom: 1.1rem;
+    width: 320px;
+    max-height: calc(100% - 2.2rem);
+    overflow-y: auto;
+    padding: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    background: color-mix(in srgb, var(--encre) 95%, transparent);
+    backdrop-filter: blur(14px);
+    border: 1px solid var(--or-sourd);
+    box-shadow: 0 16px 50px rgba(0, 0, 0, 0.6);
+    z-index: 8;
+  }
+  .lieu-editeur[hidden] {
+    display: none;
+  }
+  .lieu-editeur__tete {
+    display: flex;
+    align-items: center;
+  }
+  .lieu-editeur__tete .etiquette {
+    color: var(--or);
+    margin-right: auto;
+  }
+
+  .champ {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .champ span {
+    font-family: var(--display);
+    font-size: 0.6875rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--parchemin-faible);
+  }
+  .champ input {
+    padding: 0.5rem 0.65rem;
+    background: var(--encre);
+    border: 1px solid var(--trait-vif);
+    color: var(--parchemin);
+    font-family: var(--texte-police);
+    font-size: 1rem;
+  }
+  .champ input:focus {
+    outline: none;
+    border-color: var(--or-sourd);
+  }
+
+  .palette {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 2px;
+    max-height: 132px;
+    overflow-y: auto;
+    padding: 2px;
+    border: 1px solid var(--trait);
+    background: var(--encre);
+  }
+  .palette button {
+    aspect-ratio: 1;
+    border: 1px solid transparent;
+    background: none;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+  }
+  .palette button:hover {
+    background: var(--velin-haut);
+  }
+  .palette button[aria-checked='true'] {
+    border-color: var(--or);
+    background: var(--velin-haut);
+  }
+
+  .palette-couleurs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    align-items: center;
+  }
+  .palette-couleurs button {
+    width: 24px;
+    height: 24px;
+    border: 1px solid rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    cursor: pointer;
+    padding: 0;
+  }
+  .palette-couleurs button[aria-checked='true'] {
+    box-shadow: 0 0 0 2px var(--or-clair);
+  }
+  .palette-couleurs input[type='color'] {
+    width: 30px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid var(--trait-vif);
+    background: var(--encre);
+    cursor: pointer;
+    margin-left: auto;
+  }
+
+  .lieu-editeur__actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.3rem;
+  }
+  .lieu-editeur__actions .bouton {
+    flex: 1;
+    justify-content: center;
+    padding: 0.5rem 0.6rem;
+    font-size: 0.6875rem;
+  }
+  #lieu-message:empty {
+    display: none;
+  }
+  #lieu-message {
+    color: var(--sang);
+    margin: 0;
+  }
+
+  @media (max-width: 900px) {
+    .lieu-editeur {
+      width: min(320px, calc(100vw - 2.2rem));
+      left: 1.1rem;
+      right: 1.1rem;
+    }
+  }
 </style>
 
 <script>
@@ -532,8 +757,7 @@ import { monde } from '../lib/monde';
     vue.y = serrer(vue.y, gardeY - hauteur * vue.k, hauteur - gardeY);
 
     gZoom.setAttribute('transform', `translate(${vue.x} ${vue.y}) scale(${vue.k})`);
-    // Les marqueurs gardent une taille constante à l'écran.
-    gReperes.style.fontSize = `${5 / vue.k}px`;
+    majTailleLieux();
     gSurbrillance.style.strokeWidth = `${2 / vue.k}px`;
     majJauge();
   }
@@ -709,8 +933,7 @@ import { monde } from '../lib/monde';
     await Promise.all(parDefaut.map((c) => chargerCouche(c.id).then(avancer)));
 
     index = await (await fetch('/carte/index.json')).json();
-    construireReperes();
-    construireFiltreCategories();
+    await chargerLieux();
     appliquer();
     ouvrirLaDemande();
   }
@@ -742,45 +965,278 @@ import { monde } from '../lib/monde';
     }
   }
 
-  /* -------------------------------------------------------------- marqueurs */
+  /* -------------------------------------------------------------- lieux */
 
-  function construireReperes() {
-    const lieux = index.filter((e) => e.t === 'lieu');
+  /**
+   * Les lieux ne viennent plus de la carte d'Azgaar, qui en produisait des
+   * centaines d'identiques. Ce sont ceux que Romain pose lui-même : nom,
+   * nature, icône et couleur, enregistrés sur le site.
+   */
+  let lieux = [];
+  let stockageActif = false;
+  let modePose = false;
+  let lieuEnCours = null; // le lieu que la fiche de pose est en train d'éditer
+
+  const ICONES = [
+    '🏰','🏛️','🗼','⛪','🏚️','🛖','⚓','🌉','⛲','🚪',
+    '⛰️','🌋','🌲','🌳','🏝️','🏜️','💧','❄️','🕳️','🪨',
+    '⚔️','🛡️','🏹','🪓','🔥','💀','⚰️','🩸','🏴','⛓️',
+    '🔮','✨','🌙','⭐','👁️','🕯️','📜','🗝️','⚗️','🔱',
+    '🐉','🐺','🦅','🐍','🕷️','🐗','🦌','🐎','🦉','🐟',
+    '💰','⚒️','🍺','🧭','📖','🎭','🎣','🌾','⚖️','📍',
+  ];
+
+  const COULEURS = [
+    '#c9a227','#9a4034','#55786a','#5b9cd6','#651179',
+    '#b06a2c','#7c8aa0','#3f7d3f','#a8477f','#e9dfcb',
+  ];
+
+  /** Toutes les entités cherchables : celles de la carte et les lieux posés. */
+  const repertoire = () => [
+    ...index,
+    ...lieux.map((l) => ({
+      t: 'lieu', s: l.slug, n: l.nom, x: l.x, y: l.y, i: l.id,
+      d: l.categorie, ic: l.icone, f: {},
+    })),
+  ];
+
+  async function chargerLieux() {
+    try {
+      const reponse = await fetch('/api/lieux');
+      const donnees = await reponse.json();
+      lieux = Array.isArray(donnees.lieux) ? donnees.lieux : [];
+      stockageActif = Boolean(donnees.stockageActif);
+    } catch {
+      lieux = [];
+    }
+    dessinerLieux();
+    majRailLieux();
+  }
+
+  function dessinerLieux() {
+    gReperes.innerHTML = '';
+    const choix = document.getElementById('filtre-categorie').value;
     const morceaux = document.createDocumentFragment();
+
     for (const l of lieux) {
-      const t = document.createElementNS(NS, 'text');
-      t.setAttribute('x', l.x);
-      t.setAttribute('y', l.y);
-      t.dataset.repere = `${l.t}:${l.i}`;
-      t.dataset.categorie = l.d;
-      t.textContent = l.ic || '•';
-      morceaux.appendChild(t);
+      if (choix && l.categorie !== choix) continue;
+      const groupe = document.createElementNS(NS, 'g');
+      groupe.setAttribute('class', 'lieu');
+      groupe.dataset.lieu = l.id;
+      groupe.dataset.x = l.x;
+      groupe.dataset.y = l.y;
+
+      const fond = document.createElementNS(NS, 'circle');
+      fond.setAttribute('class', 'lieu__fond');
+      fond.setAttribute('r', '7');
+      fond.setAttribute('fill', l.couleur);
+
+      const icone = document.createElementNS(NS, 'text');
+      icone.setAttribute('class', 'lieu__icone');
+      icone.textContent = l.icone;
+
+      groupe.append(fond, icone);
+      morceaux.appendChild(groupe);
     }
     gReperes.appendChild(morceaux);
+    majTailleLieux();
   }
 
-  function construireFiltreCategories() {
+  /** Les lieux gardent leur taille à l'écran, quel que soit l'agrandissement. */
+  function majTailleLieux() {
+    const echelle = 1 / vue.k;
+    for (const groupe of gReperes.children) {
+      groupe.setAttribute(
+        'transform',
+        `translate(${groupe.dataset.x} ${groupe.dataset.y}) scale(${echelle})`
+      );
+    }
+  }
+
+  function majRailLieux() {
+    const compte = document.getElementById('lieux-compte');
     const select = document.getElementById('filtre-categorie');
-    const categories = [...new Set(index.filter((e) => e.t === 'lieu').map((e) => e.d))].sort((a, b) =>
-      a.localeCompare(b, 'fr')
-    );
-    for (const c of categories) {
+    const bascule = document.getElementById('bascule-lieux');
+
+    compte.textContent = lieux.length
+      ? `${lieux.length} lieu${lieux.length > 1 ? 'x' : ''} posé${lieux.length > 1 ? 's' : ''}.`
+      : "Aucun lieu posé pour l'instant. Clique « Placer un lieu », puis sur la carte.";
+
+    const natures = [...new Set(lieux.map((l) => l.categorie))].sort((a, b) => a.localeCompare(b, 'fr'));
+    const retenu = select.value;
+    select.innerHTML = '<option value="">Toutes les natures</option>';
+    for (const n of natures) {
       const option = document.createElement('option');
-      option.value = c;
-      option.textContent = c;
+      option.value = n;
+      option.textContent = n;
+      if (n === retenu) option.selected = true;
       select.appendChild(option);
     }
-    select.addEventListener('change', () => {
-      const choix = select.value;
-      for (const t of gReperes.children) {
-        t.style.display = !choix || t.dataset.categorie === choix ? '' : 'none';
-      }
-    });
+    select.hidden = natures.length < 2;
+    bascule.hidden = lieux.length === 0;
   }
 
+  document.getElementById('filtre-categorie').addEventListener('change', dessinerLieux);
   document.getElementById('afficher-reperes').addEventListener('change', (ev) => {
     gReperes.style.display = ev.target.checked ? '' : 'none';
   });
+
+  /* --------------------------------------------------------- fiche de pose */
+
+  const editeur = document.getElementById('lieu-editeur');
+  const champNom = document.getElementById('lieu-nom');
+  const champCategorie = document.getElementById('lieu-categorie');
+  const champCouleurLibre = document.getElementById('lieu-couleur-libre');
+  const message = document.getElementById('lieu-message');
+  let iconeChoisie = ICONES[0];
+  let couleurChoisie = COULEURS[0];
+
+  (function construirePalettes() {
+    const palette = document.getElementById('lieu-icones');
+    for (const emoji of ICONES) {
+      const bouton = document.createElement('button');
+      bouton.type = 'button';
+      bouton.setAttribute('role', 'radio');
+      bouton.textContent = emoji;
+      bouton.setAttribute('aria-checked', 'false');
+      bouton.addEventListener('click', () => choisirIcone(emoji));
+      palette.appendChild(bouton);
+    }
+
+    const couleurs = document.getElementById('lieu-couleurs');
+    for (const teinte of COULEURS) {
+      const bouton = document.createElement('button');
+      bouton.type = 'button';
+      bouton.setAttribute('role', 'radio');
+      bouton.style.background = teinte;
+      bouton.title = teinte;
+      bouton.setAttribute('aria-checked', 'false');
+      bouton.addEventListener('click', () => choisirCouleur(teinte));
+      couleurs.insertBefore(bouton, champCouleurLibre);
+    }
+    champCouleurLibre.addEventListener('input', () => choisirCouleur(champCouleurLibre.value));
+  })();
+
+  function choisirIcone(emoji) {
+    iconeChoisie = emoji;
+    for (const b of document.querySelectorAll('#lieu-icones button')) {
+      b.setAttribute('aria-checked', String(b.textContent === emoji));
+    }
+  }
+
+  function choisirCouleur(teinte) {
+    couleurChoisie = teinte;
+    champCouleurLibre.value = teinte;
+    for (const b of document.querySelectorAll('#lieu-couleurs button')) {
+      b.setAttribute('aria-checked', String(b.title === teinte));
+    }
+  }
+
+  function ouvrirEditeur(lieu) {
+    lieuEnCours = lieu;
+    document.getElementById('lieu-editeur-titre').textContent = lieu.id ? 'Modifier le lieu' : 'Nouveau lieu';
+    champNom.value = lieu.nom || '';
+    champCategorie.value = lieu.categorie || '';
+    choisirIcone(lieu.icone || ICONES[0]);
+    choisirCouleur(lieu.couleur || COULEURS[0]);
+    document.querySelector('[data-lieu="supprimer"]').hidden = !lieu.id;
+    message.textContent = stockageActif ? '' : "Le stockage n'est pas disponible : impossible d'enregistrer.";
+    editeur.hidden = false;
+    panneau.hidden = true;
+    champNom.focus();
+  }
+
+  function fermerEditeur() {
+    editeur.hidden = true;
+    lieuEnCours = null;
+    gReperes.querySelectorAll('.lieu--choisi').forEach((g) => g.classList.remove('lieu--choisi'));
+  }
+
+  function basculerPose(actif) {
+    modePose = actif;
+    svg.classList.toggle('pose', actif);
+    const bouton = document.getElementById('placer-lieu');
+    bouton.textContent = actif ? 'Annuler la pose' : 'Placer un lieu';
+    bouton.classList.toggle('bouton--or', actif);
+    if (!actif) fermerEditeur();
+  }
+
+  document.getElementById('placer-lieu').addEventListener('click', () => basculerPose(!modePose));
+
+  editeur.addEventListener('click', async (ev) => {
+    const action = ev.target.closest('[data-lieu]')?.dataset.lieu;
+    if (action === 'annuler') fermerEditeur();
+    else if (action === 'enregistrer') await enregistrerLieu();
+    else if (action === 'supprimer') await effacerLieu();
+  });
+
+  champNom.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') enregistrerLieu();
+  });
+
+  async function envoyerAuSite(corps) {
+    const CLE_MDP = 'victorum:mot-de-passe';
+    let mdp = sessionStorage.getItem(CLE_MDP);
+    if (!mdp) {
+      mdp = prompt(
+        "Mot de passe de l'atelier. S'il n'en existe pas encore, celui que tu choisis ici devient celui du site."
+      );
+      if (!mdp) return null;
+      sessionStorage.setItem(CLE_MDP, mdp);
+    }
+    const reponse = await fetch('/api/lieux', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-mot-de-passe': mdp },
+      body: JSON.stringify(corps),
+    });
+    const donnees = await reponse.json().catch(() => ({}));
+    if (reponse.status === 401) sessionStorage.removeItem(CLE_MDP);
+    if (!reponse.ok) {
+      message.textContent = donnees.erreur || 'Enregistrement impossible.';
+      return null;
+    }
+    return donnees;
+  }
+
+  async function enregistrerLieu() {
+    if (!lieuEnCours) return;
+    const nom = champNom.value.trim();
+    if (!nom) {
+      message.textContent = 'Il lui faut au moins un nom.';
+      champNom.focus();
+      return;
+    }
+    message.textContent = 'Enregistrement…';
+    const donnees = await envoyerAuSite({
+      action: 'enregistrer',
+      lieu: {
+        id: lieuEnCours.id,
+        nom,
+        categorie: champCategorie.value.trim(),
+        icone: iconeChoisie,
+        couleur: couleurChoisie,
+        x: lieuEnCours.x,
+        y: lieuEnCours.y,
+      },
+    });
+    if (!donnees) return;
+    lieux = donnees.lieux;
+    dessinerLieux();
+    majRailLieux();
+    fermerEditeur();
+    basculerPose(false);
+  }
+
+  async function effacerLieu() {
+    if (!lieuEnCours?.id) return;
+    if (!confirm(`Effacer « ${lieuEnCours.nom} » ? Le texte de sa fiche part avec.`)) return;
+    const donnees = await envoyerAuSite({ action: 'supprimer', id: lieuEnCours.id });
+    if (!donnees) return;
+    lieux = donnees.lieux;
+    dessinerLieux();
+    majRailLieux();
+    fermerEditeur();
+  }
 
   /* ---------------------------------------------------------------- sélection */
 
@@ -803,10 +1259,26 @@ import { monde } from '../lib/monde';
   const lienDe = (entree) => `/${URLS[entree.t]}/${entree.s}`;
 
   function traiterClic(ev) {
-    const repere = ev.target.closest?.('[data-repere]');
-    if (repere) {
-      const [t, i] = repere.dataset.repere.split(':');
-      return selectionner(index.find((e) => e.t === t && e.i === Number(i)));
+    const surLieu = ev.target.closest?.('.lieu');
+    if (surLieu) {
+      const lieu = lieux.find((l) => l.id === surLieu.dataset.lieu);
+      if (!lieu) return;
+      // En mode pose, cliquer un lieu existant le rouvre pour le corriger.
+      if (modePose) {
+        gReperes.querySelectorAll('.lieu--choisi').forEach((g) => g.classList.remove('lieu--choisi'));
+        surLieu.classList.add('lieu--choisi');
+        return ouvrirEditeur({ ...lieu });
+      }
+      return selectionner({
+        t: 'lieu', s: lieu.slug, n: lieu.nom, x: lieu.x, y: lieu.y,
+        i: lieu.id, d: lieu.categorie, f: {},
+      });
+    }
+
+    // Un clic sur la carte en mode pose plante un lieu à cet endroit précis.
+    if (modePose) {
+      const p = pointeur(ev);
+      return ouvrirEditeur({ x: (p.x - vue.x) / vue.k, y: (p.y - vue.y) / vue.k });
     }
 
     const cible = ev.target.closest?.('[data-id], [id^="state"]');
@@ -909,7 +1381,7 @@ import { monde } from '../lib/monde';
     resultats.innerHTML = '';
     if (q.length < 2) return;
 
-    const trouves = index
+    const trouves = repertoire()
       .map((e) => {
         const n = sansAccent(e.n);
         const position = n.indexOf(q);
