@@ -6,9 +6,9 @@
  *   2. ce qui est versionné dans `src/contenu/` (textes Markdown, mises en page) ;
  *   3. ce qui a été enregistré depuis l'atelier, gardé dans le stockage KV.
  *
- * Le stockage est facultatif par construction : tant que la liaison n'est pas
- * en place, le site fonctionne exactement comme avant et l'atelier le dit
- * franchement au lieu de faire semblant d'enregistrer.
+ * Aucune configuration manuelle n'est demandée : l'espace de stockage est créé
+ * par Cloudflare au premier déploiement, et le mot de passe est celui que
+ * Romain saisit la première fois qu'il enregistre.
  */
 
 export interface PageEnregistree {
@@ -20,18 +20,31 @@ export interface PageEnregistree {
 /** Le nom de la liaison déclarée dans wrangler.jsonc. */
 const LIAISON = 'VICTORUM';
 
-/** Récupère l'espace de stockage, ou null s'il n'est pas configuré. */
+/** Clé réservée : l'empreinte du mot de passe de l'atelier. */
+const CLE_MOT_DE_PASSE = 'config:mot-de-passe';
+
+/** Récupère l'espace de stockage, ou null s'il n'est pas encore disponible. */
 export function stockage(locals: App.Locals): KVNamespace | null {
   const env = (locals as { runtime?: { env?: Record<string, unknown> } })?.runtime?.env;
   const espace = env?.[LIAISON];
   return espace && typeof (espace as KVNamespace).get === 'function' ? (espace as KVNamespace) : null;
 }
 
-/** Le mot de passe de l'atelier, défini en variable secrète du Worker. */
-function motDePasseAttendu(locals: App.Locals): string | null {
+/**
+ * Un mot de passe peut aussi être imposé en variable secrète du Worker. Ce
+ * n'est pas obligatoire ; s'il existe, il l'emporte sur celui enregistré.
+ */
+function motDePasseImpose(locals: App.Locals): string | null {
   const env = (locals as { runtime?: { env?: Record<string, unknown> } })?.runtime?.env;
   const valeur = env?.MOT_DE_PASSE;
   return typeof valeur === 'string' && valeur.length > 0 ? valeur : null;
+}
+
+/** Empreinte du mot de passe : on n'écrit jamais le mot de passe en clair. */
+async function empreinte(motDePasse: string): Promise<string> {
+  const donnees = new TextEncoder().encode(`victorum:${motDePasse}`);
+  const condensat = await crypto.subtle.digest('SHA-256', donnees);
+  return [...new Uint8Array(condensat)].map((o) => o.toString(16).padStart(2, '0')).join('');
 }
 
 /**
@@ -45,25 +58,47 @@ function memeSecret(a: string, b: string): boolean {
   return difference === 0;
 }
 
+/** Un mot de passe a-t-il déjà été choisi ? */
+export async function motDePasseDefini(locals: App.Locals): Promise<boolean> {
+  if (motDePasseImpose(locals)) return true;
+  const espace = stockage(locals);
+  if (!espace) return false;
+  return Boolean(await espace.get(CLE_MOT_DE_PASSE));
+}
+
 /**
- * Autorise une écriture. Sans mot de passe configuré, tout est refusé : un site
- * public dont n'importe qui pourrait effacer le lore serait pire qu'un site
- * sans enregistrement du tout.
+ * Autorise une écriture.
+ *
+ * Le premier mot de passe saisi devient celui du site : personne d'autre que
+ * Romain ne connaît encore l'adresse au moment où il l'ouvre. Ensuite, il est
+ * exigé à chaque écriture — le lien étant destiné à être partagé, on ne peut
+ * pas laisser un visiteur réécrire son monde.
  */
-export function ecritureAutorisee(locals: App.Locals, fourni: string | null):
-  { ok: true } | { ok: false; raison: string } {
-  const attendu = motDePasseAttendu(locals);
-  if (!attendu) {
-    return {
-      ok: false,
-      raison:
-        "Aucun mot de passe n'est configuré sur le Worker. Ajoute la variable secrète MOT_DE_PASSE dans Cloudflare pour autoriser l'enregistrement.",
-    };
+export async function ecritureAutorisee(
+  locals: App.Locals,
+  fourni: string | null
+): Promise<{ ok: true; premier?: boolean } | { ok: false; raison: string }> {
+  const espace = stockage(locals);
+  if (!espace) return { ok: false, raison: "Le stockage n'est pas encore disponible." };
+  if (!fourni) return { ok: false, raison: 'Mot de passe requis.' };
+
+  const impose = motDePasseImpose(locals);
+  if (impose) {
+    return memeSecret(impose, fourni) ? { ok: true } : { ok: false, raison: 'Mot de passe incorrect.' };
   }
-  if (!fourni || !memeSecret(attendu, fourni)) {
-    return { ok: false, raison: 'Mot de passe incorrect.' };
+
+  const connu = await espace.get(CLE_MOT_DE_PASSE);
+  const candidat = await empreinte(fourni);
+
+  if (!connu) {
+    if (fourni.length < 4) {
+      return { ok: false, raison: 'Choisis un mot de passe d’au moins 4 caractères.' };
+    }
+    await espace.put(CLE_MOT_DE_PASSE, candidat);
+    return { ok: true, premier: true };
   }
-  return { ok: true };
+
+  return memeSecret(connu, candidat) ? { ok: true } : { ok: false, raison: 'Mot de passe incorrect.' };
 }
 
 /** Chaque fiche a une clé stable, indépendante de la mise en page. */

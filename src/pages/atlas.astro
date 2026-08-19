@@ -76,7 +76,7 @@ import { monde } from '../lib/monde';
   </div>
 </Base>
 
-<style>
+<style is:global>
   .scene {
     position: relative;
     height: calc(100svh - 60px);
@@ -99,6 +99,10 @@ import { monde } from '../lib/monde';
     display: block;
     cursor: grab;
     touch-action: none;
+    /* Sans cela, glisser la carte surligne les noms de villes et de royaumes
+       comme du texte ordinaire : le navigateur croit à une sélection. */
+    user-select: none;
+    -webkit-user-select: none;
   }
   #carte.saisi {
     cursor: grabbing;

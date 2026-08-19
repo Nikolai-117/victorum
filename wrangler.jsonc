@@ -14,7 +14,8 @@
   },
   "observability": {
     "enabled": true
-  }
+  },
+  "kv_namespaces": [{ "binding": "VICTORUM" }]
 
   // ------------------------------------------------------------------------
   // STOCKAGE — à activer une fois l'espace KV créé (voir README, « Activer

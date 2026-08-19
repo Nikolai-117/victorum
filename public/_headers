@@ -1,0 +1,6 @@
+# Site privé : aucun moteur de recherche ne doit indexer Victorum.
+# C'est Romain qui décide qui le voit, en partageant l'adresse.
+/*
+  X-Robots-Tag: noindex, nofollow, noarchive
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Content-Type-Options: nosniff

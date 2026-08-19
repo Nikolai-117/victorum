@@ -13,7 +13,7 @@ import Base from '../layouts/Base.astro';
 import Atelier from './Atelier.astro';
 import { rendrePage, dispositionParDefaut, markdownCourt } from '../lib/blocs.js';
 import { dispositionDe } from '../lib/contenu';
-import { lirePage, stockage } from '../lib/stockage';
+import { lirePage, motDePasseDefini, stockage } from '../lib/stockage';
 import { SECTIONS } from '../lib/monde';
 import type { Contexte } from '../lib/contexte';
 
@@ -51,6 +51,7 @@ const html = rendrePage(blocs, contexteFinal);
       slug={contexte.slug}
       texte={enregistre?.texte ?? ''}
       stockageActif={Boolean(stockage(Astro.locals))}
+      motDePasseDefini={await motDePasseDefini(Astro.locals)}
     />
     <div id="fiche" set:html={html} />
   </div>

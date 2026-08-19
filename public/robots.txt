@@ -1,0 +1,4 @@
+# Victorum est un site privé : c'est Romain qui décide qui le voit, en
+# partageant l'adresse. Aucun moteur de recherche ne doit l'indexer.
+User-agent: *
+Disallow: /

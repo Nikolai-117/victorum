@@ -19,9 +19,10 @@ interface Props {
   slug: string;
   texte: string;
   stockageActif: boolean;
+  motDePasseDefini: boolean;
 }
 
-const { contexte, blocs, section, slug, texte, stockageActif } = Astro.props;
+const { contexte, blocs, section, slug, texte, stockageActif, motDePasseDefini } = Astro.props;
 ---
 
 <div class="atelier-barre contenant" id="atelier-barre" role="toolbar" aria-label="Mise en page">
@@ -71,7 +72,7 @@ const { contexte, blocs, section, slug, texte, stockageActif } = Astro.props;
 <script
   type="application/json"
   id="atelier-page"
-  set:html={JSON.stringify({ section, slug, stockageActif })}
+  set:html={JSON.stringify({ section, slug, stockageActif, motDePasseDefini })}
 ></script>
 
 <script>
@@ -141,10 +142,19 @@ const { contexte, blocs, section, slug, texte, stockageActif } = Astro.props;
       minuteur = setTimeout(envoyer, delai);
     }
 
+    /**
+     * Le premier mot de passe saisi devient celui du site : au moment où Romain
+     * ouvre son atelier, personne d'autre ne connaît encore l'adresse. Rien
+     * n'est donc à créer d'avance.
+     */
     function motDePasse(redemander) {
       let mdp = sessionStorage.getItem(CLE_MDP);
       if (!mdp || redemander) {
-        mdp = prompt("Mot de passe de l'atelier :");
+        mdp = prompt(
+          page.motDePasseDefini
+            ? "Mot de passe de l'atelier :"
+            : "Choisis le mot de passe de ton atelier. Il te sera demandé pour toute modification, et personne d'autre ne pourra écrire sur ton site."
+        );
         if (mdp) sessionStorage.setItem(CLE_MDP, mdp);
       }
       return mdp;
@@ -188,6 +198,7 @@ const { contexte, blocs, section, slug, texte, stockageActif } = Astro.props;
         }
 
         memoriserLocalement(false);
+        page.motDePasseDefini = true;
         etat = 'synchro';
         majEtat();
       } catch (erreur) {

@@ -31,6 +31,9 @@ const NAV = [
     <title>{titre === monde.nom ? monde.nom : `${titre} — ${monde.nom}`}</title>
     {description && <meta name="description" content={description} />}
     <meta name="color-scheme" content="dark" />
+    <!-- Site privé : Romain décide qui le voit en partageant l'adresse.
+         Rien ici ne doit apparaître dans un moteur de recherche. -->
+    <meta name="robots" content="noindex, nofollow, noarchive" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   </head>
   <body>
