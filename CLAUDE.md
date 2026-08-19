@@ -74,6 +74,29 @@ Une fiche est une suite de blocs décrite en JSON, pas un gabarit figé.
 - Une disposition enregistrée vide retombe sur celle par défaut : une page
   blanche n'est jamais un résultat voulu.
 
+## Déploiement sur Cloudflare
+
+Le dépôt est relié à **Workers Builds** (pas Pages) : chaque poussée sur
+`main` déclenche une construction, et le résultat est visible sans le tableau
+de bord via les *check runs* GitHub :
+
+```bash
+curl -s "https://api.github.com/repos/Nikolai-117/victorum/commits/HEAD_SHA/check-runs"
+```
+
+- **`dist/.assetsignore` est indispensable.** Le Worker produit par Astro vit
+  dans `dist/_worker.js/`, à l'intérieur du répertoire d'actifs. Sans ce
+  fichier, Wrangler le traite à la fois comme point d’entrée et comme
+  ressource à servir, et le déploiement échoue. `scripts/finaliser-build.mjs`
+  l'écrit en fin de construction ; l'adaptateur Astro ne le fait pas.
+- **Le symptôme est trompeur** : `wrangler deploy --dry-run` passe sans un mot,
+  parce qu'il ne parcourt pas les actifs. Deux constructions ont échoué avant
+  que la cause soit trouvée — vérifier les check runs plutôt que de supposer.
+- Un échec de construction ne casse rien : Cloudflare continue de servir le
+  dernier déploiement réussi. Le site reste donc en ligne pendant les essais.
+- `compatibility_date` ne doit pas dépasser ce que supporte le `workerd`
+  installé, sinon `wrangler dev` retombe en arrière avec un avertissement.
+
 ## Pièges de l'export Azgaar, tous rencontrés et corrigés
 
 Le format `.map` est un fichier à lignes indexées. `scripts/import-map.mjs` les
