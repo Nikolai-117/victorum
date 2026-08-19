@@ -106,15 +106,40 @@ import { monde } from '../lib/monde';
       </div>
     </aside>
 
+    <!-- Le panneau d'un clic : ce qu'on sait de l'entité sans quitter la carte. -->
     <aside class="panneau" id="panneau" hidden>
+      <span class="panneau__accent"></span>
       <button id="fermer-panneau" class="fermer" aria-label="Fermer">×</button>
-      <p class="etiquette" id="panneau-categorie"></p>
-      <h2 id="panneau-titre"></h2>
-      <dl class="panneau__faits" id="panneau-faits"></dl>
-      <div id="panneau-legende" class="panneau__legende"></div>
-      <p class="panneau__indice">Cliquez une seconde fois sur la carte pour entrer dans la fiche.</p>
-      <a id="panneau-lien" class="bouton bouton--or" href="#">Ouvrir la fiche</a>
+
+      <header class="panneau__tete">
+        <div class="panneau__ecusson" id="panneau-ecusson" aria-hidden="true"></div>
+        <div class="panneau__intitule">
+          <p class="etiquette" id="panneau-categorie"></p>
+          <h2 id="panneau-titre"></h2>
+          <p class="panneau__rattachement" id="panneau-rattachement"></p>
+        </div>
+      </header>
+
+      <ul class="panneau__traits" id="panneau-traits"></ul>
+
+      <div class="panneau__grille" id="panneau-grille"></div>
+
+      <div class="panneau__barres" id="panneau-barres"></div>
+
+      <div class="panneau__pied">
+        <a id="panneau-lien" class="bouton bouton--plein" href="#">Ouvrir la fiche</a>
+        <button id="panneau-centrer" class="bouton" type="button">Centrer sur la carte</button>
+      </div>
     </aside>
+
+    <!-- Le mode d'emploi, toujours sous les yeux, jamais dans le chemin. -->
+    <p class="commandes">
+      <span><b>Clic</b> renseigne</span>
+      <span><b>Double-clic</b> ouvre la fiche</span>
+      <span><b>Glisser</b> déplace</span>
+      <span><b>Molette</b> agrandit</span>
+      <span><b>Échap</b> ferme</span>
+    </p>
 
     <div class="jauge">
       <div class="jauge__barre"><span id="jauge-trait"></span></div>
@@ -171,6 +196,31 @@ import { monde } from '../lib/monde';
     paint-order: stroke;
     stroke: rgba(0, 0, 0, 0.6);
     stroke-width: 0.25px;
+  }
+
+  /* La cible choisie : un cercle net, doublé d'une onde qui s'éteint. */
+  #surbrillance {
+    pointer-events: none;
+  }
+  #surbrillance .marque--onde {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: onde 1.9s ease-out infinite;
+  }
+  @keyframes onde {
+    from {
+      opacity: 0.65;
+      transform: scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: scale(3.4);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #surbrillance .marque--onde {
+      display: none;
+    }
   }
 
   /* ------------------------------------------------------------ progression */
@@ -376,22 +426,291 @@ import { monde } from '../lib/monde';
     position: absolute;
     top: 1.1rem;
     right: 1.1rem;
-    width: 330px;
+    width: 348px;
     max-height: calc(100% - 2.2rem);
     overflow-y: auto;
-    padding: 1.3rem;
+    padding: 1.35rem 1.3rem 1.2rem;
+    /* La teinte de l'entité choisie irrigue le panneau : filet, écusson, jauges.
+       Éclaircie pour l'affichage : le pourpre d'un royaume, posé tel quel sur
+       ce noir, ne se verrait pas. */
+    --teinte: var(--or);
+    --teinte-vive: color-mix(in srgb, var(--teinte) 60%, #f0e6d2);
+    animation: panneau-entree 0.22s ease-out;
   }
   .panneau[hidden] {
     display: none;
   }
+  @keyframes panneau-entree {
+    from {
+      opacity: 0;
+      transform: translateX(16px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .panneau {
+      animation: none;
+    }
+  }
+
+  /* Un filet de couleur en tête : celle du royaume, ou celle du lieu posé. */
+  .panneau__accent {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--teinte-vive);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--teinte-vive) 45%, transparent);
+  }
+
+  .panneau__tete {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    padding-right: 1.6rem;
+    margin-bottom: 0.85rem;
+  }
+  .panneau__ecusson {
+    flex: none;
+    width: 56px;
+    height: 56px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--trait-vif);
+    background:
+      radial-gradient(circle at 50% 26%, color-mix(in srgb, var(--teinte-vive) 26%, transparent), transparent 72%),
+      var(--encre-2);
+    color: var(--teinte-vive);
+    font-size: 1.6rem;
+    line-height: 1;
+  }
+  .panneau__ecusson img {
+    display: block;
+    width: 48px;
+    height: 48px;
+  }
+  .panneau__intitule {
+    min-width: 0;
+  }
+  .panneau__intitule .etiquette {
+    color: var(--teinte-vive);
+    font-size: 0.6875rem;
+    letter-spacing: 0.2em;
+  }
   .panneau h2 {
-    font-size: 1.7rem;
-    margin: 0.3rem 0 1.1rem;
-    padding-right: 1.5rem;
+    font-size: 1.5rem;
+    margin: 0.2rem 0 0;
+    line-height: 1.05;
   }
-  .panneau > .etiquette {
-    color: var(--or);
+  /* Où l'on se trouve, dit en une ligne, et cliquable de bout en bout. */
+  .panneau__rattachement {
+    margin: 0.3rem 0 0;
+    font-size: 0.875rem;
+    color: var(--parchemin-doux);
+    line-height: 1.35;
   }
+  .panneau__rattachement:empty {
+    display: none;
+  }
+  .panneau__rattachement .sep {
+    color: var(--trait-vif);
+    margin: 0 0.35rem;
+  }
+
+  /* Ce qu'une ville a de remarquable, un mot par jeton. */
+  .panneau__traits {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin: 0 0 0.95rem;
+    padding: 0;
+  }
+  .panneau__traits:empty {
+    display: none;
+  }
+  .panneau__traits li {
+    font-family: var(--display);
+    font-size: 0.625rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--parchemin-doux);
+    background: var(--velin);
+    border: 1px solid var(--trait);
+    padding: 0.2rem 0.45rem;
+  }
+
+  /* Les chiffres en casiers : un instrument, pas un paragraphe. */
+  .panneau__grille {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--trait);
+    border: 1px solid var(--trait);
+    margin-bottom: 1rem;
+  }
+  .panneau__grille:empty {
+    display: none;
+  }
+  .panneau__casier {
+    background: var(--encre-2);
+    padding: 0.45rem 0.6rem 0.5rem;
+    min-width: 0;
+  }
+  /* Un casier seul sur sa ligne occupe toute la largeur. */
+  .panneau__casier--large {
+    grid-column: 1 / -1;
+  }
+  .panneau__casier dt {
+    font-family: var(--display);
+    font-size: 0.5625rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--parchemin-faible);
+  }
+  .panneau__casier dd {
+    margin: 0.12rem 0 0;
+    font-size: 1.0625rem;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  /* Le classement passe à la ligne : accolé, il faisait respirer la grille
+     à contretemps, chaque casier changeant de hauteur selon sa longueur. */
+  .panneau__casier dd small {
+    display: block;
+    margin-top: 0.1rem;
+    font-size: 0.6875rem;
+    line-height: 1.3;
+    color: var(--parchemin-faible);
+  }
+  /* Un nom qui mène ailleurs : bouton nu, souligné comme un lien du site. */
+  .panneau__casier button,
+  .panneau__rattachement button {
+    border: 0;
+    padding: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    background-image: linear-gradient(var(--or-sourd), var(--or-sourd));
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+    background-size: 100% 1px;
+  }
+  .panneau__casier button:hover,
+  .panneau__casier button:focus-visible,
+  .panneau__rattachement button:hover,
+  .panneau__rattachement button:focus-visible {
+    color: var(--or-clair);
+    outline: none;
+    background-image: linear-gradient(var(--or), var(--or));
+  }
+
+  /* Les proportions : ce que les chiffres seuls ne montrent pas. */
+  .panneau__barres {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    margin-bottom: 1.1rem;
+  }
+  .panneau__barres:empty {
+    display: none;
+  }
+  .panneau__barre-tete {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.6rem;
+    font-family: var(--display);
+    font-size: 0.5625rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--parchemin-faible);
+    margin-bottom: 0.28rem;
+  }
+  .panneau__barre-tete b {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--parchemin-doux);
+  }
+  .panneau__barre-fond {
+    height: 4px;
+    background: var(--velin-haut);
+    overflow: hidden;
+  }
+  .panneau__barre-fond i {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, var(--teinte-vive), var(--or-clair));
+    transition: width 0.45s ease-out;
+  }
+
+  .panneau__pied {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding-top: 0.95rem;
+    border-top: 1px solid var(--trait);
+  }
+  .panneau__pied .bouton {
+    justify-content: center;
+    padding: 0.55rem 0.9rem;
+    font-size: 0.6875rem;
+  }
+  /* Le geste principal se voit du premier coup d'œil. */
+  .bouton--plein {
+    background: var(--or);
+    border-color: var(--or);
+    color: #14100a;
+  }
+  .bouton--plein:hover {
+    background: var(--or-clair);
+    border-color: var(--or-clair);
+    color: #14100a;
+  }
+
+  /* ------------------------------------------------------------- commandes */
+
+  .commandes {
+    position: absolute;
+    left: 50%;
+    bottom: 1.1rem;
+    transform: translateX(-50%);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0 1.1rem;
+    margin: 0;
+    padding: 0.4rem 0.9rem;
+    max-width: calc(100% - 24rem);
+    background: color-mix(in srgb, var(--encre) 82%, transparent);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--trait);
+    font-size: 0.75rem;
+    color: var(--parchemin-faible);
+    pointer-events: none;
+    user-select: none;
+  }
+  .commandes b {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: 0.625rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--parchemin-doux);
+    margin-right: 0.3rem;
+  }
+  @media (max-width: 1100px) {
+    .commandes {
+      display: none;
+    }
+  }
+
   .fermer {
     position: absolute;
     top: 0.55rem;
@@ -407,40 +726,6 @@ import { monde } from '../lib/monde';
   }
   .fermer:hover {
     color: var(--or-clair);
-  }
-
-  .panneau__faits {
-    margin: 0 0 1.1rem;
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 0.4rem 1rem;
-    font-size: 0.9375rem;
-  }
-  .panneau__faits dt {
-    font-family: var(--display);
-    color: var(--parchemin-faible);
-    font-size: 0.625rem;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    align-self: center;
-  }
-  .panneau__faits dd {
-    margin: 0;
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .panneau__legende {
-    font-size: 0.9375rem;
-    color: var(--parchemin-doux);
-    margin-bottom: 1.1rem;
-    max-height: 230px;
-    overflow-y: auto;
-    padding-left: 0.85rem;
-    border-left: 1px solid var(--trait-vif);
-  }
-  .panneau__legende:empty {
-    display: none;
   }
 
   /* ------------------------------------------------------------------ jauge */
@@ -487,7 +772,7 @@ import { monde } from '../lib/monde';
       display: block;
     }
     .panneau {
-      width: min(330px, calc(100vw - 2.2rem));
+      width: min(340px, calc(100vw - 2.2rem));
     }
   }
 
@@ -527,23 +812,40 @@ import { monde } from '../lib/monde';
     filter: brightness(1.45) saturate(1.25);
   }
 
+  /**
+   * Les provinces se comportent comme les royaumes : la survolée s'éclaire,
+   * les autres s'effacent. Et tant qu'elles sont affichées, l'aplat des
+   * royaumes s'estompe — sinon les deux teintes se mélangeraient.
+   */
+  #couches .province {
+    cursor: pointer;
+    transition: opacity 0.18s ease, filter 0.18s ease;
+  }
+  #couches [data-couche='provinces']:hover .province {
+    opacity: 0.45;
+  }
+  #couches .province:hover {
+    opacity: 1;
+    filter: brightness(1.4) saturate(1.2);
+  }
+  /* Le nom ne capte pas le pointeur : le clic revient à l'aplat qu'il désigne. */
+  #couches .province text {
+    fill: #f6edda;
+    paint-order: stroke;
+    pointer-events: none;
+    dominant-baseline: central;
+  }
+  #couches [data-couche='regions'] {
+    transition: opacity 0.25s ease;
+  }
+  #couches.provinces-visibles [data-couche='regions'] {
+    opacity: 0.2;
+  }
+
   /* Villes et marqueurs annoncent eux aussi qu'ils réagissent. */
   #couches [data-couche='icons'] use,
   #couches [data-couche='labels'] text {
     cursor: pointer;
-  }
-
-  /* --------------------------------------------------------- indice du panneau */
-
-  .panneau__indice {
-    margin: 0 0 1rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid var(--trait);
-    font-size: 0.8125rem;
-    color: var(--parchemin-faible);
-  }
-  .panneau__indice[hidden] {
-    display: none;
   }
 
   /* ----------------------------------------------------------------- lieux */
@@ -865,10 +1167,8 @@ import { monde } from '../lib/monde';
   svg.addEventListener('pointerup', relacher);
   svg.addEventListener('pointercancel', relacher);
 
-  svg.addEventListener('dblclick', (ev) => {
-    const p = pointeur(ev);
-    zoomerVers(p.x, p.y, 2);
-  });
+  // Le double-clic est traité plus bas, avec la sélection : selon ce qu'il
+  // vise, il agrandit la vue ou entre dans la fiche.
 
   /* ------------------------------------------------------------- chargement */
 
@@ -960,6 +1260,7 @@ import { monde } from '../lib/monde';
         } else {
           g.style.display = 'none';
         }
+        if (c.id === 'provinces') gCouches.classList.toggle('provinces-visibles', actif);
       });
       hote.appendChild(label);
     }
@@ -992,13 +1293,7 @@ import { monde } from '../lib/monde';
   ];
 
   /** Toutes les entités cherchables : celles de la carte et les lieux posés. */
-  const repertoire = () => [
-    ...index,
-    ...lieux.map((l) => ({
-      t: 'lieu', s: l.slug, n: l.nom, x: l.x, y: l.y, i: l.id,
-      d: l.categorie, ic: l.icone, f: {},
-    })),
-  ];
+  const repertoire = () => [...index, ...lieux.map(entreeLieu)];
 
   async function chargerLieux() {
     try {
@@ -1142,7 +1437,7 @@ import { monde } from '../lib/monde';
     document.querySelector('[data-lieu="supprimer"]').hidden = !lieu.id;
     message.textContent = stockageActif ? '' : "Le stockage n'est pas disponible : impossible d'enregistrer.";
     editeur.hidden = false;
-    panneau.hidden = true;
+    fermerPanneau();
     champNom.focus();
   }
 
@@ -1248,31 +1543,94 @@ import { monde } from '../lib/monde';
   };
 
   /**
-   * Deux temps, comme feuilleter un atlas : le premier clic ouvre le panneau
-   * et dit ce qu'est le lieu, le second entre dans sa fiche. Chaque chose
-   * nommée sur la carte réagit ainsi — royaumes, villes, lieux remarquables —
-   * y compris celles qu'un futur import ajoutera, puisque tout passe par
-   * l'index plutôt que par une liste écrite à la main.
+   * Deux gestes, un seul sens : un clic renseigne, un double-clic emmène.
+   *
+   * Le premier clic ouvre le panneau — c'est le geste courant, celui qu'on
+   * répète en parcourant la carte, et il ne doit jamais faire changer de page.
+   * Le double-clic, lui, entre dans la fiche ; mais seulement sur une chose
+   * visée : une ville, un lieu posé, le nom d'un royaume. Sur le territoire
+   * d'un royaume, qui couvre la moitié de la carte, il continue d'agrandir la
+   * vue — sinon il ne resterait plus un pixel où zoomer d'un double-clic.
    */
   let selectionCourante = null;
 
   const lienDe = (entree) => `/${URLS[entree.t]}/${entree.s}`;
+  const rang = (n, genre) => (n === 1 ? (genre === 'm' ? '1ᵉʳ' : '1ʳᵉ') : `${n}ᵉ`);
 
-  function traiterClic(ev) {
-    const surLieu = ev.target.closest?.('.lieu');
+  /** Au-delà du million, on abrège : l'ordre de grandeur suffit à l'œil. */
+  const habitants = (n) =>
+    n >= 1000000
+      ? `${(n / 1000000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} M`
+      : NOMBRE.format(n);
+
+  /** Un lieu posé par Romain, sous la même forme que les entités de la carte. */
+  const entreeLieu = (l) => ({
+    t: 'lieu', s: l.slug, n: l.nom, x: l.x, y: l.y, i: l.id,
+    d: l.categorie || 'Lieu', col: l.couleur, ic: l.icone,
+    f: { pose: l.creeLe },
+  });
+
+  /**
+   * Ce que le pointeur désigne, cherché par la position plutôt que par la
+   * cible de l'événement.
+   *
+   * Le SVG capture le pointeur dès qu'on appuie, pour ne pas perdre un
+   * déplacement qui sort de la fenêtre ; mais une fois la capture posée, le
+   * navigateur réattribue tous les événements suivants au SVG lui-même. Le
+   * relâchement ne désignait donc plus jamais la ville cliquée, et le clic
+   * restait sans effet. On redemande donc ce qu'il y a sous le curseur.
+   */
+  const sousLePointeur = (ev) =>
+    document.elementFromPoint(ev.clientX, ev.clientY) || ev.target;
+
+  /**
+   * `precis` distingue une cible visée — pastille de ville, lieu posé,
+   * inscription — d'une vaste étendue colorée.
+   */
+  function entiteSous(cible) {
+    const surLieu = cible.closest?.('.lieu');
     if (surLieu) {
       const lieu = lieux.find((l) => l.id === surLieu.dataset.lieu);
+      return lieu ? { entree: entreeLieu(lieu), precis: true } : null;
+    }
+
+    const noeud = cible.closest?.('[data-id], [id^="state"], [id^="province"]');
+    if (!noeud) return null;
+
+    const identifiant = noeud.id || '';
+    const etiquetteEtat = identifiant.match(/^stateLabel(\d+)$/);
+    const territoire = identifiant.match(/^state(\d+)$/);
+
+    if (etiquetteEtat || territoire) {
+      const id = Number((etiquetteEtat || territoire)[1]);
+      const entree = index.find((e) => e.t === 'etat' && e.i === id);
+      return entree ? { entree, precis: Boolean(etiquetteEtat) } : null;
+    }
+    const province = identifiant.match(/^province(\d+)$/);
+    if (province) {
+      const entree = index.find((e) => e.t === 'province' && e.i === Number(province[1]));
+      // Comme un royaume : une étendue se renseigne d'un clic, mais garde le
+      // double-clic pour agrandir la vue.
+      return entree ? { entree, precis: false } : null;
+    }
+    if (/^(burg|anchor|burgLabel)/.test(identifiant)) {
+      const entree = index.find((e) => e.t === 'burg' && e.i === Number(noeud.dataset.id));
+      return entree ? { entree, precis: true } : null;
+    }
+    return null;
+  }
+
+  function traiterClic(ev) {
+    const vise = sousLePointeur(ev);
+    const surLieu = vise.closest?.('.lieu');
+
+    // En mode pose, cliquer un lieu existant le rouvre pour le corriger.
+    if (modePose && surLieu) {
+      const lieu = lieux.find((l) => l.id === surLieu.dataset.lieu);
       if (!lieu) return;
-      // En mode pose, cliquer un lieu existant le rouvre pour le corriger.
-      if (modePose) {
-        gReperes.querySelectorAll('.lieu--choisi').forEach((g) => g.classList.remove('lieu--choisi'));
-        surLieu.classList.add('lieu--choisi');
-        return ouvrirEditeur({ ...lieu });
-      }
-      return selectionner({
-        t: 'lieu', s: lieu.slug, n: lieu.nom, x: lieu.x, y: lieu.y,
-        i: lieu.id, d: lieu.categorie, f: {},
-      });
+      gReperes.querySelectorAll('.lieu--choisi').forEach((g) => g.classList.remove('lieu--choisi'));
+      surLieu.classList.add('lieu--choisi');
+      return ouvrirEditeur({ ...lieu });
     }
 
     // Un clic sur la carte en mode pose plante un lieu à cet endroit précis.
@@ -1281,94 +1639,288 @@ import { monde } from '../lib/monde';
       return ouvrirEditeur({ x: (p.x - vue.x) / vue.k, y: (p.y - vue.y) / vue.k });
     }
 
-    const cible = ev.target.closest?.('[data-id], [id^="state"]');
-    if (!cible) {
-      // Un clic dans le vide referme la parenthèse : le lieu suivant
-      // recommencera par son panneau, jamais par une navigation surprise.
-      selectionCourante = null;
+    const trouve = entiteSous(vise);
+    // Un clic dans le vide referme la parenthèse.
+    if (!trouve) return fermerPanneau();
+    selectionner(trouve.entree);
+  }
+
+  svg.addEventListener('dblclick', (ev) => {
+    if (modePose) return;
+    const trouve = entiteSous(sousLePointeur(ev));
+    if (trouve && trouve.precis) {
+      ev.preventDefault();
+      window.location.href = lienDe(trouve.entree);
       return;
     }
-
-    const identifiant = cible.id || '';
-    let entree = null;
-
-    const etiquetteEtat = identifiant.match(/^stateLabel(\d+)$/);
-    const territoire = identifiant.match(/^state(\d+)$/);
-
-    if (etiquetteEtat || territoire) {
-      const id = Number((etiquetteEtat || territoire)[1]);
-      entree = index.find((e) => e.t === 'etat' && e.i === id);
-    } else if (/^(burg|anchor|burgLabel)/.test(identifiant)) {
-      entree = index.find((e) => e.t === 'burg' && e.i === Number(cible.dataset.id));
-    }
-
-    if (entree) selectionner(entree);
-  }
+    const p = pointeur(ev);
+    zoomerVers(p.x, p.y, 2);
+  });
 
   function selectionner(entree) {
     if (!entree) return;
-
-    const dejaChoisi =
+    const memeQue =
       selectionCourante && selectionCourante.t === entree.t && selectionCourante.i === entree.i;
-    if (dejaChoisi) {
-      window.location.href = lienDe(entree);
-      return;
-    }
+    if (!memeQue || panneau.hidden) rendrePanneau(entree);
     selectionCourante = entree;
-
-    document.getElementById('panneau-categorie').textContent = entree.d || '';
-    document.getElementById('panneau-titre').textContent = entree.n;
-
-    const faits = document.getElementById('panneau-faits');
-    faits.innerHTML = '';
-    const f = entree.f || {};
-    const ajouter = (cle, valeur) => {
-      if (valeur === undefined || valeur === null || valeur === '') return;
-      const dt = document.createElement('dt');
-      dt.textContent = cle;
-      const dd = document.createElement('dd');
-      dd.textContent = valeur;
-      faits.append(dt, dd);
-    };
-    if (f.pop) ajouter('Habitants', NOMBRE.format(f.pop));
-    ajouter('Royaume', f.etat);
-    ajouter('Province', f.prov);
-    if (f.port) ajouter('Port', 'oui');
-    if (f.burgs) ajouter('Villes', NOMBRE.format(f.burgs));
-    if (f.km2) ajouter('Superficie', `${NOMBRE.format(f.km2)} km²`);
-
-    const legende = document.getElementById('panneau-legende');
-    legende.innerHTML = '';
-    if (f.leg) {
-      const bloc = document.createElement('div');
-      bloc.innerHTML = f.leg; // déjà assaini à l'import (ni script, ni iframe)
-      legende.appendChild(bloc);
-    }
-
-    document.getElementById('panneau-lien').href = lienDe(entree);
     panneau.hidden = false;
     surligner(entree);
   }
 
-  function surligner(entree) {
-    gSurbrillance.innerHTML = '';
-    if (entree.x === null || entree.y === null) return;
-    const cercle = document.createElementNS(NS, 'circle');
-    cercle.setAttribute('cx', entree.x);
-    cercle.setAttribute('cy', entree.y);
-    cercle.setAttribute('r', 7);
-    cercle.setAttribute('fill', 'none');
-    cercle.setAttribute('stroke', '#d4a537');
-    cercle.setAttribute('vector-effect', 'non-scaling-stroke');
-    cercle.setAttribute('stroke-width', '2');
-    gSurbrillance.appendChild(cercle);
-  }
-
-  document.getElementById('fermer-panneau').addEventListener('click', () => {
+  function fermerPanneau() {
     panneau.hidden = true;
     selectionCourante = null;
     gSurbrillance.innerHTML = '';
+  }
+
+  /* ------------------------------------------------------ contenu du panneau */
+
+  /** Faute de blason, un signe : chaque famille d'entité a le sien. */
+  const GLYPHES = { burg: '◈', etat: '⚜', province: '❖', culture: '❧', religion: '✦', lieu: '◉' };
+
+  /** Le genre du nom de famille, pour accorder « 1ʳᵉ sur 150 ». */
+  const FAMILLES = { burg: 'f', etat: 'm', province: 'f' };
+
+  const DATE = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const dateCourte = (iso) => {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? null : DATE.format(d);
+  };
+
+  const entreeDe = (type, slug) => (slug ? index.find((x) => x.t === type && x.s === slug) : null);
+  const combien = (type) => index.filter((x) => x.t === type).length;
+  const somme = (type, champ) => index.reduce((n, x) => (x.t === type ? n + (x.f[champ] || 0) : n), 0);
+
+  /** Une part, jamais arrondie à zéro : « < 0,1 % » se lit, « 0 % » ment. */
+  const pourcent = (part) => {
+    if (!Number.isFinite(part) || part <= 0) return null;
+    if (part < 0.001) return '< 0,1 %';
+    return `${(part * 100).toLocaleString('fr-FR', { maximumFractionDigits: part < 0.1 ? 1 : 0 })} %`;
+  };
+
+  const km2 = (v) => (v ? `${NOMBRE.format(v)} km²` : null);
+
+  /**
+   * D'où relève l'entité : son royaume, sa province. Une ligne sous le titre,
+   * cliquable de bout en bout — c'est le chemin le plus court d'une ville à
+   * son royaume sans quitter la carte.
+   */
+  function rattachementDe(e) {
+    const f = e.f || {};
+    if (e.t === 'burg') {
+      return [
+        { nom: f.etat, cible: entreeDe('etat', f.etatSlug) },
+        { nom: f.prov, cible: entreeDe('province', f.provSlug) },
+      ];
+    }
+    if (e.t === 'province') return [{ nom: f.etat, cible: entreeDe('etat', f.etatSlug) }];
+    if (e.t === 'etat') return [{ nom: f.cult ? `Culture ${f.cult}` : null }];
+    if (e.t === 'religion') return [{ nom: f.cult ? `Culture ${f.cult}` : null }];
+    return [];
+  }
+
+  /**
+   * Les casiers de chiffres, deux par ligne. Rien n'est inventé : tout vient
+   * de l'index, qui vient de l'import.
+   */
+  function casiersDe(e) {
+    const f = e.f || {};
+    const liste = [];
+    const a = (cle, valeur, extra = {}) => {
+      if (valeur === undefined || valeur === null || valeur === '') return;
+      liste.push({ cle, valeur, ...extra });
+    };
+    const genre = FAMILLES[e.t];
+    const classement = genre && f.rang ? `${rang(f.rang, genre)} sur ${combien(e.t)}` : null;
+
+    if (e.t === 'burg') {
+      a('Habitants', NOMBRE.format(f.pop), { note: classement });
+      a('Vocation', f.nat);
+      a('Culture', f.cult);
+    } else if (e.t === 'etat') {
+      a('Habitants', habitants(f.pop), { note: classement });
+      a('Superficie', km2(f.km2));
+      a('Provinces', f.prov && NOMBRE.format(f.prov));
+      a('Villes', f.burgs && NOMBRE.format(f.burgs));
+      a('Capitale', f.cap, { cible: entreeDe('burg', f.capSlug) });
+      a('Sous les armes', f.armee && habitants(f.armee));
+    } else if (e.t === 'province') {
+      a('Habitants', habitants(f.pop), { note: classement });
+      a('Superficie', km2(f.km2));
+      a('Villes', f.burgs && NOMBRE.format(f.burgs));
+      a('Chef-lieu', f.cap, { cible: entreeDe('burg', f.capSlug) });
+    } else if (e.t === 'culture') {
+      a('Nature', f.nat);
+      a('Habitants', f.pop && habitants(f.pop));
+      a('Superficie', km2(f.km2), { large: true });
+    } else if (e.t === 'religion') {
+      a('Forme', f.forme);
+      a('Fidèles', f.pop && habitants(f.pop));
+      a('Divinité', f.dieu, { large: true });
+    } else if (e.t === 'lieu') {
+      a('Nature', e.d);
+      a('Posé le', f.pose && dateCourte(f.pose));
+    }
+    return liste;
+  }
+
+  /**
+   * Les proportions, en barres : ce que les chiffres seuls ne montrent pas.
+   * Chacune se calcule depuis l'index — le tout comparé à son propre tout.
+   */
+  function barresDe(e) {
+    const f = e.f || {};
+    const liste = [];
+    const a = (cle, part) => {
+      const texte = pourcent(part);
+      if (texte) liste.push({ cle, part: Math.min(1, part), texte });
+    };
+
+    if (e.t === 'burg') {
+      const etat = entreeDe('etat', f.etatSlug);
+      if (etat) {
+        a('Part du royaume', f.pop / etat.f.pop);
+        if (etat.f.urb) a('Part de ses citadins', f.pop / etat.f.urb);
+      }
+    } else if (e.t === 'etat') {
+      a('Part du monde connu', f.pop / somme('etat', 'pop'));
+      if (f.urb) a('Population urbaine', f.urb / f.pop);
+      a('Part des terres', f.km2 / somme('etat', 'km2'));
+    } else if (e.t === 'province') {
+      const etat = entreeDe('etat', f.etatSlug);
+      if (etat) {
+        a('Part du royaume', f.pop / etat.f.pop);
+        a('Part de son territoire', f.km2 / etat.f.km2);
+      }
+    }
+    return liste;
+  }
+
+  function rendrePanneau(e) {
+    const f = e.f || {};
+    panneau.style.setProperty('--teinte', e.col || 'var(--or)');
+
+    document.getElementById('panneau-categorie').textContent = e.d || '';
+    document.getElementById('panneau-titre').textContent = e.n;
+
+    const ecusson = document.getElementById('panneau-ecusson');
+    ecusson.innerHTML = '';
+    if (e.bl) {
+      const img = document.createElement('img');
+      img.src = e.bl;
+      img.alt = '';
+      ecusson.appendChild(img);
+    } else {
+      ecusson.textContent = e.ic || GLYPHES[e.t] || '';
+    }
+
+    // Un nom qui mène ailleurs : bouton si la cible existe, texte sinon.
+    const nommer = (texte, cible) => {
+      if (!cible) {
+        const span = document.createElement('span');
+        span.textContent = texte;
+        return span;
+      }
+      const bouton = document.createElement('button');
+      bouton.type = 'button';
+      bouton.textContent = texte;
+      bouton.addEventListener('click', () => selectionner(cible));
+      return bouton;
+    };
+
+    const rattachement = document.getElementById('panneau-rattachement');
+    rattachement.innerHTML = '';
+    for (const { nom, cible } of rattachementDe(e).filter((r) => r.nom)) {
+      if (rattachement.childElementCount) {
+        const sep = document.createElement('span');
+        sep.className = 'sep';
+        sep.textContent = '·';
+        rattachement.appendChild(sep);
+      }
+      rattachement.appendChild(nommer(nom, cible));
+    }
+
+    const traits = document.getElementById('panneau-traits');
+    traits.innerHTML = '';
+    for (const t of f.traits || []) {
+      const li = document.createElement('li');
+      li.textContent = t;
+      traits.appendChild(li);
+    }
+
+    const grille = document.getElementById('panneau-grille');
+    grille.innerHTML = '';
+    const casiers = casiersDe(e);
+    casiers.forEach((c, i) => {
+      const casier = document.createElement('dl');
+      casier.className = 'panneau__casier';
+      // Un casier orphelin en fin de grille s'étale plutôt que de laisser un trou.
+      if (c.large || (i === casiers.length - 1 && casiers.length % 2 === 1)) {
+        casier.classList.add('panneau__casier--large');
+      }
+      const dt = document.createElement('dt');
+      dt.textContent = c.cle;
+      const dd = document.createElement('dd');
+      dd.appendChild(nommer(c.valeur, c.cible));
+      if (c.note) {
+        const note = document.createElement('small');
+        note.textContent = c.note;
+        dd.appendChild(note);
+      }
+      casier.append(dt, dd);
+      grille.appendChild(casier);
+    });
+
+    const barres = document.getElementById('panneau-barres');
+    barres.innerHTML = '';
+    for (const b of barresDe(e)) {
+      const bloc = document.createElement('div');
+      const tete = document.createElement('p');
+      tete.className = 'panneau__barre-tete';
+      const cle = document.createElement('span');
+      cle.textContent = b.cle;
+      const valeur = document.createElement('b');
+      valeur.textContent = b.texte;
+      tete.append(cle, valeur);
+      const fond = document.createElement('div');
+      fond.className = 'panneau__barre-fond';
+      const trait = document.createElement('i');
+      // La largeur est posée telle quelle : la transition CSS fait le reste,
+      // sans dépendre d'une image d'animation qu'un onglet caché ne rendrait pas.
+      trait.style.width = `${Math.max(1.5, b.part * 100)}%`;
+      fond.appendChild(trait);
+      bloc.append(tete, fond);
+      barres.appendChild(bloc);
+    }
+
+    document.getElementById('panneau-lien').href = lienDe(e);
+    document.getElementById('panneau-centrer').hidden = e.x === null || e.x === undefined;
+  }
+
+  document.getElementById('panneau-centrer').addEventListener('click', () => {
+    if (selectionCourante) volerVers(selectionCourante);
   });
+
+  /** La cible choisie est cerclée : un trait net, et une onde qui s'éteint. */
+  function surligner(entree) {
+    gSurbrillance.innerHTML = '';
+    if (entree.x === null || entree.y === null || entree.x === undefined) return;
+    for (const classe of ['marque', 'marque marque--onde']) {
+      const cercle = document.createElementNS(NS, 'circle');
+      cercle.setAttribute('class', classe);
+      cercle.setAttribute('cx', entree.x);
+      cercle.setAttribute('cy', entree.y);
+      cercle.setAttribute('r', 7);
+      cercle.setAttribute('fill', 'none');
+      cercle.setAttribute('stroke', '#e2c257');
+      cercle.setAttribute('vector-effect', 'non-scaling-stroke');
+      cercle.setAttribute('stroke-width', '2');
+      gSurbrillance.appendChild(cercle);
+    }
+  }
+
+  document.getElementById('fermer-panneau').addEventListener('click', fermerPanneau);
+
 
   /* ---------------------------------------------------------------- recherche */
 
@@ -1424,9 +1976,7 @@ import { monde } from '../lib/monde';
       champ.focus();
       document.getElementById('rail').classList.add('ouvert');
     } else if (ev.key === 'Escape') {
-      panneau.hidden = true;
-      selectionCourante = null;
-      gSurbrillance.innerHTML = '';
+      fermerPanneau();
       resultats.innerHTML = '';
       champ.blur();
     }

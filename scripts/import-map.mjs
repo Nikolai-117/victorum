@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { genererTextureOcean } from './generer-texture.mjs';
+import { composerProvinces } from './provinces.mjs';
 
 const RACINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE = process.argv[2] || path.join(RACINE, 'data', 'source', 'victorum.map');
@@ -588,7 +589,7 @@ const LIBELLES_COUCHES = {
   ocean: 'Océan', lakes: 'Lacs', landmass: 'Terres', texture: 'Texture', terrs: 'Altitudes',
   biomes: 'Biomes', cells: 'Cellules', gridOverlay: 'Grille', coordinates: 'Coordonnées',
   compass: 'Rose des vents', rivers: 'Rivières', terrain: 'Reliefs', relig: 'Religions',
-  cults: 'Cultures', regions: 'États', provs: 'Provinces', zones: 'Zones',
+  cults: 'Cultures', regions: 'États', provs: 'Provinces', provinces: 'Provinces', zones: 'Zones',
   borders: 'Frontières', routes: 'Routes', temperature: 'Températures', coastline: 'Littoral',
   ice: 'Glaces', prec: 'Vents', population: 'Population', emblems: 'Blasons',
   labels: 'Noms', icons: 'Villes', markers: 'Marqueurs', 'fogging-cont': 'Brouillard',
@@ -607,6 +608,12 @@ const ecrireFragment = (nom, contenu) => {
 };
 
 const tailleDefs = ecrireFragment('_defs', defs);
+
+/**
+ * Les territoires des provinces, absents de l'export, sont reconstruits depuis
+ * le contour des royaumes et leurs cloisons intérieures (voir provinces.mjs).
+ */
+const provincesRendu = composerProvinces(svg, provinces, burgs);
 
 const couches = [];
 const ignorees = [];
@@ -635,6 +642,19 @@ for (const c of couchesBrutes) {
     octets: ecrireFragment(c.id, fragment),
     parDefaut: PAR_DEFAUT.has(c.id),
   });
+
+  // Les provinces se posent juste au-dessus des royaumes qu'elles découpent :
+  // devant leur aplat, derrière les frontières et les noms.
+  if (c.id === 'regions' && provincesRendu.fragment) {
+    fragmentsRetenus.set('provinces', provincesRendu.fragment);
+    couches.push({
+      id: 'provinces',
+      libelle: LIBELLES_COUCHES.provinces,
+      ordre: couches.length,
+      octets: ecrireFragment('provinces', provincesRendu.fragment),
+      parDefaut: false,
+    });
+  }
 }
 
 const apercu = composerApercu(fragmentsRetenus, monde.largeur, monde.hauteur);
@@ -664,34 +684,10 @@ ecrire('zones.json', zones);
 ecrire('chronologie.json', chronologie);
 
 /**
- * Index chargé par l'atlas : recherche instantanée, repères cliquables et
- * panneau latéral. On y joint les quelques faits affichés au clic pour que la
- * carte n'ait qu'un seul fichier à télécharger.
+ * L'index de l'atlas (recherche, repères, panneau) n'est plus écrit ici : il
+ * est composé par `src/pages/carte/index.json.ts`, qui dispose du vocabulaire
+ * français de `monde.ts`. L'import se contente des faits.
  */
-const nomProvince = new Map(provinces.map((p) => [p.id, p.nom]));
-const index = [
-  ...burgs.map((b) => ({
-    t: 'burg', s: b.slug, n: b.nom, x: b.x, y: b.y, i: b.id,
-    d: b.capitale ? 'Capitale' : b.categorie || 'Localité',
-    f: {
-      pop: b.population,
-      etat: nomEtat.get(b.etatId) || null,
-      prov: nomProvince.get(b.provinceId) || null,
-      port: b.port || undefined,
-    },
-  })),
-  ...etats.map((e) => ({
-    t: 'etat', s: e.slug, n: e.nomComplet, x: e.x, y: e.y, i: e.id, d: 'État',
-    f: { pop: e.population, burgs: e.nbBurgs, km2: e.superficieKm2 },
-  })),
-  ...provinces.map((p) => ({
-    t: 'province', s: p.slug, n: p.nomComplet, x: p.x, y: p.y, i: p.id, d: 'Province',
-    f: { pop: p.population, etat: nomEtat.get(p.etatId) || null, km2: p.superficieKm2 },
-  })),
-  ...cultures.map((c) => ({ t: 'culture', s: c.slug, n: c.nom, x: null, y: null, i: c.id, d: 'Culture', f: {} })),
-  ...religions.map((r) => ({ t: 'religion', s: r.slug, n: r.nom, x: null, y: null, i: r.id, d: 'Religion', f: {} })),
-];
-fs.writeFileSync(path.join(SORTIE_CARTE, 'index.json'), JSON.stringify(index));
 
 /* -------------------------------------------------------------- rapport */
 
@@ -708,6 +704,16 @@ console.log(`\n  Couches SVG retenues (${couches.length}, ${mo(totalCouches)} + 
 for (const c of [...couches].sort((a, b) => b.octets - a.octets)) {
   console.log(`    ${ko(c.octets).padStart(9)}  ${c.parDefaut ? '●' : '○'} ${c.libelle} (${c.id})`);
 }
+const rp = provincesRendu.rapport;
+if (provincesRendu.fragment) {
+  console.log(`\n  Provinces reconstruites : ${rp.provinces}/${rp.total} depuis ${rp.cloisons} cloisons`);
+  if (rp.manquantes.length) console.log(`    Sans territoire, faute de preuve : ${rp.manquantes.join(', ')}`);
+  if (rp.delaissees) console.log(`    Cloisons inutilisables, extrémités dans le vide : ${rp.delaissees}`);
+  if (rp.sansPreuve) console.log(`    Morceaux laissés à la teinte du royaume : ${rp.sansPreuve}`);
+} else {
+  console.log(`\n  Provinces non reconstruites : ${rp.raison}`);
+}
+
 if (ignorees.length) console.log(`\n  Couches vides dans l'export, ignorées : ${ignorees.join(', ')}`);
 if (demasquees.length) console.log(`  Couches masquées dans Azgaar, rendues pilotables : ${demasquees.join(', ')}`);
 console.log(`  Villes hors des trois royaumes effacées de la carte : ${villesRetireesDeLaCarte}`);

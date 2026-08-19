@@ -34,6 +34,24 @@ Levànzia »).
   dégraderait la carte pour rien.
 - **Aucune dépendance hors Astro.** Le pan/zoom, la recherche et les filtres sont
   écrits à la main, en JavaScript simple.
+- **L'index de l'atlas est composé par Astro**, pas par l'import :
+  `src/pages/carte/index.json.ts` prend les faits de `src/data/` et le
+  vocabulaire de `src/lib/monde.ts` (« Sans nom » pour les 42 villes `???`,
+  « Monarchie » pour `Monarchy`). Le script d'import ne l'écrit plus : il
+  aurait fallu y recopier les tables de traduction.
+- **Un clic renseigne, un double-clic emmène.** Sur la carte, un clic ouvre le
+  panneau de droite ; un double-clic sur une cible visée — ville, lieu posé,
+  nom d'un royaume — entre dans la fiche. Sur une étendue (territoire d'un
+  royaume, aplat d'une province), qui couvre la moitié de la carte, le
+  double-clic agrandit la vue comme partout ailleurs : c'est ce qui garde le
+  geste de zoom utilisable.
+- **La capture du pointeur masque la cible.** Le SVG appelle
+  `setPointerCapture` dès qu'on appuie, pour ne pas perdre un déplacement qui
+  sort de la fenêtre. Mais une fois la capture posée, le navigateur réattribue
+  tous les événements suivants au SVG lui-même : au relâchement, `ev.target`
+  n'est plus jamais la ville cliquée, et le clic reste sans effet. On cherche
+  donc la cible par `document.elementFromPoint()`. Le symptôme est
+  déroutant — le survol répond, le clic ne fait rien.
 
 ## Le moteur de mise en page
 
@@ -169,6 +187,37 @@ entre versions d'Azgaar.
 - La rose des vents est exclue : son `<use>` n'a aucune transformation et le
   symbole s'étale sur 56 000 px.
 - Population réelle = valeur Azgaar × 1000. Superficie = valeur × 3² (3 km/px).
+
+## Les provinces, reconstruites
+
+Azgaar n'exporte pas la surface des provinces : la couche `provs` ne contient
+que des étiquettes, et elle était masquée à l'enregistrement. Deux choses sont
+en revanche exactes dans le SVG, et suffisent — `scripts/provinces.mjs` :
+
+- `#statesBody` : le contour de chaque royaume, en anneaux fermés (les aires
+  négatives sont des lacs ou des enclaves) ;
+- `#provinceBorders` : les cloisons intérieures, tracées le long des mêmes
+  arêtes de cellules, donc aux mêmes sommets, au pixel près.
+
+On découpe donc chaque royaume par ses cloisons, puis on attribue chaque morceau
+par le **pôle d'inaccessibilité** de la province (il est par construction à
+l'intérieur), et à défaut par les villes qu'il contient.
+
+- **Le piège, ce sont les points triples.** Là où trois provinces se
+  rejoignent, aucune des trois branches n'a ses deux bouts sur le contour du
+  royaume : chacune attend le point triple, que seule une autre peut créer. On
+  en sort en soudant deux branches en une seule coupe, qui traverse alors de
+  bord à bord. Sans cette soudure : 9 provinces sur 13.
+- **La vérification qui compte** est la comparaison des surfaces reconstruites
+  aux superficies déclarées par Azgaar : écart total de 1,6 %. Les provinces
+  d'archipel s'écartent davantage (Selenor, −40 %) parce qu'Azgaar somme des
+  cellules là où nous mesurons des polygones : un îlot minuscule compte pour
+  une cellule entière.
+- **Ornebois n'a aucune province** : 0 % de couverture pour cet État est le bon
+  résultat, pas un bug.
+- Un morceau que ni pôle ni ville ne rattache **reste sans couleur** : la teinte
+  du royaume transparaît dessous, et le rapport d'import le signale. Inventer
+  une frontière serait pire que ne pas la tracer.
 
 ## Environnement
 
