@@ -38,23 +38,19 @@ Les sections disponibles : `etats`, `provinces`, `villes`, `lieux`, `cultures`,
 `religions`, et `articles` pour les pages libres. `articles/accueil.md` remplit
 l'introduction de la page d'accueil, `articles/chronologie.md` celle de la frise.
 
-## Activer l'enregistrement
+## Un site privé
 
-Le site sait enregistrer ce que tu y fais, mais il lui faut un espace de
-stockage et un mot de passe — deux choses qui vivent dans ton compte Cloudflare
-et que je ne peux pas créer à ta place.
+Victorum n'est pas référencé : aucun moteur de recherche ne l'indexe, rien n'y
+renvoie. C'est toi qui décides qui le voit, en partageant l'adresse.
 
-**1. Créer l'espace de stockage.** Sur [dash.cloudflare.com](https://dash.cloudflare.com),
-menu **Storage & Databases → KV → Create namespace**. Nomme-le `victorum`, puis
-copie l'identifiant affiché et donne-le-moi : je l'inscris dans `wrangler.jsonc`.
+La première fois que tu enregistres quelque chose, le site te demande de
+**choisir un mot de passe**. Celui-là devient le sien, et il sera exigé pour
+toute modification ensuite. Personne à qui tu montres le lien ne pourra donc
+réécrire ton monde. Seule son empreinte est conservée, jamais le mot de passe
+lui-même.
 
-**2. Choisir un mot de passe.** Sur le Worker `victorum` → **Settings →
-Variables and Secrets → Add** → type **Secret**, nom `MOT_DE_PASSE`, valeur au
-choix. C'est lui que l'atelier demandera avant d'enregistrer.
-
-Tant que ces deux éléments manquent, le site fonctionne normalement mais
-l'atelier le dit franchement et garde ton travail dans le navigateur.
-
+Il n'y a rien à créer ni à configurer : le stockage est fabriqué par Cloudflare
+au premier déploiement.
 ## Composer une page
 
 Chaque fiche s'ouvre avec une disposition déduite de ses faits. Pour la

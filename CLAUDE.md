@@ -61,8 +61,17 @@ Une fiche est une suite de blocs décrite en JSON, pas un gabarit figé.
   c'est ce qui permet de servir le dernier enregistrement sans clignotement.
   Tout le reste (accueil, index, atlas) reste statique — voir `dist/_routes.json`.
 - `src/lib/stockage.ts` lit et écrit dans l'espace KV lié sous le nom
-  `VICTORUM`. La liaison est **facultative par construction** : sans elle le site
-  marche, l'atelier le signale et se rabat sur le navigateur.
+  `VICTORUM`. **La liaison est déclarée sans identifiant** dans
+  `wrangler.jsonc` : Cloudflare provisionne la ressource au déploiement, ce qui
+  évite à Romain d'avoir à la créer. Il ne veut rien administrer — le lui
+  demander est un échec de conception, pas une étape normale.
+- Le mot de passe n'est pas une variable secrète : **le premier saisi dans
+  l'atelier devient celui du site** (`config:mot-de-passe` en KV, stocké en
+  SHA-256). Au moment où Romain ouvre son atelier, personne ne connaît encore
+  l'adresse. Une variable `MOT_DE_PASSE` reste prioritaire si elle existe.
+- Le site est **privé au sens où Romain l'entend** : non indexable
+  (`robots.txt`, `X-Robots-Tag`, `<meta robots>`), l'adresse valant clé. Ce
+  n'est pas un contrôle d'accès ; ne pas le présenter comme tel.
 - Toute écriture exige la variable secrète `MOT_DE_PASSE`. Sans elle, on refuse
   tout : le site est public, un point d'écriture ouvert serait une porte ouverte
   sur le lore de Romain. Comparaison à durée constante, adresses validées contre
