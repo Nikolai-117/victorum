@@ -65,6 +65,7 @@ import { monde } from '../lib/monde';
       <h2 id="panneau-titre"></h2>
       <dl class="panneau__faits" id="panneau-faits"></dl>
       <div id="panneau-legende" class="panneau__legende"></div>
+      <p class="panneau__indice">Cliquez une seconde fois sur la carte pour entrer dans la fiche.</p>
       <a id="panneau-lien" class="bouton bouton--or" href="#">Ouvrir la fiche</a>
     </aside>
 
@@ -442,6 +443,61 @@ import { monde } from '../lib/monde';
       width: min(330px, calc(100vw - 2.2rem));
     }
   }
+
+  /* ------------------------------------------------- survol des royaumes */
+
+  /**
+   * Les couches décoratives ne captent plus le pointeur. Sans cela, passer
+   * au-dessus d'une rivière ou d'une route interrompait le survol du royaume
+   * qui se trouve dessous, et la surbrillance clignotait.
+   */
+  #couches [data-couche='ocean'],
+  #couches [data-couche='landmass'],
+  #couches [data-couche='lakes'],
+  #couches [data-couche='rivers'],
+  #couches [data-couche='routes'],
+  #couches [data-couche='coastline'],
+  #couches [data-couche='ice'],
+  #couches [data-couche='borders'],
+  #couches [data-couche='prec'] {
+    pointer-events: none;
+  }
+
+  /**
+   * Un royaume s'éclaire au survol pendant que les autres s'effacent.
+   * Le sélecteur écarte `state-gap1` et consorts, qui sont les halos de
+   * séparation, pas des territoires.
+   */
+  #couches [data-couche='regions'] path[id^='state']:not([id*='-']) {
+    cursor: pointer;
+    transition: opacity 0.18s ease, filter 0.18s ease;
+  }
+  #couches [data-couche='regions']:hover path[id^='state']:not([id*='-']) {
+    opacity: 0.4;
+  }
+  #couches [data-couche='regions'] path[id^='state']:not([id*='-']):hover {
+    opacity: 1;
+    filter: brightness(1.45) saturate(1.25);
+  }
+
+  /* Villes et marqueurs annoncent eux aussi qu'ils réagissent. */
+  #couches [data-couche='icons'] use,
+  #couches [data-couche='labels'] text {
+    cursor: pointer;
+  }
+
+  /* --------------------------------------------------------- indice du panneau */
+
+  .panneau__indice {
+    margin: 0 0 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--trait);
+    font-size: 0.8125rem;
+    color: var(--parchemin-faible);
+  }
+  .panneau__indice[hidden] {
+    display: none;
+  }
 </style>
 
 <script>
@@ -735,28 +791,59 @@ import { monde } from '../lib/monde';
     culture: 'cultures', religion: 'religions', lieu: 'lieux',
   };
 
+  /**
+   * Deux temps, comme feuilleter un atlas : le premier clic ouvre le panneau
+   * et dit ce qu'est le lieu, le second entre dans sa fiche. Chaque chose
+   * nommée sur la carte réagit ainsi — royaumes, villes, lieux remarquables —
+   * y compris celles qu'un futur import ajoutera, puisque tout passe par
+   * l'index plutôt que par une liste écrite à la main.
+   */
+  let selectionCourante = null;
+
+  const lienDe = (entree) => `/${URLS[entree.t]}/${entree.s}`;
+
   function traiterClic(ev) {
     const repere = ev.target.closest?.('[data-repere]');
     if (repere) {
       const [t, i] = repere.dataset.repere.split(':');
       return selectionner(index.find((e) => e.t === t && e.i === Number(i)));
     }
-    const cible = ev.target.closest?.('[data-id], [id^="stateLabel"]');
-    if (!cible) return;
 
-    let entree = null;
-    if (cible.id?.startsWith('stateLabel')) {
-      const id = Number(cible.id.replace('stateLabel', ''));
-      entree = index.find((e) => e.t === 'etat' && e.i === id);
-    } else if (/^(burg|anchor|burgLabel)/.test(cible.id || '')) {
-      const id = Number(cible.dataset.id);
-      entree = index.find((e) => e.t === 'burg' && e.i === id);
+    const cible = ev.target.closest?.('[data-id], [id^="state"]');
+    if (!cible) {
+      // Un clic dans le vide referme la parenthèse : le lieu suivant
+      // recommencera par son panneau, jamais par une navigation surprise.
+      selectionCourante = null;
+      return;
     }
+
+    const identifiant = cible.id || '';
+    let entree = null;
+
+    const etiquetteEtat = identifiant.match(/^stateLabel(\d+)$/);
+    const territoire = identifiant.match(/^state(\d+)$/);
+
+    if (etiquetteEtat || territoire) {
+      const id = Number((etiquetteEtat || territoire)[1]);
+      entree = index.find((e) => e.t === 'etat' && e.i === id);
+    } else if (/^(burg|anchor|burgLabel)/.test(identifiant)) {
+      entree = index.find((e) => e.t === 'burg' && e.i === Number(cible.dataset.id));
+    }
+
     if (entree) selectionner(entree);
   }
 
   function selectionner(entree) {
     if (!entree) return;
+
+    const dejaChoisi =
+      selectionCourante && selectionCourante.t === entree.t && selectionCourante.i === entree.i;
+    if (dejaChoisi) {
+      window.location.href = lienDe(entree);
+      return;
+    }
+    selectionCourante = entree;
+
     document.getElementById('panneau-categorie').textContent = entree.d || '';
     document.getElementById('panneau-titre').textContent = entree.n;
 
@@ -786,7 +873,7 @@ import { monde } from '../lib/monde';
       legende.appendChild(bloc);
     }
 
-    document.getElementById('panneau-lien').href = `/${URLS[entree.t]}/${entree.s}`;
+    document.getElementById('panneau-lien').href = lienDe(entree);
     panneau.hidden = false;
     surligner(entree);
   }
@@ -807,6 +894,7 @@ import { monde } from '../lib/monde';
 
   document.getElementById('fermer-panneau').addEventListener('click', () => {
     panneau.hidden = true;
+    selectionCourante = null;
     gSurbrillance.innerHTML = '';
   });
 
@@ -865,6 +953,7 @@ import { monde } from '../lib/monde';
       document.getElementById('rail').classList.add('ouvert');
     } else if (ev.key === 'Escape') {
       panneau.hidden = true;
+      selectionCourante = null;
       gSurbrillance.innerHTML = '';
       resultats.innerHTML = '';
       champ.blur();
