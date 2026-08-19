@@ -95,7 +95,9 @@ const { contexte, blocs, section, slug, texte, stockageActif } = Astro.props;
     let blocs = structuredClone(servi);
     let texte = redaction.value;
     let ouvert = null; // index du bloc dont les réglages sont dépliés
-    let etat = 'synchro'; // synchro | attente | envoi | echec | local
+    // Tant que le stockage n'est pas relié, on le dit d'emblée plutôt que
+    // d'afficher « enregistré » avant la première tentative.
+    let etat = page.stockageActif ? 'synchro' : 'local'; // synchro | attente | envoi | echec | local
 
     /* ------------------------------------------------------- reprise locale */
 
