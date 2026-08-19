@@ -37,16 +37,20 @@ const NAV = [
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   </head>
   <body>
+    {/* Le monde lui-même, hors du point, derrière chaque page. L'atlas s'en
+        passe : la vraie carte l'occupe déjà tout entier, et un flou de cette
+        taille se paierait là où le rendu compte le plus. */}
+    {!pleinEcran && <div class="atmosphere" aria-hidden="true" />}
+
     <header class="entete">
-      <div class="contenant entete__interne">
-        <a class="marque" href="/">{monde.nom}<span>.</span></a>
-        <nav class="nav">
-          {NAV.map((l) => <a href={l.url} aria-current={actif(l.url)}>{l.libelle}</a>)}
-        </nav>
-      </div>
+      <a class="marque" href="/">{monde.nom}<span>.</span></a>
+      <nav class="nav">
+        {NAV.map((l) => <a href={l.url} aria-current={actif(l.url)}>{l.libelle}</a>)}
+      </nav>
+      <p class="date-monde">an <b>{monde.annee}</b> {monde.ereCourte}</p>
     </header>
 
-    <main>
+    <main class={pleinEcran ? 'corps corps--plein' : 'corps'}>
       <slot />
     </main>
 

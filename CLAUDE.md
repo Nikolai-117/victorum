@@ -53,6 +53,32 @@ Levànzia »).
   donc la cible par `document.elementFromPoint()`. Le symptôme est
   déroutant — le survol répond, le clic ne fait rien.
 
+## Le parti visuel
+
+Refait d'après des références que Romain a montrées : son reproche était que
+l'interface avait l'air *générée* — bordures franches, mires d'angle, capitales
+espacées partout, panneaux collés aux bords. Ce qui donne une âme, dans ces
+références : des plaques de verre qui flottent, une atmosphère derrière, et
+deux voix typographiques nettement séparées.
+
+- **Deux voix, jamais mélangées.** Le monde parle en Almendra SC et EB Garamond
+  (titres, noms, textes de Romain) ; l'appareil parle en IBM Plex Mono, petit
+  et discret (boutons, étiquettes, réglages, chiffres). C'est le contraste qui
+  fait le style : ni tout en serif, ni tout en mono.
+- **Tout flotte.** Plaques de verre (`--verre`, `--flou`, `--rayon`), angles
+  adoucis, ombre portée, filet de lumière en haut. Plus une seule mire d'angle.
+- **L'atmosphère** (`.atmosphere`) est l'aperçu de la carte, flouté à 70 px
+  derrière chaque page : le wiki est posé sur son propre monde. L'atlas s'en
+  passe — la vraie carte l'occupe déjà, et un flou plein écran s'y paierait
+  cher.
+- **L'entête est une pilule flottante** au centre, avec la date du monde en
+  guise d'horloge. Les plaques de l'atlas pendent dessous (`top: 4.7rem`), ce
+  qui évite toute collision quelle que soit la largeur.
+- **Piège rencontré** : une règle `body > *:not(.atmosphere) { position:
+  relative }` a une spécificité de (0,1,1) et écrase donc le `position: fixed`
+  d'une classe. L'entête retombait dans le flux, la carte débordait de 45 px.
+  Viser `main, .pied` plutôt que `body > *`.
+
 ## Le moteur de mise en page
 
 Une fiche est une suite de blocs décrite en JSON, pas un gabarit figé.

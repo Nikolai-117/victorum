@@ -116,7 +116,10 @@
 
 .identite {
   border: 1px solid var(--trait);
-  background: var(--encre-2);
+  border-radius: var(--rayon);
+  background: var(--verre);
+  backdrop-filter: var(--flou);
+  box-shadow: var(--ombre-basse), var(--lueur);
   padding: 1.15rem 1.25rem 1.25rem;
 }
 .identite > .etiquette {
@@ -140,9 +143,9 @@
   padding-bottom: 0;
 }
 .identite dt {
-  font-family: var(--display);
-  font-size: 0.6875rem;
-  letter-spacing: 0.16em;
+  font-family: var(--chrome);
+  font-size: 0.625rem;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--parchemin-faible);
   flex: none;
@@ -159,6 +162,7 @@
 .blason-bloc {
   margin: 0;
   border: 1px solid var(--trait);
+  border-radius: var(--rayon);
   background: var(--encre-2);
   padding: 1.5rem;
   text-align: center;
@@ -195,7 +199,9 @@
   white-space: nowrap;
 }
 .jauge-ligne__barre {
-  height: 7px;
+  border-radius: var(--pilule);
+  overflow: hidden;
+  height: 6px;
   background: var(--velin);
   display: block;
 }
@@ -205,8 +211,9 @@
   background: linear-gradient(to right, var(--or-sourd), var(--or));
 }
 .jauge-ligne__valeur {
+  font-family: var(--chrome);
   font-variant-numeric: tabular-nums;
-  font-size: 0.9375rem;
+  font-size: 0.75rem;
   color: var(--parchemin-doux);
   white-space: nowrap;
 }
@@ -224,6 +231,7 @@
 
 /** Vignette de carte : l'extrait est cadré par transformation, sans rechargement. */
 .situation {
+  border-radius: var(--rayon);
   margin: 0;
   border: 1px solid var(--trait);
   background: var(--encre-2);
@@ -454,9 +462,9 @@ body.en-edition .bloc__barre {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  font-family: var(--display);
-  font-size: 0.6875rem;
-  letter-spacing: 0.16em;
+  font-family: var(--chrome);
+  font-size: 0.625rem;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--parchemin-faible);
 }

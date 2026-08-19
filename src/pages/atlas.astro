@@ -152,7 +152,7 @@ import { monde } from '../lib/monde';
 <style is:global>
   .scene {
     position: relative;
-    height: calc(100svh - 60px);
+    height: 100svh;
     overflow: hidden;
     background: #0a0c0f;
   }
@@ -231,6 +231,7 @@ import { monde } from '../lib/monde';
     left: 0;
     right: 0;
     height: 2px;
+    z-index: 70;
     pointer-events: none;
   }
   .progression i {
@@ -243,49 +244,31 @@ import { monde } from '../lib/monde';
 
   /* ---------------------------------------------------- panneaux d'instrument */
 
+  /**
+   * Des plaques de verre posées sur la carte, jamais collées aux bords. Les
+   * mires d'angle d'avant faisaient viseur de vaisseau spatial ; l'atlas n'en
+   * demandait pas tant.
+   */
   .rail,
   .panneau,
-  .jauge {
-    background: color-mix(in srgb, var(--encre) 92%, transparent);
-    backdrop-filter: blur(14px);
-    border: 1px solid var(--trait-vif);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-  }
-
-  .rail::before,
-  .rail::after,
-  .panneau::before,
-  .panneau::after {
-    content: '';
-    position: absolute;
-    width: 9px;
-    height: 9px;
-    border: 1px solid var(--or-sourd);
-    pointer-events: none;
-  }
-  .rail::before,
-  .panneau::before {
-    top: -1px;
-    left: -1px;
-    border-right: 0;
-    border-bottom: 0;
-  }
-  .rail::after,
-  .panneau::after {
-    right: -1px;
-    bottom: -1px;
-    border-left: 0;
-    border-top: 0;
+  .jauge,
+  .lieu-editeur,
+  .commandes {
+    background: var(--verre);
+    backdrop-filter: var(--flou);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon);
+    box-shadow: var(--ombre), var(--lueur);
   }
 
   /* -------------------------------------------------------------------- rail */
 
   .rail {
     position: absolute;
-    top: 1.1rem;
+    top: 4.7rem;
     left: 1.1rem;
-    width: 292px;
-    max-height: calc(100% - 2.2rem);
+    width: 296px;
+    max-height: calc(100% - 5.8rem);
     overflow-y: auto;
     padding: 1.15rem;
     display: flex;
@@ -306,27 +289,36 @@ import { monde } from '../lib/monde';
 
   #recherche {
     width: 100%;
-    padding: 0.55rem 0.7rem;
-    background: var(--encre);
-    border: 1px solid var(--trait-vif);
+    padding: 0.5rem 0.75rem;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid var(--trait);
+    border-radius: var(--pilule);
     color: var(--parchemin);
-    font-family: var(--texte-police);
-    font-size: 1rem;
+    font-family: var(--chrome);
+    font-size: 0.8125rem;
+  }
+  #recherche::placeholder {
+    color: var(--parchemin-faible);
   }
   #recherche:focus {
     outline: none;
     border-color: var(--or-sourd);
+    background: rgba(0, 0, 0, 0.4);
   }
 
   .aide {
     margin: 0;
-    font-size: 0.8125rem;
+    font-family: var(--chrome);
+    font-size: 0.6875rem;
+    line-height: 1.6;
     color: var(--parchemin-faible);
   }
   kbd {
-    font-family: var(--mono);
+    font-family: var(--chrome);
     font-size: 0.6875rem;
-    border: 1px solid var(--trait-vif);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-xs);
+    background: rgba(0, 0, 0, 0.3);
     padding: 0.1em 0.35em;
   }
 
@@ -343,12 +335,13 @@ import { monde } from '../lib/monde';
     align-items: baseline;
     gap: 0.6rem;
     width: 100%;
-    padding: 0.4rem 0.5rem;
+    padding: 0.4rem 0.6rem;
     background: none;
     border: 0;
+    border-radius: var(--rayon-s);
     color: var(--parchemin);
     font-family: var(--texte-police);
-    font-size: 1rem;
+    font-size: 1.0625rem;
     text-align: left;
     cursor: pointer;
   }
@@ -360,9 +353,9 @@ import { monde } from '../lib/monde';
   }
   .resultats small {
     color: var(--parchemin-faible);
-    font-family: var(--display);
+    font-family: var(--chrome);
     font-size: 0.625rem;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     white-space: nowrap;
   }
@@ -376,13 +369,16 @@ import { monde } from '../lib/monde';
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    font-size: 0.9375rem;
-    padding: 0.22rem 0;
+    font-family: var(--chrome);
+    font-size: 0.75rem;
+    padding: 0.26rem 0.4rem;
+    border-radius: var(--rayon-xs);
     cursor: pointer;
     color: var(--parchemin-doux);
   }
   .controle:hover {
     color: var(--parchemin);
+    background: rgba(236, 226, 206, 0.05);
   }
   .controle input {
     accent-color: var(--or);
@@ -390,33 +386,37 @@ import { monde } from '../lib/monde';
   }
   .controle .poids {
     margin-left: auto;
-    font-family: var(--mono);
-    font-size: 0.625rem;
+    font-family: var(--chrome);
+    font-size: 0.5625rem;
     color: var(--parchemin-faible);
   }
 
   .select {
     width: 100%;
-    padding: 0.4rem 0.5rem;
-    background: var(--encre);
+    padding: 0.42rem 0.6rem;
+    background: rgba(0, 0, 0, 0.28);
     color: var(--parchemin);
-    border: 1px solid var(--trait-vif);
-    font-family: var(--texte-police);
-    font-size: 0.9375rem;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-s);
+    font-family: var(--chrome);
+    font-size: 0.75rem;
   }
 
   .bascule-rail {
     display: none;
     position: absolute;
-    top: 1.1rem;
+    top: 4.7rem;
     left: 1.1rem;
     z-index: 5;
     width: 42px;
     height: 42px;
-    border: 1px solid var(--trait-vif);
-    background: var(--encre);
+    border: 1px solid var(--trait);
+    border-radius: var(--pilule);
+    background: var(--verre);
+    backdrop-filter: var(--flou);
+    box-shadow: var(--ombre-basse);
     color: var(--parchemin);
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     cursor: pointer;
   }
 
@@ -424,10 +424,10 @@ import { monde } from '../lib/monde';
 
   .panneau {
     position: absolute;
-    top: 1.1rem;
+    top: 4.7rem;
     right: 1.1rem;
     width: 348px;
-    max-height: calc(100% - 2.2rem);
+    max-height: calc(100% - 5.8rem);
     overflow-y: auto;
     padding: 1.35rem 1.3rem 1.2rem;
     /* La teinte de l'entité choisie irrigue le panneau : filet, écusson, jauges.
@@ -476,7 +476,8 @@ import { monde } from '../lib/monde';
     height: 56px;
     display: grid;
     place-items: center;
-    border: 1px solid var(--trait-vif);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-s);
     background:
       radial-gradient(circle at 50% 26%, color-mix(in srgb, var(--teinte-vive) 26%, transparent), transparent 72%),
       var(--encre-2);
@@ -494,8 +495,8 @@ import { monde } from '../lib/monde';
   }
   .panneau__intitule .etiquette {
     color: var(--teinte-vive);
-    font-size: 0.6875rem;
-    letter-spacing: 0.2em;
+    font-size: 0.625rem;
+    letter-spacing: 0.15em;
   }
   .panneau h2 {
     font-size: 1.5rem;
@@ -504,8 +505,8 @@ import { monde } from '../lib/monde';
   }
   /* Où l'on se trouve, dit en une ligne, et cliquable de bout en bout. */
   .panneau__rattachement {
-    margin: 0.3rem 0 0;
-    font-size: 0.875rem;
+    margin: 0.32rem 0 0;
+    font-size: 1rem;
     color: var(--parchemin-doux);
     line-height: 1.35;
   }
@@ -530,31 +531,34 @@ import { monde } from '../lib/monde';
     display: none;
   }
   .panneau__traits li {
-    font-family: var(--display);
+    font-family: var(--chrome);
     font-size: 0.625rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+    letter-spacing: 0.06em;
     color: var(--parchemin-doux);
-    background: var(--velin);
+    background: rgba(236, 226, 206, 0.05);
     border: 1px solid var(--trait);
-    padding: 0.2rem 0.45rem;
+    border-radius: var(--pilule);
+    padding: 0.16rem 0.6rem;
   }
 
   /* Les chiffres en casiers : un instrument, pas un paragraphe. */
+  /**
+    * Les chiffres se lisent en colonnes, séparés par de l'air plutôt que par
+    * des cases : une grille de cellules bordées faisait tableau de bord.
+    */
   .panneau__grille {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1px;
-    background: var(--trait);
-    border: 1px solid var(--trait);
-    margin-bottom: 1rem;
+    column-gap: 1.1rem;
+    row-gap: 0.9rem;
+    margin: 0 0 1.1rem;
+    padding-top: 0.95rem;
+    border-top: 1px solid var(--trait);
   }
   .panneau__grille:empty {
     display: none;
   }
   .panneau__casier {
-    background: var(--encre-2);
-    padding: 0.45rem 0.6rem 0.5rem;
     min-width: 0;
   }
   /* Un casier seul sur sa ligne occupe toute la largeur. */
@@ -562,16 +566,16 @@ import { monde } from '../lib/monde';
     grid-column: 1 / -1;
   }
   .panneau__casier dt {
-    font-family: var(--display);
+    font-family: var(--chrome);
     font-size: 0.5625rem;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--parchemin-faible);
   }
   .panneau__casier dd {
-    margin: 0.12rem 0 0;
-    font-size: 1.0625rem;
-    line-height: 1.15;
+    margin: 0.1rem 0 0;
+    font-size: 1.125rem;
+    line-height: 1.2;
     font-variant-numeric: tabular-nums;
     overflow-wrap: anywhere;
   }
@@ -623,29 +627,31 @@ import { monde } from '../lib/monde';
     justify-content: space-between;
     align-items: baseline;
     gap: 0.6rem;
-    font-family: var(--display);
+    font-family: var(--chrome);
     font-size: 0.5625rem;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--parchemin-faible);
-    margin-bottom: 0.28rem;
+    margin-bottom: 0.3rem;
   }
   .panneau__barre-tete b {
-    font-family: var(--mono);
+    font-family: var(--chrome);
     font-size: 0.6875rem;
-    font-weight: 400;
+    font-weight: 500;
     letter-spacing: 0;
     color: var(--parchemin-doux);
   }
   .panneau__barre-fond {
-    height: 4px;
-    background: var(--velin-haut);
+    height: 3px;
+    background: rgba(236, 226, 206, 0.09);
+    border-radius: var(--pilule);
     overflow: hidden;
   }
   .panneau__barre-fond i {
     display: block;
     height: 100%;
     width: 0;
+    border-radius: var(--pilule);
     background: linear-gradient(90deg, var(--teinte-vive), var(--or-clair));
     transition: width 0.45s ease-out;
   }
@@ -659,8 +665,8 @@ import { monde } from '../lib/monde';
   }
   .panneau__pied .bouton {
     justify-content: center;
-    padding: 0.55rem 0.9rem;
-    font-size: 0.6875rem;
+    padding: 0.52rem 0.9rem;
+    font-size: 0.75rem;
   }
   /* Le geste principal se voit du premier coup d'œil. */
   .bouton--plein {
@@ -684,28 +690,25 @@ import { monde } from '../lib/monde';
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 0 1.1rem;
+    gap: 0 1rem;
     margin: 0;
-    padding: 0.4rem 0.9rem;
-    max-width: calc(100% - 24rem);
-    background: color-mix(in srgb, var(--encre) 82%, transparent);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--trait);
-    font-size: 0.75rem;
+    padding: 0.42rem 1rem;
+    max-width: calc(100% - 46rem);
+    border-radius: var(--pilule);
+    font-family: var(--chrome);
+    font-size: 0.6875rem;
     color: var(--parchemin-faible);
     pointer-events: none;
     user-select: none;
   }
   .commandes b {
-    font-family: var(--display);
-    font-weight: 400;
-    font-size: 0.625rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+    font-weight: 500;
     color: var(--parchemin-doux);
     margin-right: 0.3rem;
   }
-  @media (max-width: 1100px) {
+  /* Sous cette largeur, l'échelle et les plaques se disputent la place :
+     le rappel des commandes s'efface plutôt que de chevaucher. */
+  @media (max-width: 1400px) {
     .commandes {
       display: none;
     }
@@ -737,11 +740,11 @@ import { monde } from '../lib/monde';
     display: flex;
     align-items: center;
     gap: 0.8rem;
-    padding: 0.5rem 0.85rem;
-    font-family: var(--display);
+    padding: 0.45rem 0.9rem;
+    border-radius: var(--pilule);
+    font-family: var(--chrome);
     font-size: 0.6875rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    letter-spacing: 0.04em;
     color: var(--parchemin-doux);
     pointer-events: none;
   }
@@ -895,17 +898,14 @@ import { monde } from '../lib/monde';
     position: absolute;
     right: 1.1rem;
     bottom: 1.1rem;
-    width: 320px;
+    width: 324px;
     max-height: calc(100% - 2.2rem);
     overflow-y: auto;
     padding: 1.2rem;
     display: flex;
     flex-direction: column;
     gap: 0.7rem;
-    background: color-mix(in srgb, var(--encre) 95%, transparent);
-    backdrop-filter: blur(14px);
-    border: 1px solid var(--or-sourd);
-    box-shadow: 0 16px 50px rgba(0, 0, 0, 0.6);
+    border-color: var(--or-sourd);
     z-index: 8;
   }
   .lieu-editeur[hidden] {
@@ -926,19 +926,20 @@ import { monde } from '../lib/monde';
     gap: 0.3rem;
   }
   .champ span {
-    font-family: var(--display);
-    font-size: 0.6875rem;
-    letter-spacing: 0.16em;
+    font-family: var(--chrome);
+    font-size: 0.5625rem;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--parchemin-faible);
   }
   .champ input {
-    padding: 0.5rem 0.65rem;
-    background: var(--encre);
-    border: 1px solid var(--trait-vif);
+    padding: 0.5rem 0.7rem;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-s);
     color: var(--parchemin);
     font-family: var(--texte-police);
-    font-size: 1rem;
+    font-size: 1.0625rem;
   }
   .champ input:focus {
     outline: none;
@@ -951,13 +952,15 @@ import { monde } from '../lib/monde';
     gap: 2px;
     max-height: 132px;
     overflow-y: auto;
-    padding: 2px;
+    padding: 4px;
     border: 1px solid var(--trait);
-    background: var(--encre);
+    border-radius: var(--rayon-s);
+    background: rgba(0, 0, 0, 0.28);
   }
   .palette button {
     aspect-ratio: 1;
     border: 1px solid transparent;
+    border-radius: var(--rayon-xs);
     background: none;
     font-size: 1rem;
     line-height: 1;
@@ -1008,13 +1011,15 @@ import { monde } from '../lib/monde';
     flex: 1;
     justify-content: center;
     padding: 0.5rem 0.6rem;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
   }
   #lieu-message:empty {
     display: none;
   }
   #lieu-message {
     color: var(--sang);
+    font-family: var(--chrome);
+    font-size: 0.6875rem;
     margin: 0;
   }
 

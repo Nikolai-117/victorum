@@ -1,45 +1,65 @@
 /* =========================================================================
    Victorum — système visuel
    -------------------------------------------------------------------------
-   Parti pris : un grand atlas relié, consulté à la lueur d'une lampe.
-   Noirs chauds plutôt que bleutés, parchemin plutôt que blanc, filets d'or
-   plutôt que bordures franches. Les capitales espacées et les chiffres
-   tabulaires donnent la densité d'instrument ; les serifs donnent l'âme.
+   Parti pris : le monde d'abord, l'appareil ensuite.
+
+   Derrière chaque page, la carte elle-même, hors du point : on ne consulte
+   pas un tableau de bord, on est posé quelque part. Devant, des plaques de
+   verre aux angles adoucis, qui flottent au lieu d'être collées aux bords.
+
+   Deux voix typographiques, jamais mélangées. Le monde parle en Almendra et
+   en Garamond : noms, titres, textes de Romain. L'appareil parle en Plex
+   Mono, petit et discret : boutons, étiquettes, réglages, chiffres. Le
+   lecteur sent la différence sans avoir à y penser.
    ========================================================================= */
 
 @import './polices.css';
 @import './blocs.css';
 
 :root {
-  /* Surfaces : de l'obscurité de la pièce au cuir de la reliure */
-  --encre: #0c0b09;
-  --encre-2: #121010;
-  --velin: #191614;
-  --velin-haut: #221d19;
-  --trait: #2e2822;
-  --trait-vif: #473d32;
+  /* Surfaces : la nuit d'un cabinet de travail, pas le noir d'un terminal */
+  --encre: #0f0c0a;
+  --encre-2: #161210;
+  --velin: #1d1815;
+  --velin-haut: #2a221d;
+
+  /* Filets translucides : sur du verre, un trait opaque fait autocollant */
+  --trait: rgba(236, 226, 206, 0.1);
+  --trait-vif: rgba(236, 226, 206, 0.2);
 
   /* Encres */
-  --parchemin: #e9dfcb;
-  --parchemin-doux: #b2a48c;
-  --parchemin-faible: #7c7162;
+  --parchemin: #ece2ce;
+  --parchemin-doux: #b7a993;
+  --parchemin-faible: #877a68;
 
   /* Accents : la feuille d'or des capitales, le sang des guerres */
-  --or: #c9a227;
-  --or-clair: #e2c257;
-  --or-sourd: #7e6620;
-  --sang: #9a4034;
-  --verdet: #55786a;
+  --or: #cfa93a;
+  --or-clair: #e8cd6e;
+  --or-sourd: #7d6524;
+  --sang: #a4483a;
+  --verdet: #5b7f70;
+
+  /* Verre : tout flotte au-dessus du monde */
+  --verre: rgba(19, 15, 12, 0.74);
+  --verre-haut: rgba(41, 34, 29, 0.74);
+  --flou: blur(20px) saturate(1.2);
+  --ombre: 0 22px 48px -16px rgba(0, 0, 0, 0.85);
+  --ombre-basse: 0 10px 24px -12px rgba(0, 0, 0, 0.75);
+  --lueur: inset 0 1px 0 rgba(255, 245, 224, 0.07);
 
   /* Typographie */
   --display: 'Almendra SC', 'Iowan Old Style', Georgia, serif;
   --texte-police: 'EB Garamond', 'Iowan Old Style', Georgia, serif;
-  --mono: ui-monospace, 'Cascadia Mono', Consolas, 'Liberation Mono', monospace;
+  --chrome: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --mono: var(--chrome);
 
   /* Rythme */
   --gouttiere: 1.6rem;
   --mesure: 64ch;
-  --rayon: 2px;
+  --rayon: 16px;
+  --rayon-s: 11px;
+  --rayon-xs: 7px;
+  --pilule: 999px;
 }
 
 *,
@@ -65,31 +85,47 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Grain de papier et lueur de lampe : deux voiles fixes, sans coût de rendu.
-   Le grain est un bruit SVG en donnée intégrée — aucun fichier à charger. */
+/**
+ * L'atmosphère : la carte du monde, floutée jusqu'à n'être plus qu'une
+ * lumière et des masses. Le wiki est ainsi toujours posé sur son propre
+ * territoire, au lieu de flotter sur un fond neutre.
+ */
+.atmosphere {
+  position: fixed;
+  inset: -10%;
+  z-index: 0;
+  pointer-events: none;
+  background: url('/carte/apercu.svg') center / cover no-repeat;
+  filter: blur(70px) saturate(0.7) brightness(0.62);
+  opacity: 0.62;
+}
+.atmosphere::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 55% at 50% -5%, rgba(207, 169, 58, 0.12), transparent 62%),
+    linear-gradient(180deg, rgba(15, 12, 10, 0.45), rgba(15, 12, 10, 0.9) 65%);
+}
+
+/* Grain de papier : un bruit SVG en donnée intégrée, aucun fichier à charger. */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
-  z-index: 0;
+  z-index: 1;
   pointer-events: none;
-  opacity: 0.05;
+  opacity: 0.045;
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23b)'/%3E%3C/svg%3E");
 }
 
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background: radial-gradient(ellipse 120% 70% at 50% -10%, rgba(201, 162, 39, 0.07), transparent 60%);
-}
-
-body > * {
+/* Le contenu passe devant l'atmosphère et le grain. Viser `body > *` ici
+   écraserait la position fixe de l'entête : sa spécificité l'emporterait. */
+main,
+.pied {
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
 a {
@@ -119,13 +155,14 @@ h4 {
 }
 
 ::selection {
-  background: var(--or-sourd);
+  background: rgba(207, 169, 58, 0.3);
   color: var(--parchemin);
 }
 
 :focus-visible {
   outline: 1px solid var(--or);
   outline-offset: 3px;
+  border-radius: var(--rayon-xs);
 }
 
 /* --------------------------------------------------------------- utilitaires */
@@ -144,16 +181,17 @@ h4 {
 }
 
 .chiffre {
-  font-family: var(--mono);
+  font-family: var(--chrome);
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
 }
 
-/** L'étiquette de section : petite capitale espacée, omniprésente. */
+/** L'étiquette de section : la voix de l'appareil, petite et sans emphase. */
 .etiquette {
-  font-family: var(--display);
-  font-size: 0.8125rem;
-  letter-spacing: 0.22em;
+  font-family: var(--chrome);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--parchemin-faible);
   margin: 0;
@@ -173,30 +211,15 @@ h4 {
   background: linear-gradient(to right, var(--trait-vif), transparent);
 }
 
-/** Coins d'instrument : deux angles tracés, comme une mire de carte. */
-.cadre {
+/** Plaque de verre : la forme de base de tout ce qui flotte. */
+.cadre,
+.verre {
   position: relative;
-}
-.cadre::before,
-.cadre::after {
-  content: '';
-  position: absolute;
-  width: 9px;
-  height: 9px;
-  border: 1px solid var(--or-sourd);
-  pointer-events: none;
-}
-.cadre::before {
-  top: -1px;
-  left: -1px;
-  border-right: 0;
-  border-bottom: 0;
-}
-.cadre::after {
-  right: -1px;
-  bottom: -1px;
-  border-left: 0;
-  border-top: 0;
+  background: var(--verre);
+  backdrop-filter: var(--flou);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre-basse), var(--lueur);
 }
 
 /** Séparateur orné, plutôt qu'un trait nu. */
@@ -226,34 +249,47 @@ h4 {
 
 /* --------------------------------------------------------------------- entête */
 
+/**
+ * La barre de navigation ne barre plus rien : c'est une pilule posée en haut,
+ * au centre, qui laisse voir le monde de part et d'autre.
+ */
 .entete {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background: color-mix(in srgb, var(--encre) 90%, transparent);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--trait);
-}
-
-.entete__interne {
+  position: fixed;
+  top: 0.9rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
   display: flex;
   align-items: center;
-  gap: 2rem;
-  min-height: 60px;
-  flex-wrap: wrap;
+  gap: 0.15rem;
+  padding: 0.3rem 0.38rem;
+  max-width: calc(100vw - 1.4rem);
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--verre);
+  backdrop-filter: var(--flou);
+  border: 1px solid var(--trait);
+  border-radius: var(--pilule);
+  box-shadow: var(--ombre), var(--lueur);
+}
+.entete::-webkit-scrollbar {
+  display: none;
 }
 
 .marque {
   font-family: var(--display);
-  font-size: 1.25rem;
-  letter-spacing: 0.16em;
+  font-size: 0.875rem;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
-  background: none;
   white-space: nowrap;
   color: var(--parchemin);
+  background: none;
+  padding: 0.32rem 0.75rem;
+  border-radius: var(--pilule);
 }
 .marque:hover {
   color: var(--or-clair);
+  background: var(--velin-haut);
 }
 .marque span {
   color: var(--or);
@@ -261,36 +297,76 @@ h4 {
 
 .nav {
   display: flex;
-  gap: 1.6rem;
-  margin-left: auto;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.1rem;
 }
 
 .nav a {
-  font-family: var(--display);
-  font-size: 0.8125rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  font-family: var(--chrome);
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
   color: var(--parchemin-doux);
   background: none;
-  padding: 3px 0;
-  border-bottom: 1px solid transparent;
+  padding: 0.36rem 0.62rem;
+  border-radius: var(--pilule);
+  white-space: nowrap;
+  transition: background 0.18s, color 0.18s;
 }
 .nav a:hover {
   color: var(--parchemin);
+  background: var(--velin-haut);
 }
 .nav a[aria-current='page'] {
-  color: var(--or);
-  border-bottom-color: var(--or-sourd);
+  color: var(--or-clair);
+  background: rgba(207, 169, 58, 0.13);
+}
+
+/** La date du monde, comme une horloge : on sait toujours quand on est. */
+.date-monde {
+  margin: 0 0.7rem 0 0.55rem;
+  padding-left: 0.8rem;
+  border-left: 1px solid var(--trait);
+  font-family: var(--chrome);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  color: var(--parchemin-faible);
+  white-space: nowrap;
+}
+.date-monde b {
+  font-weight: 500;
+  color: var(--parchemin-doux);
+}
+
+/** Le corps commence sous la pilule flottante. */
+.corps {
+  padding-top: 5.4rem;
+}
+.corps--plein {
+  padding-top: 0;
+}
+
+@media (max-width: 760px) {
+  .entete {
+    gap: 0;
+    padding: 0.28rem 0.3rem;
+  }
+  .date-monde {
+    display: none;
+  }
+  .nav a {
+    padding: 0.36rem 0.55rem;
+  }
 }
 
 /* ---------------------------------------------------------------- pied de page */
 
 .pied {
   margin-top: 6rem;
-  border-top: 1px solid var(--trait);
   padding: 2rem 0 3.5rem;
-  font-size: 0.9375rem;
+  border-top: 1px solid var(--trait);
+  font-family: var(--chrome);
+  font-size: 0.75rem;
+  line-height: 1.7;
   color: var(--parchemin-faible);
   display: flex;
   gap: 1.5rem;
@@ -302,7 +378,7 @@ h4 {
 
 /** En-tête de fiche. */
 .cartouche {
-  padding: 3.5rem 0 2rem;
+  padding: 3rem 0 2rem;
   border-bottom: 1px solid var(--trait);
   position: relative;
 }
@@ -334,38 +410,41 @@ h4 {
   height: 9px;
   border-radius: 50%;
   flex: none;
-  box-shadow: 0 0 0 1px rgba(233, 223, 203, 0.25) inset, 0 0 8px currentColor;
+  box-shadow: 0 0 0 1px rgba(236, 226, 206, 0.25) inset, 0 0 8px currentColor;
 }
 
 /* ----------------------------------------------------------------------- faits */
 
-/** Registre de faits : lu comme un livre de comptes. */
+/** Registre de faits : lu comme un livre de comptes, posé sur du verre. */
 .faits {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
-  gap: 0;
+  gap: 1px;
+  background: var(--trait);
   border: 1px solid var(--trait);
-  background: var(--encre-2);
+  border-radius: var(--rayon);
+  overflow: hidden;
+  box-shadow: var(--ombre-basse);
 }
 
 .fait {
   padding: 1rem 1.15rem;
   min-width: 0;
-  border-right: 1px solid var(--trait);
-  border-bottom: 1px solid var(--trait);
+  background: var(--verre);
+  backdrop-filter: var(--flou);
 }
 
 .fait dt {
-  font-family: var(--display);
-  font-size: 0.6875rem;
-  letter-spacing: 0.18em;
+  font-family: var(--chrome);
+  font-size: 0.625rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--parchemin-faible);
 }
 
 .fait dd {
   margin: 0.35rem 0 0;
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
   color: var(--parchemin);
@@ -376,19 +455,22 @@ h4 {
 .grille {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .carte {
   display: block;
-  padding: 1.1rem 1.2rem;
-  background: var(--encre-2);
+  padding: 1.05rem 1.15rem;
+  background: var(--verre);
+  backdrop-filter: var(--flou);
   border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre-basse), var(--lueur);
   transition: border-color 0.2s, background 0.2s, transform 0.2s;
 }
 .carte:hover {
-  border-color: var(--or-sourd);
-  background: var(--velin);
+  border-color: var(--trait-vif);
+  background: var(--verre-haut);
   transform: translateY(-2px);
 }
 
@@ -404,7 +486,9 @@ h4 {
 .carte__meta {
   display: block;
   margin-top: 0.35rem;
-  font-size: 0.9375rem;
+  font-family: var(--chrome);
+  font-size: 0.75rem;
+  line-height: 1.6;
   color: var(--parchemin-faible);
 }
 
@@ -417,9 +501,9 @@ h4 {
 }
 .tableau th {
   text-align: left;
-  font-family: var(--display);
-  font-size: 0.6875rem;
-  letter-spacing: 0.18em;
+  font-family: var(--chrome);
+  font-size: 0.625rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--parchemin-faible);
   padding: 0.6rem 0.85rem;
@@ -431,7 +515,7 @@ h4 {
   border-bottom: 1px solid var(--trait);
 }
 .tableau tbody tr:hover {
-  background: var(--encre-2);
+  background: rgba(236, 226, 206, 0.04);
 }
 .tableau .num {
   text-align: right;
@@ -448,7 +532,7 @@ h4 {
   max-width: var(--mesure);
   font-size: 1.125rem;
   line-height: 1.75;
-  color: #ddd2bd;
+  color: #ded3be;
 }
 .prose > h2 {
   font-size: 1.9rem;
@@ -486,14 +570,16 @@ h4 {
   font-style: italic;
 }
 .prose code {
-  font-family: var(--mono);
-  font-size: 0.85em;
+  font-family: var(--chrome);
+  font-size: 0.8em;
   background: var(--velin);
-  padding: 0.12em 0.4em;
+  border-radius: var(--rayon-xs);
+  padding: 0.15em 0.42em;
 }
 .prose img {
   max-width: 100%;
   height: auto;
+  border-radius: var(--rayon-s);
 }
 .prose hr {
   border: 0;
@@ -506,8 +592,10 @@ h4 {
 /** État vide : indique le fichier exact à créer. Aucun texte inventé. */
 .a-ecrire {
   border: 1px dashed var(--trait-vif);
+  border-radius: var(--rayon);
   padding: 1.75rem;
-  background: var(--encre-2);
+  background: var(--verre);
+  backdrop-filter: var(--flou);
   max-width: var(--mesure);
 }
 .a-ecrire p {
@@ -515,10 +603,11 @@ h4 {
   color: var(--parchemin-doux);
 }
 .a-ecrire code {
-  font-family: var(--mono);
-  font-size: 0.875rem;
+  font-family: var(--chrome);
+  font-size: 0.8125rem;
   color: var(--or-clair);
   background: var(--velin-haut);
+  border-radius: var(--rayon-xs);
   padding: 0.3em 0.55em;
   display: inline-block;
   overflow-wrap: anywhere;
@@ -529,15 +618,18 @@ h4 {
 /** Texte généré par Azgaar : nettement séparé de l'écriture de Romain. */
 .legende-source {
   border: 1px solid var(--trait);
-  background: var(--encre-2);
+  border-radius: var(--rayon);
+  background: var(--verre);
+  backdrop-filter: var(--flou);
   max-width: var(--mesure);
+  overflow: hidden;
 }
 .legende-source > summary {
   cursor: pointer;
   padding: 0.8rem 1.1rem;
-  font-family: var(--display);
-  font-size: 0.6875rem;
-  letter-spacing: 0.18em;
+  font-family: var(--chrome);
+  font-size: 0.625rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--parchemin-faible);
 }
@@ -561,42 +653,48 @@ h4 {
 
 /* -------------------------------------------------------------------- boutons */
 
+/**
+ * Un bouton parle la langue de l'appareil : minuscules, mono, arrondi franc.
+ * Les capitales espacées d'avant criaient sur tous les tons à la fois.
+ */
 .bouton {
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
-  padding: 0.6rem 1.2rem;
+  gap: 0.5rem;
+  padding: 0.52rem 1.05rem;
   border: 1px solid var(--trait-vif);
-  background: var(--velin);
+  border-radius: var(--pilule);
+  background: var(--verre-haut);
   color: var(--parchemin);
-  font-family: var(--display);
+  font-family: var(--chrome);
   font-size: 0.8125rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  transition: border-color 0.2s, background 0.2s, color 0.2s;
+  transition: border-color 0.2s, background 0.2s, color 0.2s, transform 0.2s;
 }
 .bouton:hover {
   border-color: var(--or-sourd);
-  background: var(--velin-haut);
   color: var(--or-clair);
+  transform: translateY(-1px);
 }
 .bouton--or {
   border-color: var(--or-sourd);
   color: var(--or);
 }
 .bouton--or:hover {
-  background: rgba(201, 162, 39, 0.1);
+  background: rgba(207, 169, 58, 0.12);
 }
 
 /* -------------------------------------------------------------------- jetons */
 
 .jeton {
   display: inline-block;
-  padding: 0.22rem 0.7rem;
+  padding: 0.2rem 0.65rem;
   border: 1px solid var(--trait);
-  background: var(--encre-2);
-  font-size: 0.9375rem;
+  border-radius: var(--pilule);
+  background: var(--velin);
+  font-family: var(--chrome);
+  font-size: 0.75rem;
   color: var(--parchemin-doux);
 }
 

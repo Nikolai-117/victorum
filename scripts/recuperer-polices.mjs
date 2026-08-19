@@ -29,6 +29,9 @@ const SOUS_ENSEMBLES = ['latin', 'latin-ext'];
 const FAMILLES = [
   { requete: 'Almendra+SC', nom: 'Almendra SC', fichier: 'almendra-sc', graisses: { 400: 'normal' } },
   { requete: 'EB+Garamond:wght@400;500;600', nom: 'EB Garamond', fichier: 'eb-garamond', graisses: { 400: 'normal', 500: 'normal', 600: 'normal' } },
+  // La voix de l'appareil, par opposition à celle du monde : boutons, étiquettes,
+  // réglages. Une machine à écrire de cartographe à côté du livre enluminé.
+  { requete: 'IBM+Plex+Mono:wght@400;500', nom: 'IBM Plex Mono', fichier: 'plex-mono', graisses: { 400: 'normal', 500: 'normal' } },
 ];
 
 /** Découpe le CSS de Google en blocs @font-face, en gardant le nom du sous-ensemble. */
