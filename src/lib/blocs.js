@@ -112,6 +112,7 @@ export const CATALOGUE = [
     blocs: [
       { type: 'identite', nom: "Fiche d'identité", apercu: 'Les faits extraits de la carte', largeur: 'tiers' },
       { type: 'blason', nom: 'Blason', apercu: 'Les armes, en grand', largeur: 'tiers' },
+      { type: 'courants', nom: 'Courants', apercu: 'Idéologies et doctrines professées', largeur: 'tiers' },
     ],
   },
   {
@@ -240,6 +241,53 @@ const RENDUS = {
     return (
       `<div class="identite cadre"><p class="etiquette">${esc(o.titre || "Fiche d'identité")}</p>` +
       `<dl>${lignes}</dl></div>`
+    );
+  },
+
+  /**
+   * Ce que l'entité professe. Les courants sont groupés par axe, dans l'ordre
+   * où Romain les a définis ; un axe qui porte des parts se lit en barres,
+   * les autres en simple liste de jetons.
+   */
+  courants(o, c) {
+    const suivis = c.courants || [];
+    if (!suivis.length) return '';
+
+    const axes = [];
+    for (const courant of suivis) {
+      let axe = axes.find((a) => a.nom === courant.axe);
+      if (!axe) axes.push((axe = { nom: courant.axe, courants: [] }));
+      axe.courants.push(courant);
+    }
+
+    const corps = axes
+      .map((axe) => {
+        const lignes = axe.courants
+          .map((k) => {
+            const part =
+              typeof k.part === 'number'
+                ? `<span class="courant__barre"><i style="width:${Math.max(2, Math.min(100, k.part))}%;` +
+                  `background:${esc(k.couleur)}"></i></span>` +
+                  `<span class="courant__part">${esc(k.part)} %</span>`
+                : '';
+            return (
+              `<li class="courant">` +
+              `<span class="courant__marque" style="--teinte:${esc(k.couleur)}">${esc(k.symbole)}</span>` +
+              `<a class="courant__nom" href="/courants/${esc(k.slug)}">${esc(k.nom)}</a>` +
+              part +
+              `</li>`
+            );
+          })
+          .join('');
+        return (
+          (axe.nom ? `<p class="etiquette courants__axe">${esc(axe.nom)}</p>` : '') +
+          `<ul class="courants__liste">${lignes}</ul>`
+        );
+      })
+      .join('');
+
+    return (
+      `<div class="courants cadre"><p class="etiquette">${esc(o.titre || 'Courants')}</p>${corps}</div>`
     );
   },
 
@@ -412,6 +460,9 @@ export function dispositionParDefaut(type, contexte) {
   blocs.push({ type: 'texte', largeur: 'deux-tiers', options: {} });
   if ((contexte.faits || []).length) {
     blocs.push({ type: 'identite', largeur: 'tiers', options: {} });
+  }
+  if ((contexte.courants || []).length) {
+    blocs.push({ type: 'courants', largeur: 'tiers', options: {} });
   }
 
   for (const cle of groupes) {

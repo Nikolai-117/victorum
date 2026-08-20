@@ -14,6 +14,7 @@ import Atelier from './Atelier.astro';
 import { rendrePage, dispositionParDefaut, markdownCourt } from '../lib/blocs.js';
 import { dispositionDe } from '../lib/contenu';
 import { lirePage, motDePasseDefini, stockage } from '../lib/stockage';
+import { lirePolitique, courantsDe } from '../lib/politique';
 import { SECTIONS } from '../lib/monde';
 import type { Contexte } from '../lib/contexte';
 
@@ -26,10 +27,17 @@ const section = SECTIONS[contexte.type].url;
 
 const enregistre = await lirePage(Astro.locals, section, contexte.slug);
 
+// Les courants ne viennent pas de la carte : ils sont dans le stockage, et
+// n'existent que si Romain les a écrits.
+const politique = await lirePolitique(Astro.locals);
+const courants = courantsDe(politique, contexte.type, contexte.identifiant);
+
 // Le texte écrit depuis le site prend le pas sur le fichier Markdown versionné.
-const contexteFinal: Contexte = enregistre?.texte
-  ? { ...contexte, corpsHtml: markdownCourt(enregistre.texte) }
-  : contexte;
+const contexteFinal: Contexte = {
+  ...contexte,
+  ...(enregistre?.texte ? { corpsHtml: markdownCourt(enregistre.texte) } : {}),
+  courants,
+};
 
 // Une disposition vide n'est jamais voulue : plutôt que de servir une page
 // blanche, on retombe sur la disposition d'origine.

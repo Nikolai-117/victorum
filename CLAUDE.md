@@ -183,6 +183,37 @@ entre versions d'Azgaar.
    perdu. Les adversaires des guerres passées sont donc anonymes — c'est un fait,
    pas un bug à contourner en inventant un nom.
 
+## Les courants : la politique du monde
+
+Demandé « plus vaste, comme Stellaris ou Hearts of Iron, et personnalisable à
+fond ». Azgaar ne produit rien de tel — et ne le pourrait pas, puisque c'est du
+lore. On fournit donc la **mécanique**, jamais le contenu.
+
+- **Un axe** est une grille de lecture : « Idéologies », « Doctrines
+  militaires », « Obédiences »… Romain en crée autant qu'il veut, et choisit à
+  quels types d'entités chacun s'applique.
+- **Un courant** est une valeur de cet axe, avec nom, couleur, symbole et un
+  texte qu'il écrit lui-même.
+- **Une adhésion** relie une entité à un courant, avec une part facultative.
+  Un axe *exclusif* n'admet qu'un courant par entité ; un axe *multiple* en
+  accepte plusieurs avec leurs pourcentages — les partis d'un HOI 4.
+
+- **Les adhésions s'accrochent à l'identifiant d'origine** (`etat:3`), pas au
+  slug : un renommage dans Azgaar changerait le slug, jamais l'identifiant.
+  C'est pourquoi `Contexte` porte désormais un champ `identifiant`.
+- **Tout tient dans une seule clé KV** (`politique`) : l'ensemble est petit,
+  toujours lu en entier, et une écriture atomique évite d'avoir à arbitrer des
+  conflits.
+- **Le mode de carte** de l'atlas recolore royaumes et provinces selon l'axe
+  choisi, avec légende et comptes. Les teintes d'origine sont mémorisées avant
+  d'être remplacées : revenir au mode « Royaumes » les rend exactement.
+- **L'atelier des courants** (`/courants`) écrit par `/api/politique`, sous le
+  même mot de passe que le reste. Après un enregistrement il recharge la page :
+  la vue publique est rendue par le serveur, et la recharger évite d'en tenir
+  une seconde version côté navigateur.
+- Le système démarre **vide**, et le dit. Aucun axe, aucun courant, aucune
+  couleur n'est proposé d'avance : ce serait écrire le monde à sa place.
+
 ## Les lieux remarquables
 
 - **Ils ne sont plus importés.** Azgaar en produisait 532 dont 140 « Dungeon »

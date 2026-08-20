@@ -38,6 +38,14 @@ import { monde } from '../lib/monde';
         <ul id="resultats" class="resultats" role="listbox" aria-label="Résultats"></ul>
       </div>
 
+      <div class="rail__bloc" id="bloc-mode" hidden>
+        <p class="etiquette">Mode de carte</p>
+        <select id="mode-carte" class="select" aria-label="Colorer la carte par">
+          <option value="">Royaumes</option>
+        </select>
+        <ul class="legende" id="legende-mode"></ul>
+      </div>
+
       <div class="rail__bloc">
         <p class="etiquette">Couches</p>
         <div id="couches-controles" class="controles"></div>
@@ -121,6 +129,8 @@ import { monde } from '../lib/monde';
       </header>
 
       <ul class="panneau__traits" id="panneau-traits"></ul>
+
+      <ul class="panneau__courants" id="panneau-courants"></ul>
 
       <div class="panneau__grille" id="panneau-grille"></div>
 
@@ -516,6 +526,84 @@ import { monde } from '../lib/monde';
   .panneau__rattachement .sep {
     color: var(--trait-vif);
     margin: 0 0.35rem;
+  }
+
+  /* La légende du mode de carte : une pastille, un nom, un compte. */
+  .legende {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  .legende:empty {
+    display: none;
+  }
+  .legende li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--chrome);
+    font-size: 0.6875rem;
+    color: var(--parchemin-doux);
+  }
+  .legende i {
+    width: 9px;
+    height: 9px;
+    flex: none;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6) inset;
+  }
+  .legende small {
+    margin-left: auto;
+    color: var(--parchemin-faible);
+  }
+
+  /* Ce que l'entité professe, sous son nom. */
+  .panneau__courants {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin: 0 0 0.95rem;
+    padding: 0;
+  }
+  .panneau__courants:empty {
+    display: none;
+  }
+  .panneau__courants li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+    color: var(--parchemin-doux);
+  }
+  .panneau__courants .marque-courant {
+    width: 22px;
+    height: 22px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    line-height: 1;
+    color: color-mix(in srgb, var(--teinte-courant) 65%, #f0e6d2);
+    background: color-mix(in srgb, var(--teinte-courant) 18%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teinte-courant) 45%, transparent);
+  }
+  .panneau__courants .part {
+    margin-left: auto;
+    font-family: var(--chrome);
+    font-size: 0.6875rem;
+    color: var(--parchemin-faible);
+  }
+  .panneau__courants .axe {
+    font-family: var(--chrome);
+    font-size: 0.5625rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--parchemin-faible);
   }
 
   /* Ce qu'une ville a de remarquable, un mot par jeton. */
@@ -1238,7 +1326,7 @@ import { monde } from '../lib/monde';
     await Promise.all(parDefaut.map((c) => chargerCouche(c.id).then(avancer)));
 
     index = await (await fetch('/carte/index.json')).json();
-    await chargerLieux();
+    await Promise.all([chargerLieux(), chargerPolitique()]);
     appliquer();
     ouvrirLaDemande();
   }
@@ -1266,6 +1354,8 @@ import { monde } from '../lib/monde';
           g.style.display = 'none';
         }
         if (c.id === 'provinces') gCouches.classList.toggle('provinces-visibles', actif);
+        // Une couche fraîchement chargée n'a pas les teintes du mode en cours.
+        if (actif && modeCourant) appliquerMode(modeCourant);
       });
       hote.appendChild(label);
     }
@@ -1537,6 +1627,131 @@ import { monde } from '../lib/monde';
     majRailLieux();
     fermerEditeur();
   }
+
+  /* ------------------------------------------------------------- politique */
+
+  /**
+   * Les courants que Romain a définis : idéologies, doctrines, allégeances.
+   *
+   * Ils ne viennent pas de la carte mais du stockage du site, et servent ici à
+   * deux choses : dire dans le panneau ce qu'une entité professe, et surtout
+   * recolorer le monde selon l'axe choisi — la carte politique d'un jeu de
+   * stratégie, sauf que la grille de lecture est la sienne.
+   */
+  let politique = { axes: [], courants: [], adhesions: [] };
+  let modeCourant = '';
+  const teintesOrigine = new Map();
+
+  async function chargerPolitique() {
+    try {
+      const donnees = await (await fetch('/api/politique')).json();
+      if (donnees && donnees.politique) politique = donnees.politique;
+    } catch {
+      // La carte se lit très bien sans : on n'insiste pas.
+    }
+    construireModes();
+  }
+
+  /** Ce qu'une entité professe, du plus soutenu au moins soutenu. */
+  function courantsDe(type, identifiant) {
+    const cle = `${type}:${identifiant}`;
+    const parId = new Map(politique.courants.map((c) => [c.id, c]));
+    const nomsAxes = new Map(politique.axes.map((a) => [a.id, a.nom]));
+    return politique.adhesions
+      .filter((a) => a.entite === cle)
+      .map((a) => {
+        const courant = parId.get(a.courantId);
+        return courant ? { ...courant, part: a.part, axe: nomsAxes.get(courant.axeId) || '' } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => (b.part ?? 0) - (a.part ?? 0) || a.nom.localeCompare(b.nom, 'fr'));
+  }
+
+  function construireModes() {
+    const bloc = document.getElementById('bloc-mode');
+    const choix = document.getElementById('mode-carte');
+    // Seuls les axes qui touchent une surface dessinée peuvent colorer la carte.
+    const utiles = politique.axes.filter(
+      (a) => a.cibles.includes('etat') || a.cibles.includes('province')
+    );
+    if (!utiles.length) {
+      bloc.hidden = true;
+      return;
+    }
+    bloc.hidden = false;
+    choix.innerHTML = '<option value="">Royaumes</option>';
+    for (const axe of utiles) {
+      const option = document.createElement('option');
+      option.value = axe.id;
+      option.textContent = axe.nom;
+      choix.appendChild(option);
+    }
+    choix.value = modeCourant;
+  }
+
+  /** Les surfaces effectivement dessinées, avec l'identifiant qu'elles portent. */
+  function surfacesDe(type) {
+    if (type === 'etat') {
+      return [...gCouches.querySelectorAll('[data-couche="regions"] path[id^="state"]:not([id*="-"])')]
+        .map((element) => ({ element, id: Number(element.id.slice(5)) }))
+        .filter((s) => Number.isFinite(s.id));
+    }
+    if (type === 'province') {
+      return [...gCouches.querySelectorAll('[data-couche="provinces"] .province')]
+        .map((groupe) => ({ element: groupe.querySelector('path'), id: Number(groupe.id.slice(8)) }))
+        .filter((s) => s.element && Number.isFinite(s.id));
+    }
+    return [];
+  }
+
+  function appliquerMode(axeId) {
+    modeCourant = axeId || '';
+
+    // On rend d'abord aux surfaces leur teinte d'origine.
+    for (const [element, teinte] of teintesOrigine) {
+      if (teinte === null) element.removeAttribute('fill');
+      else element.setAttribute('fill', teinte);
+    }
+    teintesOrigine.clear();
+
+    const axe = politique.axes.find((a) => a.id === modeCourant);
+    if (!axe) return majLegende(null);
+
+    const comptes = new Map();
+    for (const type of ['etat', 'province']) {
+      if (!axe.cibles.includes(type)) continue;
+      for (const { element, id } of surfacesDe(type)) {
+        const dominant = courantsDe(type, id).find((c) => c.axeId === axe.id);
+        if (!dominant) continue;
+        if (!teintesOrigine.has(element)) teintesOrigine.set(element, element.getAttribute('fill'));
+        element.setAttribute('fill', dominant.couleur);
+        comptes.set(dominant.id, (comptes.get(dominant.id) || 0) + 1);
+      }
+    }
+    majLegende(axe, comptes);
+  }
+
+  function majLegende(axe, comptes) {
+    const hote = document.getElementById('legende-mode');
+    hote.innerHTML = '';
+    if (!axe) return;
+    for (const courant of politique.courants.filter((c) => c.axeId === axe.id)) {
+      const li = document.createElement('li');
+      const puce = document.createElement('i');
+      puce.style.background = courant.couleur;
+      const nom = document.createElement('span');
+      nom.textContent = `${courant.symbole} ${courant.nom}`;
+      const compte = document.createElement('small');
+      const n = comptes?.get(courant.id) || 0;
+      compte.textContent = n ? String(n) : '—';
+      li.append(puce, nom, compte);
+      hote.appendChild(li);
+    }
+  }
+
+  document.getElementById('mode-carte').addEventListener('change', (ev) => {
+    appliquerMode(ev.target.value);
+  });
 
   /* ---------------------------------------------------------------- sélection */
 
@@ -1851,6 +2066,27 @@ import { monde } from '../lib/monde';
       const li = document.createElement('li');
       li.textContent = t;
       traits.appendChild(li);
+    }
+
+    const suivis = document.getElementById('panneau-courants');
+    suivis.innerHTML = '';
+    for (const courant of courantsDe(e.t, e.i)) {
+      const li = document.createElement('li');
+      li.style.setProperty('--teinte-courant', courant.couleur);
+      const marque = document.createElement('span');
+      marque.className = 'marque-courant';
+      marque.textContent = courant.symbole;
+      const nom = document.createElement('a');
+      nom.href = `/courants/${courant.slug}`;
+      nom.textContent = courant.nom;
+      li.append(marque, nom);
+      if (typeof courant.part === 'number') {
+        const part = document.createElement('span');
+        part.className = 'part';
+        part.textContent = `${courant.part} %`;
+        li.appendChild(part);
+      }
+      suivis.appendChild(li);
     }
 
     const grille = document.getElementById('panneau-grille');

@@ -1,0 +1,793 @@
+---
+/**
+ * Les courants du monde : idéologies, doctrines, allégeances.
+ *
+ * La page publique montre ce que Romain a défini ; l'atelier, protégé par le
+ * mot de passe, permet de tout créer. Rien n'est jamais proposé d'avance :
+ * les axes, les noms, les couleurs et les textes sont les siens.
+ */
+import Base from '../../layouts/Base.astro';
+import { lirePolitique, libelleCible, CIBLES } from '../../lib/politique';
+import { motDePasseDefini, stockage, listerLieux } from '../../lib/stockage';
+import {
+  etats, provinces, burgs, cultures, religions, nomAffiche, nombre,
+} from '../../lib/monde';
+
+export const prerender = false;
+
+const politique = await lirePolitique(Astro.locals);
+const lieux = await listerLieux(Astro.locals);
+
+/** Le catalogue de tout ce à quoi un courant peut s'attacher. */
+const entites = {
+  etat: etats.map((e) => ({ id: e.id, nom: e.nomComplet })),
+  province: provinces.map((p) => ({ id: p.id, nom: p.nomComplet })),
+  burg: [...burgs]
+    .sort((a, b) => b.population - a.population)
+    .map((b) => ({ id: b.id, nom: nomAffiche(b.nom) })),
+  culture: cultures.map((c) => ({ id: c.id, nom: c.nom })),
+  religion: religions.map((r) => ({ id: r.id, nom: r.nom })),
+  lieu: lieux.map((l) => ({ id: l.id, nom: l.nom })),
+};
+
+const nomEntite = (cle: string): string | null => {
+  const [type, id] = cle.split(':');
+  const liste = (entites as Record<string, { id: number | string; nom: string }[]>)[type];
+  return liste?.find((e) => String(e.id) === id)?.nom ?? null;
+};
+
+const axes = [...politique.axes].sort((a, b) => a.ordre - b.ordre);
+const courantsDeLAxe = (axeId: string) =>
+  politique.courants.filter((c) => c.axeId === axeId).sort((a, b) => a.ordre - b.ordre);
+
+/** Combien d'entités suivent ce courant, et lesquelles en premier. */
+const adherents = (courantId: string) => {
+  const liste = politique.adhesions
+    .filter((a) => a.courantId === courantId)
+    .sort((a, b) => (b.part ?? 0) - (a.part ?? 0));
+  return {
+    total: liste.length,
+    apercu: liste.map((a) => nomEntite(a.entite)).filter(Boolean).slice(0, 3) as string[],
+  };
+};
+
+const donnees = {
+  politique,
+  entites,
+  stockageActif: Boolean(stockage(Astro.locals)),
+  motDePasseDefini: await motDePasseDefini(Astro.locals),
+  cibles: CIBLES.map((c) => ({ cle: c, libelle: libelleCible(c) })),
+};
+---
+
+<Base titre="Courants" description="Les idéologies et doctrines du monde de Victorum.">
+  <div class="contenant">
+    <header class="cartouche">
+      <p class="etiquette">Idéologies · doctrines · allégeances</p>
+      <h1>Courants</h1>
+    </header>
+
+    <div class="tete-courants">
+      <p class="discret tete-courants__intro">
+        Un <b>axe</b> est une grille de lecture : idéologies, doctrines militaires,
+        obédiences… Chaque axe contient des <b>courants</b>, et chaque courant est
+        professé par des royaumes, des provinces, des cultures — avec, si tu le
+        veux, une part de soutien.
+      </p>
+      <button id="ouvrir-atelier" class="bouton bouton--or" type="button">Composer</button>
+    </div>
+
+    {
+      axes.length === 0 && (
+        <div class="a-ecrire">
+          <p class="etiquette">Rien de défini</p>
+          <p>
+            Aucun axe n'existe encore. Ouvre l'atelier : tu y crées tes propres grilles
+            de lecture, leurs courants, et tu désignes qui les professe.
+          </p>
+          <p class="discret">
+            Rien ne sera inventé à ta place — ni les noms, ni les couleurs, ni les textes.
+          </p>
+        </div>
+      )
+    }
+
+    {
+      axes.map((axe) => {
+        const siens = courantsDeLAxe(axe.id);
+        return (
+          <section class="pile axe-bloc">
+            <h2 class="etiquette etiquette--filet">{axe.nom}</h2>
+            <p class="axe-bloc__meta">
+              {axe.cibles.map((c) => libelleCible(c)).join(' · ')}
+              {axe.multiple ? ' · plusieurs courants par entité, avec parts' : ' · un seul courant par entité'}
+            </p>
+            {siens.length === 0 ? (
+              <p class="discret">Cet axe n'a pas encore de courant.</p>
+            ) : (
+              <div class="grille">
+                {siens.map((courant) => {
+                  const qui = adherents(courant.id);
+                  return (
+                    <a class="carte carte--courant" href={`/courants/${courant.slug}`}>
+                      <span class="carte__titre">
+                        <i class="courant__marque" style={`--teinte:${courant.couleur}`}>
+                          {courant.symbole}
+                        </i>
+                        {courant.nom}
+                      </span>
+                      <span class="carte__meta">
+                        {qui.total ? `${nombre(qui.total)} adhérent${qui.total > 1 ? 's' : ''}` : 'Personne ne le professe encore'}
+                        {qui.apercu.length ? ` · ${qui.apercu.join(', ')}` : ''}
+                      </span>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        );
+      })
+    }
+  </div>
+
+  <!-- L'atelier : tout ce qui écrit passe par le mot de passe du site. -->
+  <aside class="atelier-courants" id="atelier" hidden>
+    <header class="atelier-courants__tete">
+      <p class="etiquette">Atelier des courants</p>
+      <span class="atelier-etat" id="etat-atelier"></span>
+      <button class="fermer" id="fermer-atelier" type="button" aria-label="Fermer">×</button>
+    </header>
+
+    <div class="atelier-courants__grille">
+      <section class="colonne">
+        <p class="etiquette">Axes</p>
+        <ul class="colonne__liste" id="liste-axes"></ul>
+        <button class="bouton" id="nouvel-axe" type="button">+ Nouvel axe</button>
+
+        <form class="colonne__forme" id="forme-axe" hidden>
+          <label class="champ"><span>Nom de l'axe</span>
+            <input id="axe-nom" type="text" maxlength="80" placeholder="Idéologies" required />
+          </label>
+          <p class="etiquette">S'applique à</p>
+          <div class="cases" id="axe-cibles"></div>
+          <label class="controle">
+            <input type="checkbox" id="axe-multiple" />
+            <span>Plusieurs courants par entité, avec des parts</span>
+          </label>
+          <div class="colonne__actions">
+            <button class="bouton bouton--or" type="submit">Enregistrer</button>
+            <button class="bouton" type="button" id="supprimer-axe">Supprimer</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="colonne">
+        <p class="etiquette">Courants</p>
+        <ul class="colonne__liste" id="liste-courants"></ul>
+        <button class="bouton" id="nouveau-courant" type="button" disabled>+ Nouveau courant</button>
+
+        <form class="colonne__forme" id="forme-courant" hidden>
+          <label class="champ"><span>Nom</span>
+            <input id="courant-nom" type="text" maxlength="80" required />
+          </label>
+          <div class="duo">
+            <label class="champ"><span>Symbole</span>
+              <input id="courant-symbole" type="text" maxlength="4" />
+            </label>
+            <label class="champ"><span>Couleur</span>
+              <input id="courant-couleur" type="color" value="#c9a227" />
+            </label>
+          </div>
+          <label class="champ"><span>Ce que c'est</span>
+            <textarea id="courant-resume" rows="5" maxlength="2000"></textarea>
+          </label>
+          <div class="colonne__actions">
+            <button class="bouton bouton--or" type="submit">Enregistrer</button>
+            <button class="bouton" type="button" id="supprimer-courant">Supprimer</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="colonne">
+        <p class="etiquette">Qui le professe</p>
+        <input id="filtre-entites" type="search" placeholder="Filtrer…" autocomplete="off" />
+        <div class="colonne__entites" id="liste-entites">
+          <p class="aide">Choisis d'abord un courant.</p>
+        </div>
+        <button class="bouton bouton--or" id="enregistrer-adhesions" type="button" disabled>
+          Enregistrer les adhésions
+        </button>
+      </section>
+    </div>
+  </aside>
+
+  <script type="application/json" id="donnees-politique" set:html={JSON.stringify(donnees)} />
+</Base>
+
+<style is:global>
+  .tete-courants {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+    margin: 2rem 0 2.5rem;
+    flex-wrap: wrap;
+  }
+  .tete-courants__intro {
+    flex: 1;
+    min-width: 20rem;
+    max-width: var(--mesure);
+    margin: 0;
+  }
+  .tete-courants b {
+    font-weight: 600;
+    color: var(--parchemin);
+  }
+
+  .axe-bloc {
+    margin-top: 3rem;
+  }
+  .axe-bloc__meta {
+    margin: 0;
+    font-family: var(--chrome);
+    font-size: 0.6875rem;
+    color: var(--parchemin-faible);
+  }
+  .carte--courant .carte__titre {
+    gap: 0.6rem;
+  }
+
+  /* ------------------------------------------------------------- atelier */
+
+  .atelier-courants {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 70;
+    max-height: min(82svh, 780px);
+    display: flex;
+    flex-direction: column;
+    background: var(--verre);
+    backdrop-filter: var(--flou);
+    border-top: 1px solid var(--or-sourd);
+    border-radius: var(--rayon) var(--rayon) 0 0;
+    box-shadow: var(--ombre);
+  }
+  .atelier-courants[hidden] {
+    display: none;
+  }
+  .atelier-courants__tete {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid var(--trait);
+  }
+  .atelier-courants__tete .etiquette {
+    color: var(--or);
+  }
+  .atelier-courants__tete .fermer {
+    position: static;
+    margin-left: auto;
+  }
+  .atelier-etat {
+    font-family: var(--chrome);
+    font-size: 0.6875rem;
+    color: var(--parchemin-faible);
+  }
+
+  .atelier-courants__grille {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+    background: var(--trait);
+    overflow: hidden;
+  }
+  .colonne {
+    background: var(--encre-2);
+    padding: 1rem 1.15rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    min-height: 0;
+    max-height: min(70svh, 660px);
+    overflow-y: auto;
+  }
+  .colonne > .etiquette {
+    color: var(--or);
+  }
+  .colonne__liste {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .colonne__liste button {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    width: 100%;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid transparent;
+    border-radius: var(--rayon-s);
+    background: none;
+    color: var(--parchemin-doux);
+    font-family: var(--texte-police);
+    font-size: 1.0625rem;
+    text-align: left;
+    cursor: pointer;
+  }
+  .colonne__liste button:hover {
+    background: var(--velin-haut);
+    color: var(--parchemin);
+  }
+  .colonne__liste button[aria-current='true'] {
+    border-color: var(--or-sourd);
+    color: var(--or-clair);
+    background: rgba(207, 169, 58, 0.08);
+  }
+  .colonne__liste small {
+    margin-left: auto;
+    font-family: var(--chrome);
+    font-size: 0.625rem;
+    color: var(--parchemin-faible);
+  }
+
+  .colonne__forme {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--trait);
+  }
+  .colonne__forme textarea {
+    padding: 0.5rem 0.7rem;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-s);
+    color: var(--parchemin);
+    font-family: var(--texte-police);
+    font-size: 1.0625rem;
+    resize: vertical;
+  }
+  .colonne__forme input[type='color'] {
+    height: 38px;
+    padding: 2px;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-s);
+    cursor: pointer;
+  }
+  .duo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.7rem;
+  }
+  .cases {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.9rem;
+  }
+  .colonne__actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .colonne__actions .bouton {
+    flex: 1;
+    justify-content: center;
+    padding: 0.45rem 0.7rem;
+    font-size: 0.75rem;
+  }
+
+  .colonne__entites {
+    flex: 1;
+    min-height: 8rem;
+    overflow-y: auto;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-s);
+    padding: 0.5rem;
+  }
+  .entite {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.22rem 0.35rem;
+    border-radius: var(--rayon-xs);
+    font-size: 1rem;
+    color: var(--parchemin-doux);
+    cursor: pointer;
+  }
+  .entite:hover {
+    background: rgba(236, 226, 206, 0.05);
+    color: var(--parchemin);
+  }
+  .entite input[type='number'] {
+    width: 4.2rem;
+    margin-left: auto;
+    padding: 0.15rem 0.35rem;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-xs);
+    color: var(--parchemin);
+    font-family: var(--chrome);
+    font-size: 0.75rem;
+  }
+  .entite__groupe {
+    margin: 0.6rem 0 0.25rem;
+    font-family: var(--chrome);
+    font-size: 0.5625rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--parchemin-faible);
+  }
+  .entite__groupe:first-child {
+    margin-top: 0;
+  }
+
+  @media (max-width: 900px) {
+    .atelier-courants__grille {
+      grid-template-columns: 1fr;
+    }
+    .colonne {
+      max-height: 40svh;
+    }
+  }
+</style>
+
+<script>
+  /**
+   * L'atelier des courants.
+   *
+   * Il travaille sur une copie locale de la politique du monde et n'écrit
+   * qu'à la demande, comme l'atelier des fiches. Après un enregistrement, la
+   * page est rechargée : la vue publique est rendue par le serveur, et la
+   * recharger évite d'en tenir une seconde version ici.
+   */
+  const donnees = JSON.parse(document.getElementById('donnees-politique').textContent);
+  let politique = donnees.politique;
+
+  const CLE_MDP = 'victorum:mot-de-passe';
+  const CLE_ETAT = 'victorum:atelier-courants';
+
+  const $ = (id) => document.getElementById(id);
+  const atelier = $('atelier');
+  const etat = $('etat-atelier');
+
+  let axeChoisi = null;
+  let courantChoisi = null;
+  let adhesionsLocales = new Map(); // entite → part | null
+
+  /* ------------------------------------------------------------ ouverture */
+
+  function ouvrir(rouvrir) {
+    atelier.hidden = false;
+    if (rouvrir) {
+      axeChoisi = rouvrir.axeChoisi ?? null;
+      courantChoisi = rouvrir.courantChoisi ?? null;
+    }
+    rendre();
+  }
+
+  $('ouvrir-atelier').addEventListener('click', () => ouvrir());
+  $('fermer-atelier').addEventListener('click', () => {
+    atelier.hidden = true;
+    sessionStorage.removeItem(CLE_ETAT);
+  });
+
+  // On rouvre l'atelier là où il était après un rechargement.
+  const memoire = sessionStorage.getItem(CLE_ETAT);
+  if (memoire) ouvrir(JSON.parse(memoire));
+
+  /* --------------------------------------------------------------- rendu */
+
+  const axes = () => [...politique.axes].sort((a, b) => a.ordre - b.ordre);
+  const courants = (axeId) =>
+    politique.courants.filter((c) => c.axeId === axeId).sort((a, b) => a.ordre - b.ordre);
+  const axeDe = (id) => politique.axes.find((a) => a.id === id) || null;
+  const courantDe = (id) => politique.courants.find((c) => c.id === id) || null;
+
+  function rendre() {
+    rendreAxes();
+    rendreCourants();
+    rendreEntites();
+    majEtat();
+  }
+
+  function bouton(texte, actif, surClic, compte) {
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = texte;
+    if (actif) b.setAttribute('aria-current', 'true');
+    if (compte !== undefined) {
+      const petit = document.createElement('small');
+      petit.textContent = compte;
+      b.appendChild(petit);
+    }
+    b.addEventListener('click', surClic);
+    li.appendChild(b);
+    return li;
+  }
+
+  function rendreAxes() {
+    const liste = $('liste-axes');
+    liste.innerHTML = '';
+    for (const axe of axes()) {
+      liste.appendChild(
+        bouton(axe.nom, axe.id === axeChoisi, () => {
+          axeChoisi = axe.id;
+          courantChoisi = null;
+          remplirFormeAxe(axe);
+          rendre();
+        }, `${courants(axe.id).length}`)
+      );
+    }
+    $('nouveau-courant').disabled = !axeChoisi;
+    if (!axeChoisi) $('forme-axe').hidden = true;
+  }
+
+  function rendreCourants() {
+    const liste = $('liste-courants');
+    liste.innerHTML = '';
+    if (!axeChoisi) {
+      $('forme-courant').hidden = true;
+      return;
+    }
+    for (const courant of courants(axeChoisi)) {
+      const compte = politique.adhesions.filter((a) => a.courantId === courant.id).length;
+      liste.appendChild(
+        bouton(`${courant.symbole} ${courant.nom}`, courant.id === courantChoisi, () => {
+          courantChoisi = courant.id;
+          remplirFormeCourant(courant);
+          chargerAdhesions(courant.id);
+          rendre();
+        }, `${compte}`)
+      );
+    }
+  }
+
+  /* ----------------------------------------------------------------- axes */
+
+  function remplirFormeAxe(axe) {
+    const forme = $('forme-axe');
+    forme.hidden = false;
+    forme.dataset.id = axe?.id || '';
+    $('axe-nom').value = axe?.nom || '';
+    $('axe-multiple').checked = Boolean(axe?.multiple);
+    $('supprimer-axe').hidden = !axe;
+
+    const cases = $('axe-cibles');
+    cases.innerHTML = '';
+    for (const cible of donnees.cibles) {
+      const label = document.createElement('label');
+      label.className = 'controle';
+      const entree = document.createElement('input');
+      entree.type = 'checkbox';
+      entree.value = cible.cle;
+      entree.checked = axe ? axe.cibles.includes(cible.cle) : cible.cle === 'etat';
+      const texte = document.createElement('span');
+      texte.textContent = cible.libelle;
+      label.append(entree, texte);
+      cases.appendChild(label);
+    }
+  }
+
+  $('nouvel-axe').addEventListener('click', () => {
+    axeChoisi = null;
+    courantChoisi = null;
+    remplirFormeAxe(null);
+    rendre();
+    $('axe-nom').focus();
+  });
+
+  $('forme-axe').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const cibles = [...$('axe-cibles').querySelectorAll('input:checked')].map((i) => i.value);
+    envoyer({
+      action: 'axe',
+      id: $('forme-axe').dataset.id || undefined,
+      nom: $('axe-nom').value,
+      cibles,
+      multiple: $('axe-multiple').checked,
+    });
+  });
+
+  $('supprimer-axe').addEventListener('click', () => {
+    const id = $('forme-axe').dataset.id;
+    if (!id) return;
+    const axe = axeDe(id);
+    if (!confirm(`Supprimer l'axe « ${axe?.nom} », ses courants et leurs adhésions ?`)) return;
+    envoyer({ action: 'supprimer-axe', id });
+  });
+
+  /* ------------------------------------------------------------- courants */
+
+  function remplirFormeCourant(courant) {
+    const forme = $('forme-courant');
+    forme.hidden = false;
+    forme.dataset.id = courant?.id || '';
+    $('courant-nom').value = courant?.nom || '';
+    $('courant-symbole').value = courant?.symbole || '◆';
+    $('courant-couleur').value = courant?.couleur || '#c9a227';
+    $('courant-resume').value = courant?.resume || '';
+    $('supprimer-courant').hidden = !courant;
+  }
+
+  $('nouveau-courant').addEventListener('click', () => {
+    courantChoisi = null;
+    remplirFormeCourant(null);
+    adhesionsLocales = new Map();
+    rendre();
+    $('courant-nom').focus();
+  });
+
+  $('forme-courant').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    envoyer({
+      action: 'courant',
+      id: $('forme-courant').dataset.id || undefined,
+      axeId: axeChoisi,
+      nom: $('courant-nom').value,
+      symbole: $('courant-symbole').value,
+      couleur: $('courant-couleur').value,
+      resume: $('courant-resume').value,
+    });
+  });
+
+  $('supprimer-courant').addEventListener('click', () => {
+    const id = $('forme-courant').dataset.id;
+    if (!id) return;
+    if (!confirm(`Supprimer ce courant et ses adhésions ?`)) return;
+    envoyer({ action: 'supprimer-courant', id });
+  });
+
+  /* ------------------------------------------------------------ adhésions */
+
+  function chargerAdhesions(courantId) {
+    adhesionsLocales = new Map(
+      politique.adhesions
+        .filter((a) => a.courantId === courantId)
+        .map((a) => [a.entite, a.part ?? null])
+    );
+  }
+
+  function rendreEntites() {
+    const hote = $('liste-entites');
+    hote.innerHTML = '';
+    const courant = courantDe(courantChoisi);
+    const axe = courant ? axeDe(courant.axeId) : null;
+    $('enregistrer-adhesions').disabled = !courant;
+
+    if (!courant || !axe) {
+      const aide = document.createElement('p');
+      aide.className = 'aide';
+      aide.textContent = 'Choisis d’abord un courant.';
+      hote.appendChild(aide);
+      return;
+    }
+
+    const filtre = $('filtre-entites').value.trim().toLowerCase();
+    for (const cible of axe.cibles) {
+      const liste = (donnees.entites[cible] || []).filter(
+        (e) => !filtre || e.nom.toLowerCase().includes(filtre)
+      );
+      if (!liste.length) continue;
+
+      const titre = document.createElement('p');
+      titre.className = 'entite__groupe';
+      titre.textContent = donnees.cibles.find((c) => c.cle === cible)?.libelle || cible;
+      hote.appendChild(titre);
+
+      for (const entree of liste) {
+        const cle = `${cible}:${entree.id}`;
+        const label = document.createElement('label');
+        label.className = 'entite';
+
+        const case_ = document.createElement('input');
+        case_.type = 'checkbox';
+        case_.checked = adhesionsLocales.has(cle);
+
+        const nom = document.createElement('span');
+        nom.textContent = entree.nom;
+        label.append(case_, nom);
+
+        let part = null;
+        if (axe.multiple) {
+          part = document.createElement('input');
+          part.type = 'number';
+          part.min = '0';
+          part.max = '100';
+          part.step = '0.5';
+          part.placeholder = '%';
+          part.value = adhesionsLocales.get(cle) ?? '';
+          part.disabled = !case_.checked;
+          part.addEventListener('input', () => {
+            adhesionsLocales.set(cle, part.value === '' ? null : Number(part.value));
+          });
+          label.appendChild(part);
+        }
+
+        case_.addEventListener('change', () => {
+          if (case_.checked) adhesionsLocales.set(cle, part && part.value !== '' ? Number(part.value) : null);
+          else adhesionsLocales.delete(cle);
+          if (part) part.disabled = !case_.checked;
+        });
+
+        hote.appendChild(label);
+      }
+    }
+  }
+
+  $('filtre-entites').addEventListener('input', rendreEntites);
+
+  $('enregistrer-adhesions').addEventListener('click', () => {
+    if (!courantChoisi) return;
+    envoyer({
+      action: 'adhesions',
+      id: courantChoisi,
+      adhesions: [...adhesionsLocales].map(([entite, part]) => ({ entite, part })),
+    });
+  });
+
+  /* ----------------------------------------------------------- écriture */
+
+  function motDePasse(redemander) {
+    let mdp = sessionStorage.getItem(CLE_MDP);
+    if (!mdp || redemander) {
+      mdp = prompt(
+        donnees.motDePasseDefini
+          ? "Mot de passe de l'atelier :"
+          : "Choisis le mot de passe de ton atelier. Il te sera demandé pour toute modification, et personne d'autre ne pourra écrire sur ton site."
+      );
+      if (mdp) sessionStorage.setItem(CLE_MDP, mdp);
+    }
+    return mdp;
+  }
+
+  async function envoyer(corps, redemander = false) {
+    if (!donnees.stockageActif) {
+      majEtat("Le stockage n'est pas relié : impossible d'enregistrer.");
+      return;
+    }
+    const mdp = motDePasse(redemander);
+    if (!mdp) return majEtat('Mot de passe non saisi.');
+
+    majEtat('Enregistrement…');
+    try {
+      const reponse = await fetch('/api/politique', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-mot-de-passe': mdp },
+        body: JSON.stringify(corps),
+      });
+      const resultat = await reponse.json().catch(() => ({}));
+
+      if (reponse.status === 401) {
+        sessionStorage.removeItem(CLE_MDP);
+        return majEtat(resultat.erreur || 'Mot de passe refusé.');
+      }
+      if (!reponse.ok) return majEtat(resultat.erreur || 'Échec de l’enregistrement.');
+
+      politique = resultat.politique;
+      donnees.motDePasseDefini = true;
+      // La vue publique est rendue par le serveur : on la laisse se refaire.
+      sessionStorage.setItem(CLE_ETAT, JSON.stringify({ axeChoisi, courantChoisi }));
+      location.reload();
+    } catch {
+      majEtat('Réseau indisponible.');
+    }
+  }
+
+  function majEtat(message) {
+    if (message) {
+      etat.textContent = message;
+      return;
+    }
+    const nb = politique.courants.length;
+    etat.textContent = donnees.stockageActif
+      ? `${politique.axes.length} axe${politique.axes.length > 1 ? 's' : ''} · ${nb} courant${nb > 1 ? 's' : ''}`
+      : 'Stockage non relié';
+  }
+
+  rendre();
+</script>

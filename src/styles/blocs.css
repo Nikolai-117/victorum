@@ -157,6 +157,83 @@
   overflow-wrap: anywhere;
 }
 
+/* --------------------------------------------------------------- courants */
+
+/**
+ * Les idéologies, doctrines et allégeances que Romain a définies. Un axe qui
+ * porte des parts se lit en barres — le rapport de forces se voit d'un coup
+ * d'œil — les autres en simple liste.
+ */
+.courants {
+  padding: 1.15rem 1.25rem 1.25rem;
+}
+.courants > .etiquette {
+  color: var(--or);
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--trait);
+}
+.courants__axe {
+  margin: 1.1rem 0 0.5rem;
+  color: var(--parchemin-faible);
+}
+.courants__axe:first-of-type {
+  margin-top: 0.9rem;
+}
+.courants__liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.courant {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.55rem 0.7rem;
+}
+/** La marque du courant : son symbole, dans sa couleur, sur un jeton sombre. */
+.courant__marque {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 0.8125rem;
+  line-height: 1;
+  color: color-mix(in srgb, var(--teinte) 65%, #f0e6d2);
+  background: color-mix(in srgb, var(--teinte) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teinte) 45%, transparent);
+}
+.courant__nom {
+  font-size: 1.0625rem;
+  background: none;
+}
+.courant__nom:hover {
+  color: var(--or-clair);
+}
+.courant__barre {
+  grid-column: 2;
+  height: 3px;
+  border-radius: var(--pilule);
+  background: rgba(236, 226, 206, 0.09);
+  overflow: hidden;
+}
+.courant__barre i {
+  display: block;
+  height: 100%;
+  border-radius: var(--pilule);
+}
+.courant__part {
+  grid-row: 2;
+  grid-column: 3;
+  font-family: var(--chrome);
+  font-size: 0.6875rem;
+  color: var(--parchemin-faible);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ----------------------------------------------------------------- blason */
 
 .blason-bloc {

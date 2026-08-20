@@ -18,6 +18,7 @@ import {
 } from './monde';
 import { htmlDe } from './contenu';
 import type { Lieu as LieuEnregistre } from './stockage';
+import type { CourantSuivi } from './politique';
 
 export interface Fait {
   cle: string;
@@ -50,6 +51,12 @@ export interface Groupe {
 
 export interface Contexte {
   type: TypeEntite;
+  /**
+   * L'identifiant d'origine — celui d'Azgaar, ou celui du stockage pour un
+   * lieu. Les adhésions politiques s'y accrochent plutôt qu'au slug, qui
+   * changerait si Romain renommait l'entité dans sa carte.
+   */
+  identifiant: number | string;
   slug: string;
   titre: string;
   surtitre: string | null;
@@ -59,6 +66,12 @@ export interface Contexte {
   cheminTexte: string;
   corpsHtml: string | null;
   position: { x: number; y: number } | null;
+  /**
+   * Ce que l'entité professe : idéologies, doctrines, allégeances. Vide tant
+   * que Romain n'a rien défini — rien n'est jamais supposé à sa place. La
+   * fiche les injecte depuis le stockage, car ils n'existent pas dans la carte.
+   */
+  courants?: CourantSuivi[];
   faits: Fait[];
   chiffres: Fait[];
   groupes: Record<string, Groupe>;
@@ -170,6 +183,7 @@ function contexteEtat(e: (typeof etats)[number]): Contexte {
 
   return {
     type: 'etat',
+    identifiant: e.id,
     slug: e.slug,
     titre: e.nomComplet,
     surtitre: [formeEtat(e.forme), e.titre].filter(Boolean).join(' · '),
@@ -203,6 +217,7 @@ function contexteProvince(p: (typeof provinces)[number]): Contexte {
 
   return {
     type: 'province',
+    identifiant: p.id,
     slug: p.slug,
     titre: p.nomComplet,
     surtitre: [p.titre, etat?.nom].filter(Boolean).join(' · '),
@@ -248,6 +263,7 @@ function contexteVille(b: (typeof burgs)[number]): Contexte {
 
   return {
     type: 'burg',
+    identifiant: b.id,
     slug: b.slug,
     titre: nomAffiche(b.nom),
     surtitre: [b.capitale ? 'Capitale' : b.categorie || 'Localité', etat?.nom].filter(Boolean).join(' · '),
@@ -318,6 +334,7 @@ function contexteCulture(c: (typeof cultures)[number]): Contexte {
 
   return {
     type: 'culture',
+    identifiant: c.id,
     slug: c.slug,
     titre: c.nom,
     surtitre: `Culture · ${natureCulture(c.nature)}`,
@@ -347,6 +364,7 @@ function contexteReligion(r: (typeof religions)[number]): Contexte {
 
   return {
     type: 'religion',
+    identifiant: r.id,
     slug: r.slug,
     titre: r.nom,
     surtitre: `Religion · ${natureReligion(r.nature)}`,
@@ -393,6 +411,7 @@ function contexteLieu(l: LieuEnregistre): Contexte {
 
   return {
     type: 'lieu',
+    identifiant: l.id,
     slug: l.slug,
     titre: l.nom,
     surtitre: `${l.icone} ${l.categorie}`.trim(),
