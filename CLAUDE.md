@@ -214,6 +214,31 @@ lore. On fournit donc la **mécanique**, jamais le contenu.
 - Le système démarre **vide**, et le dit. Aucun axe, aucun courant, aucune
   couleur n'est proposé d'avance : ce serait écrire le monde à sa place.
 
+## Le régime et les doctrines d'une nation
+
+Demandé d'après une référence montrée : des doctrines sur axes opposés et un
+mode de gouvernement, mais en vocabulaire médiéval plutôt que spatial.
+`src/lib/doctrines.ts` tient tout le catalogue.
+
+- **Quatorze axes**, chacun opposant deux doctrines (Dévot ↔ Séculier,
+  Thaumaturge ↔ Inquisiteur, Chevaleresque ↔ Impitoyable…), réglés sur cinq
+  crans : le cran extrême vaut position *fanatique*, le cran central « ni l'un
+  ni l'autre ». Choisir un pôle exclut mécaniquement l'autre — c'est ce qui
+  évite les nations à la fois belliqueuses et pacifiques.
+- **Le régime se déduit des doctrines** par une liste de règles lues dans
+  l'ordre, et l'on affiche toujours d'où vient la conclusion (« déduit de :
+  Dévot fanatique, Inquisiteur »). Romain peut la contredire en choisissant une
+  forme parmi quarante, ou en saisissant la sienne.
+- Ce catalogue est du **vocabulaire**, pas du lore : il ne dit pas ce que
+  professe tel royaume, seulement les cases où se placer. Ce que Romain en fait
+  reste à lui, et rien n'est coché d'avance.
+- **`Number(null)` vaut zéro** : sans garde, effacer l'année d'avènement la
+  remplaçait par l'an 0 et empêchait la nation vide d'être supprimée.
+- L'atlas gagne des **modes de carte par doctrine** : chaque axe colore le
+  monde de son pôle gauche à son pôle droit, le neutre en gris, avec une
+  légende à cinq crans. Le mode « Régime » colore par forme de gouvernement.
+  Les provinces empruntent les doctrines de leur royaume.
+
 ## Les lieux remarquables
 
 - **Ils ne sont plus importés.** Azgaar en produisait 532 dont 140 « Dungeon »

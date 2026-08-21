@@ -94,6 +94,9 @@ const index = [
       y: e.y,
       i: e.id,
       d: formeEtat(e.forme),
+      // La forme brute d'Azgaar : l'atlas s'en sert pour déduire un régime
+      // quand la nation n'a pas encore de doctrine marquée.
+      forme: e.forme,
       col: e.couleur,
       bl: e.blason ?? undefined,
       f: {

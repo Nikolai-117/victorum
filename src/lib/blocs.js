@@ -113,6 +113,7 @@ export const CATALOGUE = [
       { type: 'identite', nom: "Fiche d'identité", apercu: 'Les faits extraits de la carte', largeur: 'tiers' },
       { type: 'blason', nom: 'Blason', apercu: 'Les armes, en grand', largeur: 'tiers' },
       { type: 'courants', nom: 'Courants', apercu: 'Idéologies et doctrines professées', largeur: 'tiers' },
+      { type: 'nation', nom: 'Régime et doctrines', apercu: 'Ce que la nation professe et comment elle est gouvernée', largeur: 'deux-tiers' },
     ],
   },
   {
@@ -241,6 +242,51 @@ const RENDUS = {
     return (
       `<div class="identite cadre"><p class="etiquette">${esc(o.titre || "Fiche d'identité")}</p>` +
       `<dl>${lignes}</dl></div>`
+    );
+  },
+
+  /**
+   * Le régime d'une nation et les doctrines qu'elle tient.
+   *
+   * Le régime est celui que Romain a choisi ; à défaut, celui que ses
+   * doctrines impliquent — et l'on dit alors d'où vient la conclusion, pour
+   * qu'elle se discute au lieu de tomber du ciel.
+   */
+  nation(o, c) {
+    const n = c.nation;
+    if (!n) return '';
+    const jetons = n.doctrines
+      .map(
+        (d) =>
+          `<li class="doctrine${d.fanatique ? ' doctrine--fanatique' : ''}" ` +
+          `style="--teinte:${esc(d.teinte)}" title="${esc(d.sujet)}">` +
+          `<span>${esc(d.nom)}</span>` +
+          (d.fanatique ? `<small>fanatique</small>` : '') +
+          `</li>`
+      )
+      .join('');
+
+    const cour = [
+      n.dirigeant
+        ? `<div class="nation__ligne"><dt>${esc(n.titreDirigeant || 'Dirigeant')}</dt>` +
+          `<dd>${esc(n.dirigeant)}</dd></div>`
+        : '',
+      n.avenement !== undefined && n.avenement !== null
+        ? `<div class="nation__ligne"><dt>Avènement</dt><dd>${esc(n.avenement)}</dd></div>`
+        : '',
+    ].join('');
+
+    return (
+      `<div class="nation cadre">` +
+      `<p class="etiquette">Régime${n.choisi ? '' : ' <span class="nation__deduit">déduit</span>'}</p>` +
+      `<p class="nation__regime">${esc(n.regime)}</p>` +
+      (n.raison ? `<p class="nation__raison">${esc(n.raison)}</p>` : '') +
+      (n.devise ? `<p class="nation__devise">« ${esc(n.devise)} »</p>` : '') +
+      (jetons
+        ? `<p class="etiquette nation__titre">Doctrines</p><ul class="doctrines">${jetons}</ul>`
+        : `<p class="nation__vide">Aucune doctrine arrêtée.</p>`) +
+      (cour ? `<dl class="nation__cour">${cour}</dl>` : '') +
+      `</div>`
     );
   },
 
@@ -454,6 +500,11 @@ export function dispositionParDefaut(type, contexte) {
 
   if ((contexte.chiffres || []).length) {
     blocs.push({ type: 'chiffres', largeur: 'pleine', options: {} });
+  }
+
+  if (contexte.nation) {
+    blocs.push({ type: 'titre', largeur: 'pleine', options: { texte: 'Régime et doctrines' } });
+    blocs.push({ type: 'nation', largeur: 'pleine', options: {} });
   }
 
   blocs.push({ type: 'titre', largeur: 'pleine', options: { texte: 'Présentation' } });

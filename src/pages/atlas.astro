@@ -130,6 +130,8 @@ import { monde } from '../lib/monde';
 
       <ul class="panneau__traits" id="panneau-traits"></ul>
 
+      <div class="panneau__nation" id="panneau-nation"></div>
+
       <ul class="panneau__courants" id="panneau-courants"></ul>
 
       <div class="panneau__grille" id="panneau-grille"></div>
@@ -558,6 +560,29 @@ import { monde } from '../lib/monde';
   .legende small {
     margin-left: auto;
     color: var(--parchemin-faible);
+  }
+
+  /* Le régime de la nation, et les doctrines qu'elle tient. */
+  .panneau__nation {
+    margin-bottom: 0.95rem;
+  }
+  .panneau__nation:empty {
+    display: none;
+  }
+  .panneau__regime {
+    margin: 0 0 0.5rem;
+    font-family: var(--display);
+    font-size: 1.15rem;
+    color: var(--parchemin);
+  }
+  .panneau__nation .doctrines {
+    margin-top: 0;
+  }
+  .panneau__devise {
+    margin: 0.6rem 0 0;
+    font-size: 0.9375rem;
+    font-style: italic;
+    color: var(--parchemin-doux);
   }
 
   /* Ce que l'entité professe, sous son nom. */
@@ -1121,6 +1146,8 @@ import { monde } from '../lib/monde';
 </style>
 
 <script>
+  import { AXES, AXE_PAR_ID, regimeDeduit, doctrinesRetenues } from '../lib/doctrines';
+
   const NS = 'http://www.w3.org/2000/svg';
   const svg = document.getElementById('carte');
   const gZoom = document.getElementById('zoom');
@@ -1631,21 +1658,23 @@ import { monde } from '../lib/monde';
   /* ------------------------------------------------------------- politique */
 
   /**
-   * Les courants que Romain a définis : idéologies, doctrines, allégeances.
+   * Ce que Romain a défini : le régime et les doctrines de chaque nation, et
+   * les courants libres qu'il a créés par ailleurs.
    *
-   * Ils ne viennent pas de la carte mais du stockage du site, et servent ici à
-   * deux choses : dire dans le panneau ce qu'une entité professe, et surtout
-   * recolorer le monde selon l'axe choisi — la carte politique d'un jeu de
-   * stratégie, sauf que la grille de lecture est la sienne.
+   * Cela sert à deux choses : dire dans le panneau ce qu'une nation professe,
+   * et recolorer le monde selon la grille choisie — la carte politique d'un
+   * jeu de stratégie, sauf que la grille est la sienne.
    */
-  let politique = { axes: [], courants: [], adhesions: [] };
+  let politique = { axes: [], courants: [], adhesions: [], nations: {} };
   let modeCourant = '';
   const teintesOrigine = new Map();
+
+  const NEUTRE = '#4a443c';
 
   async function chargerPolitique() {
     try {
       const donnees = await (await fetch('/api/politique')).json();
-      if (donnees && donnees.politique) politique = donnees.politique;
+      if (donnees && donnees.politique) politique = { nations: {}, ...donnees.politique };
     } catch {
       // La carte se lit très bien sans : on n'insiste pas.
     }
@@ -1667,29 +1696,70 @@ import { monde } from '../lib/monde';
       .sort((a, b) => (b.part ?? 0) - (a.part ?? 0) || a.nom.localeCompare(b.nom, 'fr'));
   }
 
+  const nationDe = (id) => politique.nations?.[`etat:${id}`] || {};
+
+  /** La forme d'État que la carte d'Azgaar donne, pour la déduction du régime. */
+  const formeAzgaarDe = (id) => (index.find((e) => e.t === 'etat' && e.i === id) || {}).forme ?? null;
+
+  function regimeDe(id) {
+    const nation = nationDe(id);
+    if (nation.regime) return { nom: nation.regime, choisi: true, raison: 'choisi' };
+    const deduit = regimeDeduit(nation.doctrines, formeAzgaarDe(id));
+    return { nom: deduit.nom, choisi: false, raison: deduit.raison };
+  }
+
+  /* -------------------------------------------------------- modes de carte */
+
   function construireModes() {
     const bloc = document.getElementById('bloc-mode');
     const choix = document.getElementById('mode-carte');
-    // Seuls les axes qui touchent une surface dessinée peuvent colorer la carte.
-    const utiles = politique.axes.filter(
+    const libres = politique.axes.filter(
       (a) => a.cibles.includes('etat') || a.cibles.includes('province')
     );
-    if (!utiles.length) {
+    const nations = Object.keys(politique.nations || {}).length;
+
+    if (!libres.length && !nations) {
       bloc.hidden = true;
       return;
     }
     bloc.hidden = false;
     choix.innerHTML = '<option value="">Royaumes</option>';
-    for (const axe of utiles) {
+
+    if (nations) {
+      const famille = document.createElement('optgroup');
+      famille.label = 'Nations';
       const option = document.createElement('option');
-      option.value = axe.id;
-      option.textContent = axe.nom;
-      choix.appendChild(option);
+      option.value = 'regime';
+      option.textContent = 'Régime';
+      famille.appendChild(option);
+      choix.appendChild(famille);
+
+      const doctrines = document.createElement('optgroup');
+      doctrines.label = 'Doctrines';
+      for (const axe of AXES) {
+        const o = document.createElement('option');
+        o.value = `doctrine:${axe.id}`;
+        o.textContent = `${axe.gauche} · ${axe.droite}`;
+        doctrines.appendChild(o);
+      }
+      choix.appendChild(doctrines);
+    }
+
+    if (libres.length) {
+      const famille = document.createElement('optgroup');
+      famille.label = 'Courants';
+      for (const axe of libres) {
+        const o = document.createElement('option');
+        o.value = `axe:${axe.id}`;
+        o.textContent = axe.nom;
+        famille.appendChild(o);
+      }
+      choix.appendChild(famille);
     }
     choix.value = modeCourant;
   }
 
-  /** Les surfaces effectivement dessinées, avec l'identifiant qu'elles portent. */
+  /** Les surfaces dessinées, avec l'entité qu'elles représentent. */
   function surfacesDe(type) {
     if (type === 'etat') {
       return [...gCouches.querySelectorAll('[data-couche="regions"] path[id^="state"]:not([id*="-"])')]
@@ -1704,8 +1774,50 @@ import { monde } from '../lib/monde';
     return [];
   }
 
-  function appliquerMode(axeId) {
-    modeCourant = axeId || '';
+  /** Le royaume dont relève une province, pour lui prêter les doctrines. */
+  function etatDeLaProvince(id) {
+    const province = index.find((e) => e.t === 'province' && e.i === id);
+    if (!province) return null;
+    const etat = index.find((e) => e.t === 'etat' && e.s === province.f.etatSlug);
+    return etat ? etat.i : null;
+  }
+
+  /** Mélange deux teintes, pour les positions marquées sans être fanatiques. */
+  function melanger(a, b, part) {
+    const lire = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+    const [ra, ga, ba] = lire(a);
+    const [rb, gb, bb] = lire(b);
+    const composante = (x, y) => Math.round(x * part + y * (1 - part));
+    return (
+      '#' +
+      [composante(ra, rb), composante(ga, gb), composante(ba, bb)]
+        .map((v) => v.toString(16).padStart(2, '0'))
+        .join('')
+    );
+  }
+
+  /** La teinte d'une position de doctrine : pleine si fanatique, atténuée sinon. */
+  function teinteDoctrine(axe, valeur) {
+    if (!valeur) return NEUTRE;
+    const pole = valeur < 0 ? axe.teinteGauche : axe.teinteDroite;
+    return Math.abs(valeur) >= 2 ? pole : melanger(pole, NEUTRE, 0.55);
+  }
+
+  /** Une teinte stable par régime : le même nom donne toujours la même. */
+  const PALETTE_REGIMES = [
+    '#8c4f9e', '#c08a2e', '#4f8ba0', '#a4483a', '#5b9c6a', '#b06a2c',
+    '#6f86a8', '#8a7b4f', '#7f4bd8', '#5f9e8f', '#a33b2f', '#6b6b66',
+  ];
+  const teintesRegime = new Map();
+  function teinteRegime(nom) {
+    if (!teintesRegime.has(nom)) {
+      teintesRegime.set(nom, PALETTE_REGIMES[teintesRegime.size % PALETTE_REGIMES.length]);
+    }
+    return teintesRegime.get(nom);
+  }
+
+  function appliquerMode(mode) {
+    modeCourant = mode || '';
 
     // On rend d'abord aux surfaces leur teinte d'origine.
     for (const [element, teinte] of teintesOrigine) {
@@ -1713,39 +1825,92 @@ import { monde } from '../lib/monde';
       else element.setAttribute('fill', teinte);
     }
     teintesOrigine.clear();
+    teintesRegime.clear();
 
-    const axe = politique.axes.find((a) => a.id === modeCourant);
-    if (!axe) return majLegende(null);
+    if (!modeCourant) return majLegende(null);
+
+    const peindre = (element, teinte) => {
+      if (!teintesOrigine.has(element)) teintesOrigine.set(element, element.getAttribute('fill'));
+      element.setAttribute('fill', teinte);
+    };
 
     const comptes = new Map();
+    const compter = (cle) => comptes.set(cle, (comptes.get(cle) || 0) + 1);
+
+    if (modeCourant.startsWith('doctrine:') || modeCourant === 'regime') {
+      const axe = modeCourant === 'regime' ? null : AXE_PAR_ID.get(modeCourant.slice(9));
+      if (modeCourant !== 'regime' && !axe) return majLegende(null);
+
+      for (const type of ['etat', 'province']) {
+        for (const { element, id } of surfacesDe(type)) {
+          const etatId = type === 'etat' ? id : etatDeLaProvince(id);
+          if (etatId === null) continue;
+
+          if (axe) {
+            const valeur = Number(nationDe(etatId).doctrines?.[axe.id] ?? 0);
+            peindre(element, teinteDoctrine(axe, valeur));
+            if (type === 'etat') compter(String(valeur));
+          } else {
+            const regime = regimeDe(etatId).nom;
+            peindre(element, teinteRegime(regime));
+            if (type === 'etat') compter(regime);
+          }
+        }
+      }
+      return majLegende(modeCourant === 'regime' ? { regime: true } : { axe }, comptes);
+    }
+
+    // Les courants libres : la teinte du courant dominant sur cet axe.
+    const axe = politique.axes.find((a) => a.id === modeCourant.slice(4));
+    if (!axe) return majLegende(null);
     for (const type of ['etat', 'province']) {
       if (!axe.cibles.includes(type)) continue;
       for (const { element, id } of surfacesDe(type)) {
         const dominant = courantsDe(type, id).find((c) => c.axeId === axe.id);
         if (!dominant) continue;
-        if (!teintesOrigine.has(element)) teintesOrigine.set(element, element.getAttribute('fill'));
-        element.setAttribute('fill', dominant.couleur);
-        comptes.set(dominant.id, (comptes.get(dominant.id) || 0) + 1);
+        peindre(element, dominant.couleur);
+        compter(dominant.id);
       }
     }
-    majLegende(axe, comptes);
+    majLegende({ courants: axe }, comptes);
   }
 
-  function majLegende(axe, comptes) {
+  function majLegende(quoi, comptes) {
     const hote = document.getElementById('legende-mode');
     hote.innerHTML = '';
-    if (!axe) return;
-    for (const courant of politique.courants.filter((c) => c.axeId === axe.id)) {
+    if (!quoi) return;
+
+    const ligne = (teinte, texte, compte) => {
       const li = document.createElement('li');
       const puce = document.createElement('i');
-      puce.style.background = courant.couleur;
+      puce.style.background = teinte;
       const nom = document.createElement('span');
-      nom.textContent = `${courant.symbole} ${courant.nom}`;
-      const compte = document.createElement('small');
-      const n = comptes?.get(courant.id) || 0;
-      compte.textContent = n ? String(n) : '—';
-      li.append(puce, nom, compte);
+      nom.textContent = texte;
+      const n = document.createElement('small');
+      n.textContent = compte ? String(compte) : '—';
+      li.append(puce, nom, n);
       hote.appendChild(li);
+    };
+
+    if (quoi.axe) {
+      const a = quoi.axe;
+      ligne(teinteDoctrine(a, -2), `${a.gauche} fanatique`, comptes?.get('-2'));
+      ligne(teinteDoctrine(a, -1), a.gauche, comptes?.get('-1'));
+      ligne(NEUTRE, 'Ni l’un ni l’autre', comptes?.get('0'));
+      ligne(teinteDoctrine(a, 1), a.droite, comptes?.get('1'));
+      ligne(teinteDoctrine(a, 2), `${a.droite} fanatique`, comptes?.get('2'));
+      return;
+    }
+
+    if (quoi.regime) {
+      for (const [nom, compte] of [...(comptes || [])].sort((x, y) => y[1] - x[1])) {
+        ligne(teinteRegime(nom), nom, compte);
+      }
+      return;
+    }
+
+    for (const courant of politique.courants.filter((c) => c.axeId === quoi.courants.id)) {
+      ligne(courant.couleur, `${courant.symbole} ${courant.nom}`, comptes?.get(courant.id));
     }
   }
 
@@ -2066,6 +2231,47 @@ import { monde } from '../lib/monde';
       const li = document.createElement('li');
       li.textContent = t;
       traits.appendChild(li);
+    }
+
+    // Le régime et les doctrines : ce que la nation est, avant ce qu'elle a.
+    const nation = document.getElementById('panneau-nation');
+    nation.innerHTML = '';
+    if (e.t === 'etat') {
+      const regime = regimeDe(e.i);
+      const titre = document.createElement('p');
+      titre.className = 'panneau__regime';
+      titre.textContent = regime.nom;
+      if (!regime.choisi) titre.title = regime.raison;
+      nation.appendChild(titre);
+
+      const tenues = doctrinesRetenues(nationDe(e.i).doctrines);
+      if (tenues.length) {
+        const liste = document.createElement('ul');
+        liste.className = 'doctrines';
+        for (const d of tenues.slice(0, 6)) {
+          const li = document.createElement('li');
+          li.className = 'doctrine' + (d.fanatique ? ' doctrine--fanatique' : '');
+          li.style.setProperty('--teinte', d.teinte);
+          const nom = document.createElement('span');
+          nom.textContent = d.nom;
+          li.appendChild(nom);
+          if (d.fanatique) {
+            const mention = document.createElement('small');
+            mention.textContent = 'fanatique';
+            li.appendChild(mention);
+          }
+          liste.appendChild(li);
+        }
+        nation.appendChild(liste);
+      }
+
+      const devise = nationDe(e.i).devise;
+      if (devise) {
+        const ligne = document.createElement('p');
+        ligne.className = 'panneau__devise';
+        ligne.textContent = `« ${devise} »`;
+        nation.appendChild(ligne);
+      }
     }
 
     const suivis = document.getElementById('panneau-courants');

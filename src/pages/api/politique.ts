@@ -18,6 +18,7 @@ import {
   enregistrerCourant,
   supprimerCourant,
   enregistrerAdhesions,
+  enregistrerNation,
 } from '../../lib/politique';
 
 export const prerender = false;
@@ -65,6 +66,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
         return json({ ok: true, politique: await enregistrerCourant(locals, corps) });
       case 'supprimer-courant':
         return json({ ok: true, politique: await supprimerCourant(locals, id) });
+      case 'nation':
+        return json({
+          ok: true,
+          politique: await enregistrerNation(locals, String(corps.entite ?? ''), corps),
+        });
       case 'adhesions':
         return json({
           ok: true,

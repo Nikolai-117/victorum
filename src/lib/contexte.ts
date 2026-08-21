@@ -72,6 +72,21 @@ export interface Contexte {
    * fiche les injecte depuis le stockage, car ils n'existent pas dans la carte.
    */
   courants?: CourantSuivi[];
+  /**
+   * Ce que la nation est en propre : son régime — choisi ou déduit de ses
+   * doctrines — et les doctrines elles-mêmes. Injecté par la fiche, comme les
+   * courants : rien de tout cela n'existe dans la carte.
+   */
+  nation?: {
+    regime: string;
+    choisi: boolean;
+    raison: string;
+    doctrines: { axeId: string; nom: string; fanatique: boolean; teinte: string; sujet: string }[];
+    devise?: string;
+    dirigeant?: string;
+    titreDirigeant?: string;
+    avenement?: number;
+  };
   faits: Fait[];
   chiffres: Fait[];
   groupes: Record<string, Groupe>;

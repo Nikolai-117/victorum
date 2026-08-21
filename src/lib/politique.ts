@@ -21,6 +21,7 @@
  */
 
 import { stockage } from './stockage';
+import { AXES } from './doctrines';
 
 export interface Axe {
   id: string;
@@ -56,13 +57,33 @@ export interface Adhesion {
   part?: number;
 }
 
+/**
+ * Ce qu'une nation est, en propre : son régime, ses doctrines, sa cour.
+ *
+ * Séparé des courants parce que la nature en est différente. Un courant est
+ * une chose du monde à laquelle on adhère ; une doctrine est une position
+ * qu'on tient sur un axe, et deux positions opposées ne peuvent pas coexister.
+ */
+export interface Nation {
+  /** Forme choisie par Romain. Vide : celle déduite des doctrines fait foi. */
+  regime?: string;
+  /** Positions sur les axes de doctrine : identifiant d'axe → -2…+2. */
+  doctrines?: Record<string, number>;
+  devise?: string;
+  dirigeant?: string;
+  titreDirigeant?: string;
+  avenement?: number;
+}
+
 export interface Politique {
   axes: Axe[];
   courants: Courant[];
   adhesions: Adhesion[];
+  /** Clé d'entité (`etat:3`) → ce qu'elle professe en propre. */
+  nations?: Record<string, Nation>;
 }
 
-export const POLITIQUE_VIDE: Politique = { axes: [], courants: [], adhesions: [] };
+export const POLITIQUE_VIDE: Politique = { axes: [], courants: [], adhesions: [], nations: {} };
 
 const CLE = 'politique';
 
@@ -95,6 +116,7 @@ export async function lirePolitique(locals: App.Locals): Promise<Politique> {
       axes: Array.isArray(brut.axes) ? brut.axes : [],
       courants: Array.isArray(brut.courants) ? brut.courants : [],
       adhesions: Array.isArray(brut.adhesions) ? brut.adhesions : [],
+      nations: brut.nations && typeof brut.nations === 'object' ? brut.nations : {},
     };
   } catch {
     return POLITIQUE_VIDE;
@@ -132,6 +154,10 @@ export function courantsDe(politique: Politique, type: string, id: number | stri
     .filter((c): c is CourantSuivi => c !== null)
     .sort((a, b) => (b.part ?? 0) - (a.part ?? 0) || a.nom.localeCompare(b.nom, 'fr'));
 }
+
+/** Ce qu'une entité est en propre : régime, doctrines, cour. */
+export const nationDe = (politique: Politique, type: string, id: number | string): Nation =>
+  politique.nations?.[cleEntite(type, id)] ?? {};
 
 /** Les entités qui suivent un courant donné. */
 export const adherentsDe = (politique: Politique, courantId: string): Adhesion[] =>
@@ -182,6 +208,49 @@ async function ecrire(locals: App.Locals, politique: Politique): Promise<Politiq
   if (!espace) throw new Error('stockage indisponible');
   await espace.put(CLE, JSON.stringify(politique));
   return politique;
+}
+
+/**
+ * Enregistre ce qu'une nation est en propre.
+ *
+ * Les positions de doctrine sont ramenées à l'intervalle attendu et les axes
+ * inconnus écartés : ce qui arrive du navigateur n'est jamais tenu pour bon.
+ */
+export async function enregistrerNation(
+  locals: App.Locals,
+  entite: string,
+  brut: Record<string, unknown>
+): Promise<Politique> {
+  if (!/^[a-z]+:[0-9a-z-]+$/.test(entite)) throw new Error('Entité inconnue.');
+  const politique = await lirePolitique(locals);
+
+  const doctrines: Record<string, number> = {};
+  const brutes = (brut.doctrines ?? {}) as Record<string, unknown>;
+  for (const axe of AXES) {
+    const valeur = Math.round(Number(brutes[axe.id]));
+    if (!Number.isFinite(valeur) || valeur === 0) continue;
+    doctrines[axe.id] = Math.max(-2, Math.min(2, valeur));
+  }
+
+  // `Number(null)` vaut zéro, et zéro est un nombre valide : sans cette garde,
+  // effacer l'année d'avènement la remplaçait par l'an 0.
+  const vide = brut.avenement === null || brut.avenement === undefined || brut.avenement === '';
+  const avenement = vide ? Number.NaN : Number(brut.avenement);
+  const nation: Nation = {
+    ...(texte(brut.regime, 60) ? { regime: texte(brut.regime, 60) } : {}),
+    ...(Object.keys(doctrines).length ? { doctrines } : {}),
+    ...(texte(brut.devise, 160) ? { devise: texte(brut.devise, 160) } : {}),
+    ...(texte(brut.dirigeant, 80) ? { dirigeant: texte(brut.dirigeant, 80) } : {}),
+    ...(texte(brut.titreDirigeant, 60) ? { titreDirigeant: texte(brut.titreDirigeant, 60) } : {}),
+    ...(Number.isFinite(avenement) ? { avenement: Math.round(avenement) } : {}),
+  };
+
+  politique.nations = { ...(politique.nations ?? {}) };
+  // Une nation vidée de tout n'a plus lieu d'occuper une ligne.
+  if (Object.keys(nation).length) politique.nations[entite] = nation;
+  else delete politique.nations[entite];
+
+  return ecrire(locals, politique);
 }
 
 /** Crée ou met à jour un axe. */

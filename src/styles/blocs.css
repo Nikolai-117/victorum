@@ -157,6 +157,101 @@
   overflow-wrap: anywhere;
 }
 
+/* ----------------------------------------------------------------- nation */
+
+/**
+ * Le régime et les doctrines. Le régime se lit en grand, comme un titre de
+ * chancellerie ; les doctrines en jetons, dans la teinte de leur pôle, avec
+ * la mention « fanatique » pour le cran extrême.
+ */
+.nation {
+  padding: 1.15rem 1.35rem 1.35rem;
+}
+.nation > .etiquette {
+  color: var(--or);
+}
+.nation__deduit {
+  color: var(--parchemin-faible);
+}
+.nation__regime {
+  font-family: var(--display);
+  font-size: 1.75rem;
+  line-height: 1.1;
+  margin: 0.35rem 0 0;
+}
+.nation__raison {
+  margin: 0.3rem 0 0;
+  font-family: var(--chrome);
+  font-size: 0.6875rem;
+  color: var(--parchemin-faible);
+}
+.nation__devise {
+  margin: 0.8rem 0 0;
+  font-size: 1.15rem;
+  font-style: italic;
+  color: var(--parchemin-doux);
+}
+.nation__titre {
+  margin-top: 1.3rem;
+}
+.nation__vide {
+  margin: 1rem 0 0;
+  color: var(--parchemin-faible);
+}
+
+.doctrines {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.6rem 0 0;
+  padding: 0;
+}
+.doctrine {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.26rem 0.7rem;
+  border-radius: var(--pilule);
+  border: 1px solid color-mix(in srgb, var(--teinte) 45%, transparent);
+  background: color-mix(in srgb, var(--teinte) 14%, transparent);
+  color: color-mix(in srgb, var(--teinte) 55%, #f0e6d2);
+  font-family: var(--chrome);
+  font-size: 0.75rem;
+}
+/** Le cran extrême se voit : c'est une position tenue contre tout. */
+.doctrine--fanatique {
+  border-color: color-mix(in srgb, var(--teinte) 75%, transparent);
+  background: color-mix(in srgb, var(--teinte) 24%, transparent);
+  font-weight: 500;
+}
+.doctrine small {
+  font-size: 0.5625rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.nation__cour {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 2.5rem;
+  margin: 1.3rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--trait);
+}
+.nation__ligne dt {
+  font-family: var(--chrome);
+  font-size: 0.5625rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--parchemin-faible);
+}
+.nation__ligne dd {
+  margin: 0.15rem 0 0;
+  font-size: 1.125rem;
+}
+
 /* --------------------------------------------------------------- courants */
 
 /**

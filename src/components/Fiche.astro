@@ -11,10 +11,13 @@
  */
 import Base from '../layouts/Base.astro';
 import Atelier from './Atelier.astro';
+import Chancellerie from './Chancellerie.astro';
 import { rendrePage, dispositionParDefaut, markdownCourt } from '../lib/blocs.js';
 import { dispositionDe } from '../lib/contenu';
 import { lirePage, motDePasseDefini, stockage } from '../lib/stockage';
-import { lirePolitique, courantsDe } from '../lib/politique';
+import { lirePolitique, courantsDe, nationDe } from '../lib/politique';
+import { doctrinesRetenues, regimeDeduit, AXE_PAR_ID } from '../lib/doctrines';
+import { etats } from '../lib/monde';
 import { SECTIONS } from '../lib/monde';
 import type { Contexte } from '../lib/contexte';
 
@@ -32,11 +35,36 @@ const enregistre = await lirePage(Astro.locals, section, contexte.slug);
 const politique = await lirePolitique(Astro.locals);
 const courants = courantsDe(politique, contexte.type, contexte.identifiant);
 
+// Le régime et les doctrines ne concernent que les nations.
+const brute = nationDe(politique, contexte.type, contexte.identifiant);
+const formeAzgaar =
+  contexte.type === 'etat'
+    ? etats.find((e) => e.id === contexte.identifiant)?.forme ?? null
+    : null;
+const deduit = regimeDeduit(brute.doctrines, formeAzgaar);
+const nation =
+  contexte.type === 'etat'
+    ? {
+        regime: brute.regime || deduit.nom,
+        choisi: Boolean(brute.regime),
+        raison: brute.regime ? '' : deduit.raison,
+        doctrines: doctrinesRetenues(brute.doctrines).map((d) => ({
+          ...d,
+          sujet: AXE_PAR_ID.get(d.axeId)?.sujet ?? '',
+        })),
+        devise: brute.devise,
+        dirigeant: brute.dirigeant,
+        titreDirigeant: brute.titreDirigeant,
+        avenement: brute.avenement,
+      }
+    : undefined;
+
 // Le texte écrit depuis le site prend le pas sur le fichier Markdown versionné.
 const contexteFinal: Contexte = {
   ...contexte,
   ...(enregistre?.texte ? { corpsHtml: markdownCourt(enregistre.texte) } : {}),
   courants,
+  nation,
 };
 
 // Une disposition vide n'est jamais voulue : plutôt que de servir une page
@@ -61,6 +89,19 @@ const html = rendrePage(blocs, contexteFinal);
       stockageActif={Boolean(stockage(Astro.locals))}
       motDePasseDefini={await motDePasseDefini(Astro.locals)}
     />
+    {
+      /* La chancellerie ne concerne que les nations : régime, doctrines, cour. */
+      nation && (
+        <Chancellerie
+          titre={contexte.titre}
+          entite={`etat:${contexte.identifiant}`}
+          nation={brute}
+          formeAzgaar={formeAzgaar}
+          stockageActif={Boolean(stockage(Astro.locals))}
+          motDePasseDefini={await motDePasseDefini(Astro.locals)}
+        />
+      )
+    }
     <div id="fiche" set:html={html} />
   </div>
 </Base>
