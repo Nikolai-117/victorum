@@ -584,6 +584,25 @@ import { monde } from '../lib/monde';
     font-style: italic;
     color: var(--parchemin-doux);
   }
+  .panneau__cour {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.28rem 0.9rem;
+    margin: 0.7rem 0 0;
+  }
+  .panneau__cour dt {
+    font-family: var(--chrome);
+    font-size: 0.5625rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--parchemin-faible);
+    align-self: center;
+  }
+  .panneau__cour dd {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--parchemin-doux);
+  }
 
   /* Ce que l'entité professe, sous son nom. */
   .panneau__courants {
@@ -2265,12 +2284,33 @@ import { monde } from '../lib/monde';
         nation.appendChild(liste);
       }
 
-      const devise = nationDe(e.i).devise;
-      if (devise) {
+      const n = nationDe(e.i);
+      if (n.devise) {
         const ligne = document.createElement('p');
         ligne.className = 'panneau__devise';
-        ligne.textContent = `« ${devise} »`;
+        ligne.textContent = `« ${n.devise} »`;
         nation.appendChild(ligne);
+      }
+
+      // La cour et les particularités : dirigeant, règne, et ce que Romain
+      // a ajouté de sa main. Un petit registre, comme sur la fiche.
+      const lignes = [];
+      if (n.dirigeant) lignes.push([n.titreDirigeant || 'Dirigeant', n.dirigeant]);
+      if (n.avenement !== undefined && n.avenement !== null) {
+        lignes.push(['Règne', `depuis ${n.avenement}`]);
+      }
+      for (const c of n.champs || []) lignes.push([c.cle, c.valeur]);
+      if (lignes.length) {
+        const dl = document.createElement('dl');
+        dl.className = 'panneau__cour';
+        for (const [cle, valeur] of lignes) {
+          const dt = document.createElement('dt');
+          dt.textContent = cle;
+          const dd = document.createElement('dd');
+          dd.textContent = valeur;
+          dl.append(dt, dd);
+        }
+        nation.appendChild(dl);
       }
     }
 

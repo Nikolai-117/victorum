@@ -1,0 +1,599 @@
+---
+/**
+ * Le codex de Victorum : le lore du monde, rangé par catégorie.
+ *
+ * La page publique montre ce que Romain a écrit ; l'atelier, sous le mot de
+ * passe, permet de tout composer — articles et catégories. Rien n'est proposé
+ * d'avance sinon les étagères qu'il a nommées.
+ */
+import Base from '../../layouts/Base.astro';
+import { lireLore, categoriesDe, articlesDe, CATEGORIES_FIXES } from '../../lib/lore';
+import { motDePasseDefini, stockage } from '../../lib/stockage';
+import { nombre } from '../../lib/monde';
+
+export const prerender = false;
+
+const lore = await lireLore(Astro.locals);
+const categories = categoriesDe(lore);
+const total = lore.articles.length;
+
+const donnees = {
+  lore,
+  categoriesFixes: CATEGORIES_FIXES.map((c) => ({ slug: c.slug, nom: c.nom, symbole: c.symbole })),
+  stockageActif: Boolean(stockage(Astro.locals)),
+  motDePasseDefini: await motDePasseDefini(Astro.locals),
+};
+---
+
+<Base titre="Codex" description="Le lore du monde de Victorum : bestiaire, géographie, magie et le reste.">
+  <div class="contenant">
+    <header class="cartouche">
+      <p class="etiquette">Le lore du monde</p>
+      <h1>Codex</h1>
+    </header>
+
+    <div class="tete-lore">
+      <p class="discret tete-lore__intro">
+        Tout ce que la carte ne dit pas : le bestiaire, la faune, la géographie, les
+        religions, les cultures, la magie, la science — et les catégories que tu
+        ajoutes. {total > 0 && <>Déjà {nombre(total)} article{total > 1 ? 's' : ''}.</>}
+      </p>
+      <button id="ouvrir-codex" class="bouton bouton--or" type="button">Composer</button>
+    </div>
+
+    {
+      total === 0 && (
+        <div class="a-ecrire">
+          <p class="etiquette">Codex vierge</p>
+          <p>
+            Les étagères sont là ; les livres, non. Ouvre l'atelier pour écrire ton
+            premier article, ou pour ajouter une catégorie que je n'ai pas prévue.
+          </p>
+          <p class="discret">Rien ne sera écrit à ta place.</p>
+        </div>
+      )
+    }
+
+    {
+      categories.map((cat) => {
+        const articles = articlesDe(lore, cat.slug);
+        if (total > 0 && articles.length === 0) return null;
+        return (
+          <section class="pile lore-cat" id={cat.slug}>
+            <h2 class="etiquette etiquette--filet">
+              {cat.symbole} {cat.nom}
+            </h2>
+            {cat.intro && <p class="lore-cat__intro">{cat.intro}</p>}
+            {articles.length === 0 ? (
+              <p class="discret">Rien dans cette catégorie pour l'instant.</p>
+            ) : (
+              <div class="grille">
+                {articles.map((a) => (
+                  <a class="carte carte--lore" href={`/lore/${a.slug}`}>
+                    <span class="carte__titre">
+                      <i class="lore-marque" style={`--teinte:${a.couleur}`}>{a.symbole}</i>
+                      {a.titre}
+                    </span>
+                    {a.resume && <span class="carte__meta">{a.resume}</span>}
+                  </a>
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })
+    }
+  </div>
+
+  <!-- L'atelier : tout ce qui écrit passe par le mot de passe du site. -->
+  <aside class="atelier-lore" id="atelier" hidden>
+    <header class="atelier-lore__tete">
+      <p class="etiquette">Atelier du codex</p>
+      <span class="atelier-etat" id="etat-atelier"></span>
+      <button class="fermer" id="fermer-atelier" type="button" aria-label="Fermer">×</button>
+    </header>
+
+    <div class="atelier-lore__grille">
+      <section class="colonne">
+        <p class="etiquette">Articles</p>
+        <ul class="colonne__liste" id="liste-articles"></ul>
+        <button class="bouton" id="nouvel-article" type="button">+ Nouvel article</button>
+
+        <form class="colonne__forme" id="forme-article" hidden>
+          <label class="champ"><span>Titre</span>
+            <input id="art-titre" type="text" maxlength="120" required />
+          </label>
+          <label class="champ"><span>Catégorie</span>
+            <select id="art-categorie" class="select"></select>
+          </label>
+          <div class="duo">
+            <label class="champ"><span>Symbole</span>
+              <input id="art-symbole" type="text" maxlength="4" />
+            </label>
+            <label class="champ"><span>Couleur</span>
+              <input id="art-couleur" type="color" value="#c9a227" />
+            </label>
+          </div>
+          <label class="champ"><span>Accroche</span>
+            <input id="art-resume" type="text" maxlength="200" placeholder="Une ligne, en vignette" />
+          </label>
+          <label class="champ"><span>Texte</span>
+            <textarea id="art-corps" rows="10" maxlength="40000" placeholder="Markdown accepté : ## titres, **gras**, listes, > citations…"></textarea>
+          </label>
+          <div class="colonne__actions">
+            <button class="bouton bouton--or" type="submit">Enregistrer</button>
+            <button class="bouton" type="button" id="supprimer-article">Supprimer</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="colonne">
+        <p class="etiquette">Catégories</p>
+        <ul class="colonne__liste" id="liste-categories"></ul>
+        <button class="bouton" id="nouvelle-categorie" type="button">+ Nouvelle catégorie</button>
+
+        <form class="colonne__forme" id="forme-categorie" hidden>
+          <label class="champ"><span>Nom</span>
+            <input id="cat-nom" type="text" maxlength="60" required />
+          </label>
+          <label class="champ"><span>Symbole</span>
+            <input id="cat-symbole" type="text" maxlength="4" />
+          </label>
+          <label class="champ"><span>Présentation</span>
+            <textarea id="cat-intro" rows="3" maxlength="400" placeholder="Une phrase sur ce que la catégorie rassemble."></textarea>
+          </label>
+          <div class="colonne__actions">
+            <button class="bouton bouton--or" type="submit">Enregistrer</button>
+            <button class="bouton" type="button" id="supprimer-categorie" hidden>Supprimer</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </aside>
+
+  <script type="application/json" id="donnees-lore" set:html={JSON.stringify(donnees)} />
+</Base>
+
+<style is:global>
+  .tete-lore {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+    margin: 2rem 0 2.5rem;
+    flex-wrap: wrap;
+  }
+  .tete-lore__intro {
+    flex: 1;
+    min-width: 20rem;
+    max-width: var(--mesure);
+    margin: 0;
+  }
+  .lore-cat {
+    margin-top: 3rem;
+    scroll-margin-top: 6rem;
+  }
+  .lore-cat__intro {
+    margin: 0;
+    max-width: var(--mesure);
+    color: var(--parchemin-doux);
+  }
+  .carte--lore .carte__titre {
+    gap: 0.6rem;
+  }
+
+  /* ------------------------------------------------------------- atelier */
+
+  .atelier-lore {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 70;
+    max-height: min(84svh, 820px);
+    display: flex;
+    flex-direction: column;
+    background: var(--verre);
+    backdrop-filter: var(--flou);
+    border-top: 1px solid var(--or-sourd);
+    border-radius: var(--rayon) var(--rayon) 0 0;
+    box-shadow: var(--ombre);
+  }
+  .atelier-lore[hidden] {
+    display: none;
+  }
+  .atelier-lore__tete {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid var(--trait);
+  }
+  .atelier-lore__tete .etiquette {
+    color: var(--or);
+  }
+  .atelier-lore__tete .fermer {
+    position: static;
+    margin-left: auto;
+  }
+  .atelier-etat {
+    font-family: var(--chrome);
+    font-size: 0.6875rem;
+    color: var(--parchemin-faible);
+  }
+
+  .atelier-lore__grille {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 1px;
+    background: var(--trait);
+    overflow: hidden;
+  }
+  .colonne {
+    background: var(--encre-2);
+    padding: 1rem 1.15rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    min-height: 0;
+    max-height: min(72svh, 700px);
+    overflow-y: auto;
+  }
+  .colonne > .etiquette {
+    color: var(--or);
+  }
+  .colonne__liste {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .colonne__liste button {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    width: 100%;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid transparent;
+    border-radius: var(--rayon-s);
+    background: none;
+    color: var(--parchemin-doux);
+    font-family: var(--texte-police);
+    font-size: 1.0625rem;
+    text-align: left;
+    cursor: pointer;
+  }
+  .colonne__liste button:hover {
+    background: var(--velin-haut);
+    color: var(--parchemin);
+  }
+  .colonne__liste button[aria-current='true'] {
+    border-color: var(--or-sourd);
+    color: var(--or-clair);
+    background: rgba(207, 169, 58, 0.08);
+  }
+  .colonne__liste small {
+    margin-left: auto;
+    font-family: var(--chrome);
+    font-size: 0.625rem;
+    color: var(--parchemin-faible);
+  }
+  .colonne__forme {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--trait);
+  }
+  .colonne__forme textarea {
+    padding: 0.5rem 0.7rem;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-s);
+    color: var(--parchemin);
+    font-family: var(--texte-police);
+    font-size: 1.0625rem;
+    line-height: 1.5;
+    resize: vertical;
+  }
+  .colonne__forme input[type='color'] {
+    height: 38px;
+    padding: 2px;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-s);
+    cursor: pointer;
+  }
+  .duo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.7rem;
+  }
+  .colonne__actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .colonne__actions .bouton {
+    flex: 1;
+    justify-content: center;
+    padding: 0.45rem 0.7rem;
+    font-size: 0.75rem;
+  }
+
+  @media (max-width: 820px) {
+    .atelier-lore__grille {
+      grid-template-columns: 1fr;
+    }
+    .colonne {
+      max-height: 42svh;
+    }
+  }
+</style>
+
+<script>
+  /**
+   * L'atelier du codex.
+   *
+   * Il travaille sur une copie locale du lore et n'écrit qu'à la demande. Après
+   * un enregistrement, la page est rechargée : la vue publique est rendue par le
+   * serveur, et la recharger évite d'en tenir une seconde version ici.
+   */
+  const donnees = JSON.parse(document.getElementById('donnees-lore').textContent);
+  let lore = donnees.lore;
+
+  const CLE_MDP = 'victorum:mot-de-passe';
+  const CLE_ETAT = 'victorum:atelier-lore';
+
+  const $ = (id) => document.getElementById(id);
+  const atelier = $('atelier');
+  const etat = $('etat-atelier');
+
+  let articleChoisi = null;
+  let categorieChoisie = null;
+
+  /* ------------------------------------------------------- catégories */
+
+  const FIXES = donnees.categoriesFixes;
+  const categories = () => {
+    const parSlug = new Map();
+    for (const c of FIXES) parSlug.set(c.slug, { ...c, fixe: true, ordre: parSlug.size });
+    for (const c of lore.categories) {
+      if (parSlug.has(c.slug)) {
+        if (c.intro) parSlug.get(c.slug).intro = c.intro;
+      } else {
+        parSlug.set(c.slug, { ...c, fixe: false });
+      }
+    }
+    return [...parSlug.values()];
+  };
+  const categorieDe = (slug) => categories().find((c) => c.slug === slug) || null;
+  const articles = () => [...lore.articles].sort((a, b) => a.titre.localeCompare(b.titre, 'fr'));
+  const articleDe = (id) => lore.articles.find((a) => a.id === id) || null;
+
+  /* --------------------------------------------------------- ouverture */
+
+  function ouvrir(rouvrir) {
+    atelier.hidden = false;
+    if (rouvrir) {
+      articleChoisi = rouvrir.articleChoisi ?? null;
+      categorieChoisie = rouvrir.categorieChoisie ?? null;
+    }
+    rendre();
+  }
+  $('ouvrir-codex').addEventListener('click', () => ouvrir());
+  $('fermer-atelier').addEventListener('click', () => {
+    atelier.hidden = true;
+    sessionStorage.removeItem(CLE_ETAT);
+  });
+  const memoire = sessionStorage.getItem(CLE_ETAT);
+  if (memoire) ouvrir(JSON.parse(memoire));
+
+  /* ------------------------------------------------------------- rendu */
+
+  function bouton(texte, symbole, actif, surClic, compte) {
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.type = 'button';
+    if (actif) b.setAttribute('aria-current', 'true');
+    if (symbole) {
+      const marque = document.createElement('span');
+      marque.textContent = symbole;
+      b.appendChild(marque);
+    }
+    const nom = document.createElement('span');
+    nom.textContent = texte;
+    b.appendChild(nom);
+    if (compte !== undefined) {
+      const petit = document.createElement('small');
+      petit.textContent = compte;
+      b.appendChild(petit);
+    }
+    b.addEventListener('click', surClic);
+    li.appendChild(b);
+    return li;
+  }
+
+  function rendre() {
+    // Le sélecteur de catégorie dans la forme d'article.
+    const select = $('art-categorie');
+    const retenu = select.value;
+    select.innerHTML = '';
+    for (const c of categories()) {
+      const o = document.createElement('option');
+      o.value = c.slug;
+      o.textContent = `${c.symbole} ${c.nom}`;
+      select.appendChild(o);
+    }
+    if (retenu) select.value = retenu;
+
+    const liste = $('liste-articles');
+    liste.innerHTML = '';
+    for (const a of articles()) {
+      const cat = categorieDe(a.categorie);
+      liste.appendChild(
+        bouton(a.titre, a.symbole, a.id === articleChoisi, () => {
+          articleChoisi = a.id;
+          remplirArticle(a);
+          rendre();
+        }, cat?.nom || '')
+      );
+    }
+
+    const listeCat = $('liste-categories');
+    listeCat.innerHTML = '';
+    for (const c of categories()) {
+      const n = lore.articles.filter((a) => a.categorie === c.slug).length;
+      listeCat.appendChild(
+        bouton(c.nom, c.symbole, c.slug === categorieChoisie, () => {
+          categorieChoisie = c.slug;
+          remplirCategorie(c);
+          rendre();
+        }, String(n))
+      );
+    }
+    majEtat();
+  }
+
+  /* ---------------------------------------------------------- articles */
+
+  function remplirArticle(a) {
+    const forme = $('forme-article');
+    forme.hidden = false;
+    forme.dataset.id = a?.id || '';
+    $('art-titre').value = a?.titre || '';
+    $('art-categorie').value = a?.categorie || categories()[0]?.slug || '';
+    $('art-symbole').value = a?.symbole || '◆';
+    $('art-couleur').value = a?.couleur || '#c9a227';
+    $('art-resume').value = a?.resume || '';
+    $('art-corps').value = a?.corps || '';
+    $('supprimer-article').hidden = !a;
+  }
+
+  $('nouvel-article').addEventListener('click', () => {
+    articleChoisi = null;
+    remplirArticle(null);
+    rendre();
+    $('art-titre').focus();
+  });
+
+  $('forme-article').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    envoyer({
+      action: 'article',
+      id: $('forme-article').dataset.id || undefined,
+      titre: $('art-titre').value,
+      categorie: $('art-categorie').value,
+      symbole: $('art-symbole').value,
+      couleur: $('art-couleur').value,
+      resume: $('art-resume').value,
+      corps: $('art-corps').value,
+    });
+  });
+
+  $('supprimer-article').addEventListener('click', () => {
+    const id = $('forme-article').dataset.id;
+    if (!id) return;
+    if (!confirm('Supprimer cet article ?')) return;
+    envoyer({ action: 'supprimer-article', id });
+  });
+
+  /* -------------------------------------------------------- catégories */
+
+  function remplirCategorie(c) {
+    const forme = $('forme-categorie');
+    forme.hidden = false;
+    forme.dataset.slug = c?.slug || '';
+    forme.dataset.fixe = c?.fixe ? 'oui' : '';
+    $('cat-nom').value = c?.nom || '';
+    $('cat-nom').disabled = Boolean(c?.fixe);
+    $('cat-symbole').value = c?.symbole || '❖';
+    $('cat-symbole').disabled = Boolean(c?.fixe);
+    $('cat-intro').value = c?.intro || '';
+    // Une catégorie intégrée ne se supprime pas ; on peut lui donner une intro.
+    $('supprimer-categorie').hidden = !c || Boolean(c.fixe);
+  }
+
+  $('nouvelle-categorie').addEventListener('click', () => {
+    categorieChoisie = null;
+    remplirCategorie(null);
+    rendre();
+    $('cat-nom').focus();
+  });
+
+  $('forme-categorie').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const forme = $('forme-categorie');
+    envoyer({
+      action: 'categorie',
+      slug: forme.dataset.slug || undefined,
+      nom: $('cat-nom').value,
+      symbole: $('cat-symbole').value,
+      intro: $('cat-intro').value,
+    });
+  });
+
+  $('supprimer-categorie').addEventListener('click', () => {
+    const slug = $('forme-categorie').dataset.slug;
+    if (!slug) return;
+    if (!confirm('Supprimer cette catégorie et ses articles ?')) return;
+    envoyer({ action: 'supprimer-categorie', slug });
+  });
+
+  /* ----------------------------------------------------------- écriture */
+
+  function motDePasse(redemander) {
+    let mdp = sessionStorage.getItem(CLE_MDP);
+    if (!mdp || redemander) {
+      mdp = prompt(
+        donnees.motDePasseDefini
+          ? "Mot de passe de l'atelier :"
+          : "Choisis le mot de passe de ton atelier. Il te sera demandé pour toute modification, et personne d'autre ne pourra écrire sur ton site."
+      );
+      if (mdp) sessionStorage.setItem(CLE_MDP, mdp);
+    }
+    return mdp;
+  }
+
+  async function envoyer(corps) {
+    if (!donnees.stockageActif) {
+      majEtat("Le stockage n'est pas relié : impossible d'enregistrer.");
+      return;
+    }
+    const mdp = motDePasse(false);
+    if (!mdp) return majEtat('Mot de passe non saisi.');
+
+    majEtat('Enregistrement…');
+    try {
+      const reponse = await fetch('/api/lore', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-mot-de-passe': mdp },
+        body: JSON.stringify(corps),
+      });
+      const resultat = await reponse.json().catch(() => ({}));
+      if (reponse.status === 401) {
+        sessionStorage.removeItem(CLE_MDP);
+        return majEtat(resultat.erreur || 'Mot de passe refusé.');
+      }
+      if (!reponse.ok) return majEtat(resultat.erreur || 'Échec de l’enregistrement.');
+
+      lore = resultat.lore;
+      donnees.motDePasseDefini = true;
+      sessionStorage.setItem(CLE_ETAT, JSON.stringify({ articleChoisi, categorieChoisie }));
+      location.reload();
+    } catch {
+      majEtat('Réseau indisponible.');
+    }
+  }
+
+  function majEtat(message) {
+    if (message) {
+      etat.textContent = message;
+      return;
+    }
+    const n = lore.articles.length;
+    etat.textContent = donnees.stockageActif
+      ? `${n} article${n > 1 ? 's' : ''}`
+      : 'Stockage non relié';
+  }
+
+  rendre();
+</script>

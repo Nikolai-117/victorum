@@ -73,6 +73,12 @@ export interface Nation {
   dirigeant?: string;
   titreDirigeant?: string;
   avenement?: number;
+  /**
+   * Ce que Romain veut ajouter et que rien n'avait prévu : berceau, dynastie,
+   * langue de cour, ce qu'il veut. Des couples libellé / valeur, montrés tels
+   * quels sur la fiche et dans le panneau de la carte.
+   */
+  champs?: { cle: string; valeur: string }[];
 }
 
 export interface Politique {
@@ -236,6 +242,18 @@ export async function enregistrerNation(
   // effacer l'année d'avènement la remplaçait par l'an 0.
   const vide = brut.avenement === null || brut.avenement === undefined || brut.avenement === '';
   const avenement = vide ? Number.NaN : Number(brut.avenement);
+  // Les champs libres : au plus vingt, chacun un libellé et une valeur, le
+  // reste est écarté. Ce qui vient du navigateur n'est jamais tenu pour bon.
+  const champs = Array.isArray(brut.champs)
+    ? brut.champs
+        .map((c) => ({
+          cle: texte((c as Record<string, unknown>)?.cle, 40),
+          valeur: texte((c as Record<string, unknown>)?.valeur, 240),
+        }))
+        .filter((c) => c.cle && c.valeur)
+        .slice(0, 20)
+    : [];
+
   const nation: Nation = {
     ...(texte(brut.regime, 60) ? { regime: texte(brut.regime, 60) } : {}),
     ...(Object.keys(doctrines).length ? { doctrines } : {}),
@@ -243,6 +261,7 @@ export async function enregistrerNation(
     ...(texte(brut.dirigeant, 80) ? { dirigeant: texte(brut.dirigeant, 80) } : {}),
     ...(texte(brut.titreDirigeant, 60) ? { titreDirigeant: texte(brut.titreDirigeant, 60) } : {}),
     ...(Number.isFinite(avenement) ? { avenement: Math.round(avenement) } : {}),
+    ...(champs.length ? { champs } : {}),
   };
 
   politique.nations = { ...(politique.nations ?? {}) };

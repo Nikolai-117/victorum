@@ -274,6 +274,9 @@ const RENDUS = {
       n.avenement !== undefined && n.avenement !== null
         ? `<div class="nation__ligne"><dt>Avènement</dt><dd>${esc(n.avenement)}</dd></div>`
         : '',
+      ...(n.champs || []).map(
+        (c) => `<div class="nation__ligne"><dt>${esc(c.cle)}</dt><dd>${esc(c.valeur)}</dd></div>`
+      ),
     ].join('');
 
     return (

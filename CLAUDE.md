@@ -232,12 +232,39 @@ mode de gouvernement, mais en vocabulaire médiéval plutôt que spatial.
 - Ce catalogue est du **vocabulaire**, pas du lore : il ne dit pas ce que
   professe tel royaume, seulement les cases où se placer. Ce que Romain en fait
   reste à lui, et rien n'est coché d'avance.
+- **Les particularités** d'une nation sont des couples libellé / valeur libres
+  (`champs`) : berceau, dynastie, ce que Romain veut. Ils s'affichent tels quels
+  sur la fiche et dans le panneau de la carte, à côté de la cour.
 - **`Number(null)` vaut zéro** : sans garde, effacer l'année d'avènement la
   remplaçait par l'an 0 et empêchait la nation vide d'être supprimée.
 - L'atlas gagne des **modes de carte par doctrine** : chaque axe colore le
   monde de son pôle gauche à son pôle droit, le neutre en gris, avec une
   légende à cinq crans. Le mode « Régime » colore par forme de gouvernement.
   Les provinces empruntent les doctrines de leur royaume.
+
+## Le codex : le lore du monde
+
+Demandé en remplacement de la page « Courants » : un endroit pour tout ce que
+la carte ne dit pas. `src/lib/lore.ts`, `/api/lore`, `/lore` et `/lore/[slug]`.
+
+- **Sept catégories intégrées** — Bestiaire, Faune, Géographie, Religion,
+  Culture, Magie, Science — parce que Romain les a nommées. Ce sont des
+  étagères, pas du lore : les fournir n'écrit rien à sa place. Il en ajoute
+  d'autres à volonté ; les intégrées, elles, ne se suppriment pas (mais peuvent
+  recevoir une intro).
+- **Un article** = titre, catégorie, symbole, couleur, accroche et un corps en
+  Markdown court. Rangé par catégorie sur `/lore`, sa propre page sur
+  `/lore/[slug]`. Rien n'est pré-rempli : le codex vierge le dit et s'arrête là.
+- L'atelier écrit par `/api/lore`, sous le même mot de passe que le reste, et
+  recharge après enregistrement — la vue publique est rendue par le serveur.
+- **« Peuples » a disparu de la navigation** : la culture est désormais une
+  catégorie du codex. Les fiches de cultures et de religions
+  (`/cultures/[slug]`, `/religions/[slug]`) restent atteignables ; seuls les
+  index d'ensemble redirigent vers `/lore` (voir `astro.config.mjs`).
+- **La page « Courants » est retirée** au profit du codex. Le moteur d'axes et
+  d'adhésions reste dans `politique.ts` — les nations en partagent le stockage —
+  mais son atelier n'est plus exposé : sans axe créable, les modes de carte par
+  courant ne s'affichent tout simplement pas.
 
 ## Les lieux remarquables
 

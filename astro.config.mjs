@@ -19,9 +19,14 @@ export default defineConfig({
   },
   // Cultures et religions se consultent depuis la page Peuples : ces deux
   // adresses restent valides plutôt que de renvoyer une page introuvable.
+  // Les index d'antan redirigent vers le codex : les cultures et religions n'ont
+  // plus de page d'ensemble propre, elles vivent dans le lore ; leurs fiches
+  // individuelles (/cultures/[slug]) restent atteignables.
   redirects: {
-    '/cultures': '/peuples',
-    '/religions': '/peuples',
+    '/peuples': '/lore',
+    '/courants': '/lore',
+    '/cultures': '/lore',
+    '/religions': '/lore',
   },
   devToolbar: { enabled: false },
 });

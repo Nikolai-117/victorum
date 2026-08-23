@@ -1,0 +1,126 @@
+---
+/**
+ * Un article du codex : ce que Romain a écrit, tel qu'il l'a écrit.
+ *
+ * La page ne rend que son texte — jamais un résumé fabriqué ici. Sans corps,
+ * elle l'annonce plutôt que de meubler.
+ */
+import Base from '../../layouts/Base.astro';
+import { lireLore, articleParSlug, categoriesDe, articlesDe } from '../../lib/lore';
+import { markdownCourt } from '../../lib/blocs.js';
+
+export const prerender = false;
+
+const lore = await lireLore(Astro.locals);
+const article = articleParSlug(lore, Astro.params.slug ?? '');
+if (!article) return Astro.rewrite('/404');
+
+const categorie = categoriesDe(lore).find((c) => c.slug === article.categorie);
+const voisins = articlesDe(lore, article.categorie).filter((a) => a.id !== article.id);
+
+const DATE = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+const dateLisible = (iso: string) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : DATE.format(d);
+};
+---
+
+<Base titre={article.titre} description={article.resume || `${article.titre} — codex de Victorum.`}>
+  <div class="contenant">
+    <header class="cartouche article-tete">
+      <i class="lore-marque lore-marque--grand" style={`--teinte:${article.couleur}`}>{article.symbole}</i>
+      <div>
+        <p class="etiquette">
+          <a href="/lore">Codex</a>
+          {categorie && <> · <a href={`/lore#${categorie.slug}`}>{categorie.nom}</a></>}
+        </p>
+        <h1>{article.titre}</h1>
+        {article.resume && <p class="article-tete__resume">{article.resume}</p>}
+      </div>
+    </header>
+
+    <div class="article-corps">
+      <article class="pile">
+        {
+          article.corps ? (
+            <div class="prose" set:html={markdownCourt(article.corps)} />
+          ) : (
+            <div class="a-ecrire">
+              <p class="etiquette">Sans texte</p>
+              <p>Cet article n'a pas encore de contenu. Ouvre le codex pour l'écrire.</p>
+            </div>
+          )
+        }
+        <p class="article-date">Modifié le {dateLisible(article.modifieLe) ?? '—'}.</p>
+      </article>
+
+      {
+        voisins.length > 0 && (
+          <aside class="pile">
+            <div class="identite">
+              <p class="etiquette">{categorie?.nom ?? 'Même catégorie'}</p>
+              <ul class="lore-voisins">
+                {voisins.map((v) => (
+                  <li>
+                    <i class="lore-marque" style={`--teinte:${v.couleur}`}>{v.symbole}</i>
+                    <a href={`/lore/${v.slug}`}>{v.titre}</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </aside>
+        )
+      }
+    </div>
+  </div>
+</Base>
+
+<style is:global>
+  .article-tete {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+  }
+  .article-tete__resume {
+    margin: 0.6rem 0 0;
+    font-size: 1.15rem;
+    color: var(--parchemin-doux);
+    max-width: var(--mesure);
+  }
+  .lore-marque--grand {
+    width: 74px;
+    height: 74px;
+    font-size: 2rem;
+    flex: none;
+  }
+  .article-corps {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 2rem;
+    margin-top: 2.5rem;
+  }
+  .article-date {
+    margin-top: 2rem;
+    font-family: var(--chrome);
+    font-size: 0.6875rem;
+    color: var(--parchemin-faible);
+  }
+  .lore-voisins {
+    list-style: none;
+    margin: 0.8rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+  .lore-voisins li {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
+  @media (max-width: 860px) {
+    .article-corps {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

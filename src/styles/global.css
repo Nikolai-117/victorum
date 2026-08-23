@@ -685,6 +685,23 @@ h4 {
   background: rgba(207, 169, 58, 0.12);
 }
 
+/* ----------------------------------------------------------------- marque */
+
+/** Le sceau d'un article ou d'une catégorie : un symbole, dans sa couleur. */
+.lore-marque {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 0.8125rem;
+  line-height: 1;
+  color: color-mix(in srgb, var(--teinte, var(--or)) 65%, #f0e6d2);
+  background: color-mix(in srgb, var(--teinte, var(--or)) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teinte, var(--or)) 45%, transparent);
+}
+
 /* -------------------------------------------------------------------- jetons */
 
 .jeton {

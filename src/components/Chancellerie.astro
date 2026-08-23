@@ -88,6 +88,13 @@ const regimeConnu = nation.regime && TOUS_REGIMES.includes(nation.regime);
       </label>
     </div>
 
+    <div class="modale__champs">
+      <p class="etiquette">Particularités</p>
+      <p class="modale__champs-aide">Ce que rien n'a prévu : berceau, dynastie, langue de cour… un libellé, une valeur.</p>
+      <div class="champs-libres" id="champs-libres"></div>
+      <button class="bouton" id="ajouter-champ" type="button">+ Ajouter une particularité</button>
+    </div>
+
     <footer class="modale__pied">
       <div class="modale__resultat">
         <p class="etiquette">Type de gouvernement</p>
@@ -314,6 +321,59 @@ const regimeConnu = nation.regime && TOUS_REGIMES.includes(nation.regime);
     font-size: 1.0625rem;
   }
 
+  .modale__champs {
+    padding: 0 1.4rem 0.4rem;
+  }
+  .modale__champs .etiquette {
+    color: var(--or);
+  }
+  .modale__champs-aide {
+    margin: 0.3rem 0 0.7rem;
+    font-family: var(--chrome);
+    font-size: 0.6875rem;
+    color: var(--parchemin-faible);
+  }
+  .champs-libres {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.7rem;
+  }
+  .champ-libre {
+    display: grid;
+    grid-template-columns: minmax(7rem, 1fr) minmax(0, 2fr) auto;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .champ-libre input {
+    padding: 0.45rem 0.65rem;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-s);
+    color: var(--parchemin);
+    font-family: var(--texte-police);
+    font-size: 1rem;
+  }
+  .champ-libre input:first-child {
+    font-family: var(--chrome);
+    font-size: 0.8125rem;
+  }
+  .champ-libre button {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-s);
+    background: none;
+    color: var(--parchemin-faible);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+  .champ-libre button:hover {
+    color: var(--sang);
+    border-color: var(--sang);
+  }
+
   @media (max-width: 720px) {
     .axe-ligne {
       grid-template-columns: 1fr;
@@ -338,6 +398,49 @@ const regimeConnu = nation.regime && TOUS_REGIMES.includes(nation.regime);
   const $ = (id) => document.getElementById(id);
   const modale = $('modale-nation');
   const doctrines = { ...(donnees.nation.doctrines || {}) };
+
+  /* --------------------------------------------------- particularités */
+
+  const champsHote = $('champs-libres');
+
+  /** Une ligne : un libellé, une valeur, un bouton pour la retirer. */
+  function ligneChamp(cle = '', valeur = '') {
+    const ligne = document.createElement('div');
+    ligne.className = 'champ-libre';
+    const iCle = document.createElement('input');
+    iCle.type = 'text';
+    iCle.maxLength = 40;
+    iCle.placeholder = 'Berceau, Dynastie…';
+    iCle.value = cle;
+    const iVal = document.createElement('input');
+    iVal.type = 'text';
+    iVal.maxLength = 240;
+    iVal.placeholder = 'Valeur';
+    iVal.value = valeur;
+    const retirer = document.createElement('button');
+    retirer.type = 'button';
+    retirer.textContent = '×';
+    retirer.setAttribute('aria-label', 'Retirer');
+    retirer.addEventListener('click', () => ligne.remove());
+    ligne.append(iCle, iVal, retirer);
+    return ligne;
+  }
+
+  for (const c of donnees.nation.champs || []) champsHote.appendChild(ligneChamp(c.cle, c.valeur));
+  $('ajouter-champ').addEventListener('click', () => {
+    const ligne = ligneChamp();
+    champsHote.appendChild(ligne);
+    ligne.querySelector('input').focus();
+  });
+
+  /** Ce que valent les particularités au moment de l'envoi. */
+  const champsSaisis = () =>
+    [...champsHote.querySelectorAll('.champ-libre')]
+      .map((l) => {
+        const [cle, valeur] = l.querySelectorAll('input');
+        return { cle: cle.value.trim(), valeur: valeur.value.trim() };
+      })
+      .filter((c) => c.cle && c.valeur);
 
   $('ouvrir-chancellerie').addEventListener('click', () => {
     modale.hidden = false;
@@ -473,6 +576,7 @@ const regimeConnu = nation.regime && TOUS_REGIMES.includes(nation.regime);
           dirigeant: $('nation-dirigeant').value,
           titreDirigeant: $('nation-titre').value,
           avenement: avenement === '' ? null : Number(avenement),
+          champs: champsSaisis(),
         }),
       });
       const resultat = await reponse.json().catch(() => ({}));

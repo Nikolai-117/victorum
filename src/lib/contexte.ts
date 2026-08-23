@@ -86,6 +86,7 @@ export interface Contexte {
     dirigeant?: string;
     titreDirigeant?: string;
     avenement?: number;
+    champs?: { cle: string; valeur: string }[];
   };
   faits: Fait[];
   chiffres: Fait[];
