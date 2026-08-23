@@ -55,12 +55,14 @@ const NAV = [
 
     {
       !pleinEcran && (
-        <footer class="pied contenant">
-          <div>
-            {monde.nom} — an {monde.annee} {monde.ereCourte}. Carte générée avec Azgaar's Fantasy Map
-            Generator {monde.versionAzgaar}.
+        <footer class="pied">
+          <div class="contenant pied__interne">
+            <div>
+              {monde.nom} — an {monde.annee} {monde.ereCourte}. Carte générée avec Azgaar's Fantasy Map
+              Generator {monde.versionAzgaar}.
+            </div>
+            <div>Échelle {monde.echelleKmParPixel} km/px.</div>
           </div>
-          <div>Échelle {monde.echelleKmParPixel} km/px.</div>
         </footer>
       )
     }

@@ -67,6 +67,17 @@ Levànzia »).
 > Chronologie) et devient une porte du Codex, en tête de l'index.
 
 
+>
+> **Refonte moderne (24/08/2026).** Le clair « tout blanc » gagne du relief et
+> toute la palette : page crème `--encre` #efe4d3, **cartes blanches solides**
+> `--carte` #fffdf9 à vraie ombre (fini le verre délavé sur les pages), **entête
+> et pied en anthracite** `--sombre` #2c2926 (texte crème `--sur-sombre`), gestes
+> forts en **dégradé pêche→corail** `--degrade`, onglet actif en pêche pleine.
+> Les portes vides du codex et des chroniques s'affichent en dégradé chaud (la
+> porte « Villes » en anthracite). Le verre translucide ne sert plus qu'aux
+> panneaux de l'atlas, posés sur la carte. Rien de fonctionnel n'a bougé.
+
+
 Refait d'après des références que Romain a montrées : son reproche était que
 l'interface avait l'air *générée* — bordures franches, mires d'angle, capitales
 espacées partout, panneaux collés aux bords. Ce qui donne une âme, dans ces

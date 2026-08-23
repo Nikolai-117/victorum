@@ -17,38 +17,44 @@
 @import './blocs.css';
 
 :root {
-  /* Surfaces : la lumière d'un atelier de jour — crème et pêche */
-  --encre: #faf4ea;
-  --encre-2: #f2e9d9;
-  --velin: #f6ddcb;
-  --velin-haut: #fbe7d8;
+  /* Surfaces : une crème chaude, des cartes blanches nettes, un anthracite */
+  --encre: #efe4d3;          /* la page, crème un peu ambrée */
+  --encre-2: #f6ecdd;        /* teinte de fond secondaire */
+  --velin: #f7ddca;          /* pêche pâle */
+  --velin-haut: #fbe7d7;
+  --sombre: #2c2926;         /* l'anthracite : entête, pied, bandes */
+  --sombre-2: #3b3733;
+  --sur-sombre: #f3ead9;     /* le texte posé sur le sombre */
 
-  /* Filets translucides : un trait sombre, à peine posé sur le clair */
-  --trait: rgba(70, 62, 58, 0.14);
-  --trait-vif: rgba(70, 62, 58, 0.28);
+  /* Filets */
+  --trait: rgba(44, 41, 38, 0.12);
+  --trait-vif: rgba(44, 41, 38, 0.24);
 
-  /* Encres : le gris chaud du texte */
-  --parchemin: #464646;
-  --parchemin-doux: #6f6a66;
-  --parchemin-faible: #968f88;
+  /* Encres : un brun-gris profond, plus riche que le gris nu */
+  --parchemin: #3a332e;
+  --parchemin-doux: #6c6259;
+  --parchemin-faible: #9a9088;
 
-  /* Accents : la rose en tête, le corail pour ce qui appelle, la pêche en fond */
-  --or: #df7f83;
+  /* Accents : toute la palette — rose, corail, pêche, et leurs mélanges */
+  --or: #df7f83;             /* rose (accent premier ; alias historique --or) */
   --or-clair: #e99aa0;
   --or-sourd: #c96a70;
-  --sang: #f87472;
-  --verdet: #7fa38f;
+  --sang: #f87472;           /* corail */
   --peche: #febe98;
+  --verdet: #7fa38f;
+  /* La signature : un dégradé chaud pêche → corail, pour les gestes forts */
+  --degrade: linear-gradient(135deg, #febe98 0%, #f87472 100%);
+  --degrade-doux: linear-gradient(135deg, #fed3b4 0%, #f79a9c 100%);
 
-  /* Verre : des plaques givrées, blanches, posées sur la brume */
-  --verre: rgba(255, 251, 245, 0.62);
-  --verre-haut: rgba(255, 251, 245, 0.82);
-  --flou: blur(22px) saturate(1.1);
-  --ombre: 0 22px 48px -18px rgba(120, 84, 72, 0.28);
-  --ombre-basse: 0 12px 26px -16px rgba(120, 84, 72, 0.22);
-  --lueur: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  /* Le fond des champs de saisie : blanc laiteux plutôt que noir */
-  --saisie: rgba(255, 255, 255, 0.66);
+  /* Cartes : blanches et solides, un vrai relief plutôt qu'un voile délavé */
+  --carte: #fffdf9;
+  --verre: rgba(255, 253, 249, 0.9);
+  --verre-haut: #ffffff;
+  --flou: blur(18px) saturate(1.05);
+  --ombre: 0 26px 52px -22px rgba(60, 40, 34, 0.4);
+  --ombre-basse: 0 14px 28px -18px rgba(60, 40, 34, 0.24);
+  --lueur: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --saisie: #fffdf9;
 
   /* Typographie */
   --display: 'Almendra SC', 'Iowan Old Style', Georgia, serif;
@@ -56,7 +62,7 @@
   --chrome: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
   --mono: var(--chrome);
 
-  /* Rythme : plus d'air, tout respire */
+  /* Rythme */
   --gouttiere: 1.9rem;
   --mesure: 64ch;
   --rayon: 18px;
@@ -269,11 +275,10 @@ h4 {
   max-width: calc(100vw - 1.4rem);
   overflow-x: auto;
   scrollbar-width: none;
-  background: var(--verre);
-  backdrop-filter: var(--flou);
-  border: 1px solid var(--trait);
+  background: var(--sombre);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: var(--pilule);
-  box-shadow: var(--ombre), var(--lueur);
+  box-shadow: var(--ombre);
 }
 .entete::-webkit-scrollbar {
   display: none;
@@ -285,17 +290,17 @@ h4 {
   letter-spacing: 0.13em;
   text-transform: uppercase;
   white-space: nowrap;
-  color: var(--parchemin);
+  color: var(--sur-sombre);
   background: none;
   padding: 0.32rem 0.75rem;
   border-radius: var(--pilule);
 }
 .marque:hover {
-  color: var(--or-clair);
-  background: var(--velin-haut);
+  color: var(--peche);
+  background: rgba(255, 255, 255, 0.08);
 }
 .marque span {
-  color: var(--or);
+  color: var(--peche);
 }
 
 .nav {
@@ -308,31 +313,31 @@ h4 {
   font-family: var(--chrome);
   font-size: 0.6875rem;
   letter-spacing: 0.02em;
-  color: var(--parchemin-doux);
+  color: rgba(243, 234, 217, 0.66);
   background: none;
-  padding: 0.36rem 0.62rem;
+  padding: 0.36rem 0.7rem;
   border-radius: var(--pilule);
   white-space: nowrap;
   transition: background 0.18s, color 0.18s;
 }
 .nav a:hover {
-  color: var(--parchemin);
-  background: var(--velin-haut);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
 }
 .nav a[aria-current='page'] {
-  color: var(--or);
-  background: rgba(223, 127, 131, 0.15);
+  color: #2c2926;
+  background: var(--peche);
 }
 
 /** La date du monde, comme une horloge : on sait toujours quand on est. */
 .date-monde {
   margin: 0 0.7rem 0 0.55rem;
   padding-left: 0.8rem;
-  border-left: 1px solid var(--trait);
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
   font-family: var(--chrome);
   font-size: 0.6875rem;
   letter-spacing: 0.08em;
-  color: var(--parchemin-faible);
+  color: rgba(243, 234, 217, 0.5);
   white-space: nowrap;
 }
 .date-monde b {
@@ -365,12 +370,14 @@ h4 {
 
 .pied {
   margin-top: 6rem;
-  padding: 2rem 0 3.5rem;
-  border-top: 1px solid var(--trait);
+  padding: 2.4rem 0 3rem;
+  background: var(--sombre);
   font-family: var(--chrome);
   font-size: 0.75rem;
   line-height: 1.7;
-  color: var(--parchemin-faible);
+  color: rgba(243, 234, 217, 0.55);
+}
+.pied__interne {
   display: flex;
   gap: 1.5rem;
   flex-wrap: wrap;
@@ -389,10 +396,11 @@ h4 {
   content: '';
   position: absolute;
   left: 0;
-  bottom: -1px;
-  width: 90px;
-  height: 1px;
-  background: var(--or);
+  bottom: -2px;
+  width: 116px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--degrade);
 }
 
 .cartouche h1 {
@@ -464,17 +472,16 @@ h4 {
 .carte {
   display: block;
   padding: 1.05rem 1.15rem;
-  background: var(--verre);
-  backdrop-filter: var(--flou);
+  background: var(--carte);
   border: 1px solid var(--trait);
   border-radius: var(--rayon);
-  box-shadow: var(--ombre-basse), var(--lueur);
-  transition: border-color 0.2s, background 0.2s, transform 0.2s;
+  box-shadow: var(--ombre-basse);
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 .carte:hover {
-  border-color: var(--trait-vif);
-  background: var(--verre-haut);
-  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--or) 45%, transparent);
+  box-shadow: var(--ombre);
+  transform: translateY(-3px);
 }
 
 .carte__titre {
@@ -667,7 +674,7 @@ h4 {
   padding: 0.52rem 1.05rem;
   border: 1px solid var(--trait-vif);
   border-radius: var(--pilule);
-  background: var(--verre-haut);
+  background: var(--carte);
   color: var(--parchemin);
   font-family: var(--chrome);
   font-size: 0.8125rem;
@@ -689,14 +696,16 @@ h4 {
 }
 /* Le geste principal, plein : la rose de la palette, texte sombre pour la lecture. */
 .bouton--plein {
-  background: var(--or);
-  border-color: var(--or);
-  color: #3a2226;
+  background: var(--degrade);
+  border-color: transparent;
+  color: #40201d;
+  font-weight: 500;
+  box-shadow: 0 10px 22px -10px rgba(248, 116, 114, 0.7);
 }
 .bouton--plein:hover {
-  background: var(--or-clair);
-  border-color: var(--or-clair);
-  color: #3a2226;
+  filter: brightness(1.04);
+  color: #40201d;
+  transform: translateY(-1px);
 }
 
 /* ----------------------------------------------------------------- marque */
