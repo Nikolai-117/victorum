@@ -101,6 +101,16 @@ export async function ecritureAutorisee(
   return memeSecret(connu, candidat) ? { ok: true } : { ok: false, raison: 'Mot de passe incorrect.' };
 }
 
+/**
+ * Efface le mot de passe stocké : après quoi le prochain saisi dans l'atelier
+ * redevient celui du site. L'appelant doit avoir déjà validé le mot de passe
+ * courant. Sans effet sur un mot de passe imposé par variable secrète.
+ */
+export async function oublierMotDePasseStocke(locals: App.Locals): Promise<void> {
+  const espace = stockage(locals);
+  if (espace) await espace.delete(CLE_MOT_DE_PASSE);
+}
+
 /** Chaque fiche a une clé stable, indépendante de la mise en page. */
 export const clePage = (section: string, slug: string) => `page:${section}/${slug}`;
 

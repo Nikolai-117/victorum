@@ -11,7 +11,7 @@
 
 import type { APIRoute } from 'astro';
 import {
-  adresseValide, ecrirePage, ecritureAutorisee, lirePage, motDePasseDefini, stockage,
+  adresseValide, ecrirePage, ecritureAutorisee, lirePage, motDePasseDefini, oublierMotDePasseStocke, stockage,
 } from '../../lib/stockage';
 
 export const prerender = false;
@@ -53,11 +53,19 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const autorisation = await ecritureAutorisee(locals, request.headers.get('x-mot-de-passe'));
   if (!autorisation.ok) return json({ erreur: autorisation.raison }, 401);
 
-  let corps: { section?: unknown; slug?: unknown; blocs?: unknown; texte?: unknown };
+  let corps: { action?: unknown; section?: unknown; slug?: unknown; blocs?: unknown; texte?: unknown };
   try {
     corps = await request.json();
   } catch {
     return json({ erreur: 'Requête illisible.' }, 400);
+  }
+
+  // Oublier le mot de passe : le contrôle du mot de passe courant vient d'avoir
+  // lieu ci-dessus, on peut donc effacer sans risque. Le prochain saisi
+  // redeviendra celui du site.
+  if (corps.action === 'oublier-mot-de-passe') {
+    await oublierMotDePasseStocke(locals);
+    return json({ ok: true, oublie: true });
   }
 
   const { section, slug } = corps;
