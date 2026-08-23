@@ -1,0 +1,237 @@
+---
+/**
+ * Une catégorie du codex, composée comme un royaume.
+ *
+ * Elle a sa propre page à blocs (même atelier que les fiches), et le bloc
+ * « Articles » y égrène ce qu'elle contient. On y crée aussi ses articles, et
+ * on y règle ce qu'elle est. Sa mise en page vit dans le stockage des pages,
+ * sous `c-<slug>`, à côté des fiches d'entités.
+ */
+import Base from '../../../layouts/Base.astro';
+import Atelier from '../../../components/Atelier.astro';
+import { lireLore, categoriesDe, articlesDe } from '../../../lib/lore';
+import { lirePage, motDePasseDefini, stockage } from '../../../lib/stockage';
+import { rendrePage, dispositionParDefaut, markdownCourt, CATALOGUE_LORE_CAT } from '../../../lib/blocs.js';
+
+export const prerender = false;
+
+const lore = await lireLore(Astro.locals);
+const categorie = categoriesDe(lore).find((c) => c.slug === Astro.params.categorie);
+if (!categorie) return Astro.rewrite('/404');
+
+const articles = articlesDe(lore, categorie.slug);
+const clePage = `c-${categorie.slug}`;
+const enregistre = await lirePage(Astro.locals, 'lore', clePage);
+
+const contexte = {
+  type: 'lore-cat',
+  slug: categorie.slug,
+  titre: categorie.nom,
+  surtitre: 'Codex',
+  couleur: '#c9a227',
+  symbole: categorie.symbole,
+  image: categorie.image ?? null,
+  intro: categorie.intro ?? '',
+  blason: null,
+  url: `/lore/${categorie.slug}`,
+  cheminTexte: '',
+  corpsHtml: enregistre?.texte ? markdownCourt(enregistre.texte) : null,
+  position: null,
+  faits: [],
+  chiffres: [],
+  groupes: {
+    articles: {
+      titre: 'Articles',
+      items: articles.map((a) => ({
+        nom: a.titre,
+        href: `/lore/${categorie.slug}/${a.slug}`,
+        meta: a.resume || '',
+        couleur: a.couleur,
+      })),
+    },
+  },
+};
+
+const enregistres = enregistre?.blocs as unknown[] | undefined;
+const blocs = enregistres?.length ? enregistres : dispositionParDefaut('lore-cat', contexte);
+const html = rendrePage(blocs, contexte);
+
+const stockageActif = Boolean(stockage(Astro.locals));
+const mdpDefini = await motDePasseDefini(Astro.locals);
+---
+
+<Base titre={categorie.nom} description={`${categorie.nom} — codex de Victorum.`}>
+  <div class="contenant">
+    <div class="lore-outils">
+      <a class="bouton" href="/lore">‹ Codex</a>
+      <button class="bouton bouton--or" id="nouvel-article" type="button">+ Article</button>
+      <button class="bouton" id="ouvrir-props" type="button">Propriétés</button>
+    </div>
+
+    <Atelier
+      contexte={contexte}
+      blocs={blocs}
+      section="lore"
+      slug={clePage}
+      texte={enregistre?.texte ?? ''}
+      stockageActif={stockageActif}
+      motDePasseDefini={mdpDefini}
+      catalogue={CATALOGUE_LORE_CAT}
+    />
+    <div id="fiche" set:html={html} />
+  </div>
+
+  <!-- Propriétés de la catégorie : son sceau, et pour les tiennes, son nom. -->
+  <div class="modale" id="modale-props" hidden>
+    <div class="modale__voile" data-fermer></div>
+    <div class="modale__boite modale__boite--etroite" role="dialog" aria-label="Propriétés de la catégorie">
+      <header class="modale__tete">
+        <h2>Propriétés</h2>
+        <button class="fermer" type="button" data-fermer aria-label="Fermer">×</button>
+      </header>
+      <div class="modale__corps">
+        <label class="champ"><span>Nom</span>
+          <input id="pc-nom" type="text" maxlength="60" value={categorie.nom} disabled={categorie.fixe} />
+        </label>
+        <label class="champ"><span>Symbole</span>
+          <input id="pc-symbole" type="text" maxlength="4" value={categorie.symbole} />
+        </label>
+        <label class="champ"><span>Image de couverture</span>
+          <input id="pc-image" type="text" maxlength="500" value={categorie.image ?? ''} placeholder="/illustrations/bestiaire.jpg ou https://…" />
+        </label>
+        <label class="champ"><span>Présentation</span>
+          <textarea id="pc-intro" rows="3" maxlength="400" placeholder="Une phrase sur ce que la catégorie rassemble.">{categorie.intro ?? ''}</textarea>
+        </label>
+        {categorie.fixe && <p class="modale__note">Catégorie intégrée : son nom est fixe, mais son sceau, son image et sa présentation t'appartiennent.</p>}
+        <p class="modale__etat" id="pc-etat"></p>
+      </div>
+      <footer class="modale__pied modale__pied--simple">
+        {!categorie.fixe && <button class="bouton" id="pc-supprimer" type="button">Supprimer</button>}
+        <button class="bouton bouton--plein" id="pc-enregistrer" type="button">Enregistrer</button>
+      </footer>
+    </div>
+  </div>
+
+  <script
+    type="application/json"
+    id="donnees-cat"
+    set:html={JSON.stringify({
+      slug: categorie.slug,
+      fixe: Boolean(categorie.fixe),
+      stockageActif,
+      motDePasseDefini: mdpDefini,
+    })}
+  />
+</Base>
+
+<style is:global>
+  .modale__tete .fermer {
+    position: static;
+    margin-left: auto;
+  }
+  .lore-outils {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .modale__note {
+    margin: 0;
+    font-family: var(--chrome);
+    font-size: 0.6875rem;
+    color: var(--parchemin-faible);
+  }
+  .modale__corps textarea {
+    padding: 0.5rem 0.7rem;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-s);
+    color: var(--parchemin);
+    font-family: var(--texte-police);
+    font-size: 1.0625rem;
+    resize: vertical;
+  }
+</style>
+
+<script>
+  const donnees = JSON.parse(document.getElementById('donnees-cat').textContent);
+  const CLE_MDP = 'victorum:mot-de-passe';
+  const $ = (id) => document.getElementById(id);
+
+  function motDePasse() {
+    let mdp = sessionStorage.getItem(CLE_MDP);
+    if (!mdp) {
+      mdp = prompt(
+        donnees.motDePasseDefini
+          ? "Mot de passe de l'atelier :"
+          : "Choisis le mot de passe de ton atelier. Il te sera demandé pour toute modification, et personne d'autre ne pourra écrire sur ton site."
+      );
+      if (mdp) sessionStorage.setItem(CLE_MDP, mdp);
+    }
+    return mdp;
+  }
+
+  async function envoyer(corps) {
+    if (!donnees.stockageActif) {
+      alert("Le stockage n'est pas relié : impossible d'enregistrer.");
+      return null;
+    }
+    const mdp = motDePasse();
+    if (!mdp) return null;
+    const r = await fetch('/api/lore', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-mot-de-passe': mdp },
+      body: JSON.stringify(corps),
+    });
+    const res = await r.json().catch(() => ({}));
+    if (r.status === 401) {
+      sessionStorage.removeItem(CLE_MDP);
+      alert(res.erreur || 'Mot de passe refusé.');
+      return null;
+    }
+    if (!r.ok) {
+      alert(res.erreur || 'Échec.');
+      return null;
+    }
+    return res.lore;
+  }
+
+  // Créer un article dans cette catégorie, puis l'ouvrir pour le composer.
+  $('nouvel-article').addEventListener('click', async () => {
+    const titre = prompt('Titre du nouvel article :');
+    if (!titre || !titre.trim()) return;
+    const lore = await envoyer({ action: 'article', categorie: donnees.slug, titre: titre.trim() });
+    if (!lore) return;
+    const cree = [...lore.articles].reverse().find((a) => a.titre === titre.trim() && a.categorie === donnees.slug);
+    location.href = cree ? `/lore/${donnees.slug}/${cree.slug}` : location.href;
+  });
+
+  // Propriétés (catégories ajoutées seulement).
+  const modale = $('modale-props');
+  $('ouvrir-props').addEventListener('click', () => (modale.hidden = false));
+  for (const b of modale.querySelectorAll('[data-fermer]')) {
+    b.addEventListener('click', () => (modale.hidden = true));
+  }
+
+  $('pc-enregistrer').addEventListener('click', async () => {
+    $('pc-etat').textContent = 'Enregistrement…';
+    const lore = await envoyer({
+      action: 'categorie',
+      slug: donnees.slug,
+      nom: $('pc-nom').value,
+      symbole: $('pc-symbole').value,
+      image: $('pc-image').value,
+      intro: $('pc-intro').value,
+    });
+    if (lore) location.reload();
+    else $('pc-etat').textContent = '';
+  });
+  const suppr = document.getElementById('pc-supprimer');
+  if (suppr) {
+    suppr.addEventListener('click', async () => {
+      if (!confirm('Supprimer cette catégorie et ses articles ?')) return;
+      const lore = await envoyer({ action: 'supprimer-categorie', slug: donnees.slug });
+      if (lore) location.href = '/lore';
+    });
+  }
+</script>

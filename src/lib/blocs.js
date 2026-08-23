@@ -168,6 +168,18 @@ export const CATALOGUE_LORE = CATALOGUE
   .map((famille) => ({ ...famille, blocs: famille.blocs.filter((b) => TYPES_LORE.has(b.type)) }))
   .filter((famille) => famille.blocs.length);
 
+/** Comme le codex, plus le bloc qui égrène les articles de la catégorie. */
+const TYPES_LORE_CAT = new Set([...TYPES_LORE, 'liens']);
+
+export const CATALOGUE_LORE_CAT = CATALOGUE
+  .map((famille) => ({
+    ...famille,
+    blocs: famille.blocs
+      .filter((b) => TYPES_LORE_CAT.has(b.type))
+      .map((b) => (b.type === 'liens' ? { ...b, nom: 'Articles', apercu: 'Les articles de cette catégorie' } : b)),
+  }))
+  .filter((famille) => famille.blocs.length);
+
 export const BLOCS_CONNUS = new Map(
   CATALOGUE.flatMap((f) => f.blocs.map((b) => [b.type, { ...b, famille: f.famille }]))
 );
@@ -526,6 +538,17 @@ export function dispositionParDefaut(type, contexte) {
     ];
   }
 
+  if (type === 'lore-cat') {
+    const suite = [{ type: 'bandeau', largeur: 'pleine', options: contexte.intro ? { accroche: contexte.intro } : {} }];
+    if (contexte.image) suite.push({ type: 'image', largeur: 'pleine', options: { src: contexte.image } });
+    suite.push(
+      { type: 'texte', largeur: 'pleine', options: {} },
+      { type: 'titre', largeur: 'pleine', options: { texte: 'Articles' } },
+      { type: 'liens', largeur: 'pleine', options: { groupe: 'articles' } }
+    );
+    return suite;
+  }
+
   const groupes = Object.keys(contexte.groupes || {});
   const blocs = [{ type: 'bandeau', largeur: 'pleine', options: {} }];
 
@@ -567,6 +590,37 @@ export function dispositionParDefaut(type, contexte) {
 
 /** Les modèles proposés par le bouton « Modèles ». */
 export function modeles(contexte) {
+  if (contexte.type === 'lore-cat') {
+    return [
+      {
+        id: 'defaut',
+        nom: 'Catégorie',
+        description: 'Un bandeau, une présentation, la liste des articles.',
+        blocs: () => dispositionParDefaut('lore-cat', contexte),
+      },
+      {
+        id: 'sobre',
+        nom: 'Sobre',
+        description: 'Juste le titre et les articles.',
+        blocs: () => [
+          { type: 'bandeau', largeur: 'pleine', options: {} },
+          { type: 'liens', largeur: 'pleine', options: { groupe: 'articles' } },
+        ],
+      },
+      {
+        id: 'illustre',
+        nom: 'Illustré',
+        description: 'Une image, un mot, puis les articles.',
+        blocs: () => [
+          { type: 'bandeau', largeur: 'pleine', options: {} },
+          { type: 'image', largeur: 'pleine', options: {} },
+          { type: 'chapeau', largeur: 'pleine', options: { texte: 'Une phrase d’ouverture.' } },
+          { type: 'liens', largeur: 'pleine', options: { groupe: 'articles' } },
+        ],
+      },
+    ];
+  }
+
   if (contexte.type === 'lore') {
     return [
       {

@@ -19,6 +19,8 @@ export interface Categorie {
   symbole: string;
   /** Une phrase, écrite par Romain, sur ce que la catégorie rassemble. */
   intro?: string;
+  /** L'image de couverture, montrée sur la porte du codex. URL ou /illustrations/…. */
+  image?: string;
   /** Les catégories intégrées ne se suppriment pas ; les siennes, si. */
   fixe?: boolean;
   ordre: number;
@@ -92,6 +94,8 @@ export function categoriesDe(lore: Lore): Categorie[] {
     if (fixe) {
       // On ne garde de la version stockée que ce qui enrichit l'intégrée.
       if (c.intro) fixe.intro = c.intro;
+      if (c.image) fixe.image = c.image;
+      if (c.symbole) fixe.symbole = c.symbole;
     } else {
       parSlug.set(c.slug, { ...c, fixe: false, ordre: c.ordre ?? rang++ });
     }
@@ -137,6 +141,12 @@ function symboleValide(brut: unknown, secours: string): string {
 
 const couleurValide = (brut: unknown, secours: string) =>
   /^#[0-9a-f]{6}$/i.test(String(brut)) ? String(brut) : secours;
+
+/** Une image est une URL http(s) ou un chemin du site ; tout le reste est écarté. */
+function imageValide(brut: unknown): string {
+  const v = texte(brut, 500);
+  return /^(https?:\/\/|\/)[^\s"'<>]+$/i.test(v) ? v : '';
+}
 
 const identifiant = () => crypto.randomUUID().slice(0, 8);
 
@@ -200,17 +210,27 @@ export async function enregistrerCategorie(
 ): Promise<Lore> {
   const lore = await lireLore(locals);
   const nom = texte(brut.nom, 60);
-  if (!nom) throw new Error('Une catégorie a besoin d’un nom.');
-
   const slugDemande = typeof brut.slug === 'string' ? brut.slug : '';
   const fixe = CATEGORIES_FIXES.find((c) => c.slug === slugDemande);
+  // Une intégrée garde son nom ; seule une catégorie ajoutée en réclame un.
+  if (!fixe && !nom) throw new Error('Une catégorie a besoin d’un nom.');
 
   if (fixe) {
+    // Une intégrée ne change pas de nom, mais peut recevoir une intro, une
+    // image de couverture, un autre sceau. On ne stocke que ces surcharges,
+    // et rien du tout si elles sont vides — pas d'entrée fantôme.
+    // On ne stocke QUE les surcharges — jamais le nom, le sceau ou l'ordre par
+    // défaut : sans quoi l'entrée existerait toujours, même vide de sens.
+    const enrich: Partial<Categorie> & { slug: string } = { slug: fixe.slug };
     const intro = texte(brut.intro, 400);
+    const image = imageValide(brut.image);
+    const sym = symboleValide(brut.symbole, fixe.symbole);
+    if (intro) enrich.intro = intro;
+    if (image) enrich.image = image;
+    if (sym !== fixe.symbole) enrich.symbole = sym;
     const autres = lore.categories.filter((c) => c.slug !== fixe.slug);
-    // Une intro vide ne laisse pas d'entrée fantôme : l'intégrée reprend sa
-    // forme nue plutôt que de garder une ligne sans effet.
-    lore.categories = intro ? [...autres, { ...fixe, intro }] : autres;
+    const aQuelqueChose = enrich.intro || enrich.image || enrich.symbole;
+    lore.categories = aQuelqueChose ? [...autres, enrich as Categorie] : autres;
     return ecrire(locals, lore);
   }
 
@@ -220,6 +240,7 @@ export async function enregistrerCategorie(
     nom,
     symbole: symboleValide(brut.symbole, existant?.symbole ?? '❖'),
     intro: texte(brut.intro, 400),
+    image: imageValide(brut.image),
     fixe: false,
     ordre: existant?.ordre ?? CATEGORIES_FIXES.length + lore.categories.length,
   };

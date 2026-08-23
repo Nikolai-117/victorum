@@ -257,6 +257,16 @@ la carte ne dit pas. `src/lib/lore.ts`, `/api/lore`, `/lore` et `/lore/[slug]`.
   `/lore/[slug]`. Rien n'est pré-rempli : le codex vierge le dit et s'arrête là.
 - L'atelier écrit par `/api/lore`, sous le même mot de passe que le reste, et
   recharge après enregistrement — la vue publique est rendue par le serveur.
+- **Le codex a la structure des royaumes** : `/lore` est un index de portes
+  (une par catégorie, avec image de couverture), chaque catégorie
+  `/lore/[categorie]` est une page composable qui liste ses articles, chaque
+  article `/lore/[categorie]/[slug]` en est une aussi. Les catégories
+  intégrées ne se renomment pas, mais reçoivent sceau, couverture et
+  présentation ; les catégories ajoutées se règlent entièrement. Le bloc
+  « Articles » (`liens` alimenté par le groupe `articles`) égrène le contenu ;
+  `CATALOGUE_LORE_CAT` l'ajoute au catalogue réduit. La couverture entre dans
+  la disposition par défaut, l'intro devient l'accroche du bandeau. Les mises
+  en page vivent sous `c-<slug>` (catégories) et sous l'identifiant (articles).
 - **Un article se compose comme une fiche**, avec le même atelier de blocs
   (`Atelier.astro`, moteur `blocs.js`) : sa page `/lore/[slug]` rend une
   disposition et l'édite en place. La métadonnée (titre, catégorie, sceau,

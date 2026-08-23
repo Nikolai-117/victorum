@@ -702,6 +702,111 @@ h4 {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teinte, var(--or)) 45%, transparent);
 }
 
+/* ------------------------------------------------------------ formulaires */
+
+/** Champ étiqueté, réutilisé partout où l'on saisit. */
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.champ > span {
+  font-family: var(--chrome);
+  font-size: 0.5625rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--parchemin-faible);
+}
+.champ input,
+.select {
+  padding: 0.5rem 0.7rem;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-s);
+  color: var(--parchemin);
+  font-family: var(--texte-police);
+  font-size: 1.0625rem;
+}
+.champ input:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--or-sourd);
+}
+
+/* ------------------------------------------------------------------ modale */
+
+.modale {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+.modale[hidden] {
+  display: none;
+}
+.modale__voile {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 6, 5, 0.72);
+  backdrop-filter: blur(3px);
+}
+.modale__boite {
+  position: relative;
+  width: min(920px, 100%);
+  max-height: min(86svh, 900px);
+  display: flex;
+  flex-direction: column;
+  background: var(--verre);
+  backdrop-filter: var(--flou);
+  border: 1px solid var(--trait-vif);
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre);
+  overflow: hidden;
+}
+.modale__tete {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.1rem 1.4rem 0.9rem;
+}
+.modale__tete h2 {
+  font-size: 1.5rem;
+}
+.modale__pied {
+  display: flex;
+  gap: 0.6rem;
+  padding: 1.1rem 1.4rem 1.3rem;
+  border-top: 1px solid var(--trait);
+  flex-wrap: wrap;
+}
+.modale__etat {
+  margin: 0;
+  font-family: var(--chrome);
+  font-size: 0.6875rem;
+  color: var(--parchemin-faible);
+  min-height: 1em;
+}
+
+/* Croix de fermeture, quand aucune plaque locale n'en définit déjà une. */
+.fermer {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  background: none;
+  color: var(--parchemin-faible);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.fermer:hover {
+  color: var(--or-clair);
+}
+
 /* -------------------------------------------------------------------- jetons */
 
 .jeton {

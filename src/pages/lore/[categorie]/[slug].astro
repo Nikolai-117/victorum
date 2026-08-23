@@ -1,0 +1,248 @@
+---
+/**
+ * Un article du codex, composé comme une ville : sa page à blocs, son atelier.
+ *
+ * La métadonnée (titre, catégorie, sceau, couleur, accroche) vit dans le lore ;
+ * la mise en page et le texte vivent dans le stockage des pages, sous
+ * l'identifiant de l'article — un renommage ne perd donc rien.
+ */
+import Base from '../../../layouts/Base.astro';
+import Atelier from '../../../components/Atelier.astro';
+import { lireLore, articleParSlug, categoriesDe, articlesDe } from '../../../lib/lore';
+import { lirePage, motDePasseDefini, stockage } from '../../../lib/stockage';
+import { rendrePage, dispositionParDefaut, markdownCourt, CATALOGUE_LORE } from '../../../lib/blocs.js';
+
+export const prerender = false;
+
+const lore = await lireLore(Astro.locals);
+const article = articleParSlug(lore, Astro.params.slug ?? '');
+if (!article) return Astro.rewrite('/404');
+
+// URL canonique : un article se lit sous sa catégorie.
+if (Astro.params.categorie !== article.categorie) {
+  return Astro.redirect(`/lore/${article.categorie}/${article.slug}`, 301);
+}
+
+const toutes = categoriesDe(lore);
+const categorie = toutes.find((c) => c.slug === article.categorie);
+const voisins = articlesDe(lore, article.categorie).filter((a) => a.id !== article.id);
+
+const enregistre = await lirePage(Astro.locals, 'lore', article.id);
+
+const contexte = {
+  type: 'lore',
+  slug: article.slug,
+  titre: article.titre,
+  surtitre: categorie ? `${categorie.symbole} ${categorie.nom}` : 'Codex',
+  couleur: article.couleur,
+  symbole: article.symbole,
+  blason: null,
+  url: `/lore/${article.categorie}/${article.slug}`,
+  cheminTexte: '',
+  corpsHtml: enregistre?.texte ? markdownCourt(enregistre.texte) : null,
+  position: null,
+  faits: [],
+  chiffres: [],
+  groupes: {},
+};
+
+const enregistres = enregistre?.blocs as unknown[] | undefined;
+const blocs = enregistres?.length ? enregistres : dispositionParDefaut('lore', contexte);
+const html = rendrePage(blocs, contexte);
+
+const stockageActif = Boolean(stockage(Astro.locals));
+const mdpDefini = await motDePasseDefini(Astro.locals);
+---
+
+<Base titre={article.titre} description={article.resume || `${article.titre} — codex de Victorum.`}>
+  <div class="contenant">
+    <div class="lore-outils">
+      <a class="bouton" href={`/lore/${article.categorie}`}>‹ {categorie?.nom ?? 'Codex'}</a>
+      <button class="bouton" id="ouvrir-props" type="button">Propriétés</button>
+    </div>
+
+    <Atelier
+      contexte={contexte}
+      blocs={blocs}
+      section="lore"
+      slug={article.id}
+      texte={enregistre?.texte ?? ''}
+      stockageActif={stockageActif}
+      motDePasseDefini={mdpDefini}
+      catalogue={CATALOGUE_LORE}
+    />
+    <div id="fiche" set:html={html} />
+
+    {
+      voisins.length > 0 && (
+        <section class="lore-suite">
+          <h2 class="etiquette etiquette--filet">Dans {categorie?.nom ?? 'la même catégorie'}</h2>
+          <div class="grille grille--lore">
+            {voisins.map((v) => (
+              <a class="carte carte--lore" href={`/lore/${article.categorie}/${v.slug}`}>
+                <span class="carte__titre">
+                  <i class="lore-marque" style={`--teinte:${v.couleur}`}>{v.symbole}</i>
+                  {v.titre}
+                </span>
+                {v.resume && <span class="carte__meta">{v.resume}</span>}
+              </a>
+            ))}
+          </div>
+        </section>
+      )
+    }
+  </div>
+
+  <!-- Propriétés de l'article : ce qui le nomme et le range. -->
+  <div class="modale" id="modale-props" hidden>
+    <div class="modale__voile" data-fermer></div>
+    <div class="modale__boite modale__boite--etroite" role="dialog" aria-label="Propriétés de l'article">
+      <header class="modale__tete">
+        <h2>Propriétés</h2>
+        <button class="fermer" type="button" data-fermer aria-label="Fermer">×</button>
+      </header>
+      <div class="modale__corps">
+        <label class="champ"><span>Titre</span>
+          <input id="pa-titre" type="text" maxlength="120" value={article.titre} />
+        </label>
+        <label class="champ"><span>Catégorie</span>
+          <select id="pa-categorie" class="select">
+            {toutes.map((c) => (
+              <option value={c.slug} selected={c.slug === article.categorie}>
+                {c.symbole} {c.nom}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div class="duo">
+          <label class="champ"><span>Symbole</span>
+            <input id="pa-symbole" type="text" maxlength="4" value={article.symbole} />
+          </label>
+          <label class="champ"><span>Couleur</span>
+            <input id="pa-couleur" type="color" value={article.couleur} />
+          </label>
+        </div>
+        <label class="champ"><span>Accroche</span>
+          <input id="pa-resume" type="text" maxlength="200" value={article.resume} placeholder="Une ligne, en vignette" />
+        </label>
+        <p class="modale__etat" id="pa-etat"></p>
+      </div>
+      <footer class="modale__pied modale__pied--simple">
+        <button class="bouton" id="pa-supprimer" type="button">Supprimer</button>
+        <button class="bouton bouton--plein" id="pa-enregistrer" type="button">Enregistrer</button>
+      </footer>
+    </div>
+  </div>
+
+  <script
+    type="application/json"
+    id="donnees-art"
+    set:html={JSON.stringify({ id: article.id, categorie: article.categorie, stockageActif, motDePasseDefini: mdpDefini })}
+  />
+</Base>
+
+<style is:global>
+  .modale__tete .fermer {
+    position: static;
+    margin-left: auto;
+  }
+  .lore-outils {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .lore-suite {
+    margin-top: 3.5rem;
+  }
+  .lore-suite .grille {
+    margin-top: 1.2rem;
+  }
+  .duo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.7rem;
+  }
+  .modale__corps input[type='color'] {
+    height: 38px;
+    padding: 2px;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-s);
+    cursor: pointer;
+    width: 100%;
+  }
+</style>
+
+<script>
+  const donnees = JSON.parse(document.getElementById('donnees-art').textContent);
+  const CLE_MDP = 'victorum:mot-de-passe';
+  const $ = (id) => document.getElementById(id);
+  const modale = $('modale-props');
+
+  $('ouvrir-props').addEventListener('click', () => (modale.hidden = false));
+  for (const b of modale.querySelectorAll('[data-fermer]')) {
+    b.addEventListener('click', () => (modale.hidden = true));
+  }
+
+  function motDePasse() {
+    let mdp = sessionStorage.getItem(CLE_MDP);
+    if (!mdp) {
+      mdp = prompt(
+        donnees.motDePasseDefini
+          ? "Mot de passe de l'atelier :"
+          : "Choisis le mot de passe de ton atelier. Il te sera demandé pour toute modification, et personne d'autre ne pourra écrire sur ton site."
+      );
+      if (mdp) sessionStorage.setItem(CLE_MDP, mdp);
+    }
+    return mdp;
+  }
+
+  async function envoyer(corps) {
+    if (!donnees.stockageActif) {
+      $('pa-etat').textContent = "Stockage non relié : impossible d'enregistrer.";
+      return null;
+    }
+    const mdp = motDePasse();
+    if (!mdp) return null;
+    const r = await fetch('/api/lore', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-mot-de-passe': mdp },
+      body: JSON.stringify(corps),
+    });
+    const res = await r.json().catch(() => ({}));
+    if (r.status === 401) {
+      sessionStorage.removeItem(CLE_MDP);
+      $('pa-etat').textContent = res.erreur || 'Mot de passe refusé.';
+      return null;
+    }
+    if (!r.ok) {
+      $('pa-etat').textContent = res.erreur || 'Échec.';
+      return null;
+    }
+    return res.lore;
+  }
+
+  $('pa-enregistrer').addEventListener('click', async () => {
+    $('pa-etat').textContent = 'Enregistrement…';
+    const lore = await envoyer({
+      action: 'article',
+      id: donnees.id,
+      titre: $('pa-titre').value,
+      categorie: $('pa-categorie').value,
+      symbole: $('pa-symbole').value,
+      couleur: $('pa-couleur').value,
+      resume: $('pa-resume').value,
+    });
+    if (!lore) return;
+    // Le slug ou la catégorie ont pu changer : on rejoint l'URL canonique.
+    const maj = lore.articles.find((a) => a.id === donnees.id);
+    location.href = maj ? `/lore/${maj.categorie}/${maj.slug}` : '/lore';
+  });
+
+  $('pa-supprimer').addEventListener('click', async () => {
+    if (!confirm('Supprimer cet article ?')) return;
+    const lore = await envoyer({ action: 'supprimer-article', id: donnees.id });
+    if (lore) location.href = `/lore/${donnees.categorie}`;
+  });
+</script>
