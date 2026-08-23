@@ -10,7 +10,7 @@
 import Base from '../../layouts/Base.astro';
 import { lireLore, categoriesDe, articlesDe } from '../../lib/lore';
 import { motDePasseDefini, stockage } from '../../lib/stockage';
-import { nombre } from '../../lib/monde';
+import { nombre, burgs } from '../../lib/monde';
 
 export const prerender = false;
 
@@ -40,6 +40,15 @@ const donnees = {
     </div>
 
     <div class="grille grille--lore">
+      <a class="carte carte--porte carte--villes" href="/villes">
+        <span class="porte__cadre">
+          <span class="porte__vide"><i class="lore-marque lore-marque--grande">🏛️</i></span>
+        </span>
+        <span class="porte__pied">
+          <span class="carte__titre">🏛️ Villes</span>
+          <span class="carte__meta">{nombre(burgs.length)} localités du monde</span>
+        </span>
+      </a>
       {
         categories.map((cat) => {
           const n = articlesDe(lore, cat.slug).length;
@@ -164,7 +173,7 @@ const donnees = {
   }
   .modale__corps input[type='text'] {
     padding: 0.5rem 0.7rem;
-    background: rgba(0, 0, 0, 0.28);
+    background: var(--saisie);
     border: 1px solid var(--trait);
     border-radius: var(--rayon-s);
     color: var(--parchemin);

@@ -166,7 +166,7 @@ import { monde } from '../lib/monde';
     position: relative;
     height: 100svh;
     overflow: hidden;
-    background: #0a0c0f;
+    background: var(--encre);
   }
 
   /* Vignettage : concentre l'œil au centre sans toucher au SVG. */
@@ -175,7 +175,7 @@ import { monde } from '../lib/monde';
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: radial-gradient(ellipse at center, transparent 52%, rgba(0, 0, 0, 0.6) 100%);
+    background: radial-gradient(ellipse at center, transparent 58%, rgba(90, 60, 50, 0.16) 100%);
   }
 
   #carte {
@@ -302,7 +302,7 @@ import { monde } from '../lib/monde';
   #recherche {
     width: 100%;
     padding: 0.5rem 0.75rem;
-    background: rgba(0, 0, 0, 0.28);
+    background: var(--saisie);
     border: 1px solid var(--trait);
     border-radius: var(--pilule);
     color: var(--parchemin);
@@ -315,7 +315,7 @@ import { monde } from '../lib/monde';
   #recherche:focus {
     outline: none;
     border-color: var(--or-sourd);
-    background: rgba(0, 0, 0, 0.4);
+    background: var(--saisie);
   }
 
   .aide {
@@ -330,7 +330,7 @@ import { monde } from '../lib/monde';
     font-size: 0.6875rem;
     border: 1px solid var(--trait);
     border-radius: var(--rayon-xs);
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--saisie);
     padding: 0.1em 0.35em;
   }
 
@@ -390,7 +390,7 @@ import { monde } from '../lib/monde';
   }
   .controle:hover {
     color: var(--parchemin);
-    background: rgba(236, 226, 206, 0.05);
+    background: rgba(70, 62, 58, 0.05);
   }
   .controle input {
     accent-color: var(--or);
@@ -406,7 +406,7 @@ import { monde } from '../lib/monde';
   .select {
     width: 100%;
     padding: 0.42rem 0.6rem;
-    background: rgba(0, 0, 0, 0.28);
+    background: var(--saisie);
     color: var(--parchemin);
     border: 1px solid var(--trait);
     border-radius: var(--rayon-s);
@@ -446,7 +446,7 @@ import { monde } from '../lib/monde';
        Éclaircie pour l'affichage : le pourpre d'un royaume, posé tel quel sur
        ce noir, ne se verrait pas. */
     --teinte: var(--or);
-    --teinte-vive: color-mix(in srgb, var(--teinte) 60%, #f0e6d2);
+    --teinte-vive: color-mix(in srgb, var(--teinte) 60%, #3d322e);
     animation: panneau-entree 0.22s ease-out;
   }
   .panneau[hidden] {
@@ -632,7 +632,7 @@ import { monde } from '../lib/monde';
     border-radius: 50%;
     font-size: 0.75rem;
     line-height: 1;
-    color: color-mix(in srgb, var(--teinte-courant) 65%, #f0e6d2);
+    color: color-mix(in srgb, var(--teinte-courant) 65%, #3d322e);
     background: color-mix(in srgb, var(--teinte-courant) 18%, transparent);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teinte-courant) 45%, transparent);
   }
@@ -667,7 +667,7 @@ import { monde } from '../lib/monde';
     font-size: 0.625rem;
     letter-spacing: 0.06em;
     color: var(--parchemin-doux);
-    background: rgba(236, 226, 206, 0.05);
+    background: rgba(70, 62, 58, 0.05);
     border: 1px solid var(--trait);
     border-radius: var(--pilule);
     padding: 0.16rem 0.6rem;
@@ -775,7 +775,7 @@ import { monde } from '../lib/monde';
   }
   .panneau__barre-fond {
     height: 3px;
-    background: rgba(236, 226, 206, 0.09);
+    background: rgba(70, 62, 58, 0.09);
     border-radius: var(--pilule);
     overflow: hidden;
   }
@@ -1066,7 +1066,7 @@ import { monde } from '../lib/monde';
   }
   .champ input {
     padding: 0.5rem 0.7rem;
-    background: rgba(0, 0, 0, 0.28);
+    background: var(--saisie);
     border: 1px solid var(--trait);
     border-radius: var(--rayon-s);
     color: var(--parchemin);
@@ -1087,7 +1087,7 @@ import { monde } from '../lib/monde';
     padding: 4px;
     border: 1px solid var(--trait);
     border-radius: var(--rayon-s);
-    background: rgba(0, 0, 0, 0.28);
+    background: var(--saisie);
   }
   .palette button {
     aspect-ratio: 1;

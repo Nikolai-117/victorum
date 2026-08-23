@@ -55,6 +55,18 @@ Levànzia »).
 
 ## Le parti visuel
 
+> **Thème clair « Peach Fuzz » (demandé le 23/08/2026).** Le site est passé du
+> sombre médiéval au clair pastel : fonds crème (`--encre`), texte gris chaud
+> `#464646`, accents rose `#df7f83` (l'ancien `--or`) et corail `#f87472`
+> (`--sang`), pêche `#febe98` en secondaire. Le verre est désormais givré
+> *blanc* sur la brume claire ; les voiles de survol et les mixages d'accent,
+> qui éclaircissaient pour le sombre, assombrissent pour le clair (`#3d322e`).
+> Un token `--saisie` porte le fond laiteux des champs. Tout passe par les
+> tokens : rebasculer en sombre ne toucherait que `:root` et l'`.atmosphere`.
+> **« Villes » a quitté le header** (Atlas · Royaumes · Lieux · Codex ·
+> Chronologie) et devient une porte du Codex, en tête de l'index.
+
+
 Refait d'après des références que Romain a montrées : son reproche était que
 l'interface avait l'air *générée* — bordures franches, mires d'angle, capitales
 espacées partout, panneaux collés aux bords. Ce qui donne une âme, dans ces

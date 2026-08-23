@@ -221,7 +221,7 @@
   border-radius: var(--pilule);
   border: 1px solid color-mix(in srgb, var(--teinte) 45%, transparent);
   background: color-mix(in srgb, var(--teinte) 14%, transparent);
-  color: color-mix(in srgb, var(--teinte) 55%, #f0e6d2);
+  color: color-mix(in srgb, var(--teinte) 55%, #3d322e);
   font-family: var(--chrome);
   font-size: 0.75rem;
 }
@@ -303,7 +303,7 @@
   border-radius: 50%;
   font-size: 0.8125rem;
   line-height: 1;
-  color: color-mix(in srgb, var(--teinte) 65%, #f0e6d2);
+  color: color-mix(in srgb, var(--teinte) 65%, #3d322e);
   background: color-mix(in srgb, var(--teinte) 18%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teinte) 45%, transparent);
 }
@@ -318,7 +318,7 @@
   grid-column: 2;
   height: 3px;
   border-radius: var(--pilule);
-  background: rgba(236, 226, 206, 0.09);
+  background: rgba(70, 62, 58, 0.09);
   overflow: hidden;
 }
 .courant__barre i {

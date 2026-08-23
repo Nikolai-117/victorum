@@ -218,7 +218,7 @@ const regimeConnu = nation.regime && TOUS_REGIMES.includes(nation.regime);
     border-radius: var(--rayon-s);
   }
   .axe-ligne:nth-child(odd) {
-    background: rgba(236, 226, 206, 0.03);
+    background: rgba(70, 62, 58, 0.03);
   }
   .axe-ligne__pole {
     font-size: 1.0625rem;
@@ -251,7 +251,7 @@ const regimeConnu = nation.regime && TOUS_REGIMES.includes(nation.regime);
     height: 30px;
     border: 1px solid var(--trait);
     border-radius: var(--rayon-xs);
-    background: rgba(0, 0, 0, 0.25);
+    background: var(--saisie);
     color: var(--parchemin-faible);
     font-family: var(--chrome);
     font-size: 0.75rem;
@@ -265,7 +265,7 @@ const regimeConnu = nation.regime && TOUS_REGIMES.includes(nation.regime);
   .crans button[aria-pressed='true'] {
     border-color: var(--teinte, var(--or));
     background: color-mix(in srgb, var(--teinte, var(--or)) 22%, transparent);
-    color: color-mix(in srgb, var(--teinte, var(--or)) 55%, #f0e6d2);
+    color: color-mix(in srgb, var(--teinte, var(--or)) 55%, #3d322e);
   }
 
   .modale__cour {
@@ -313,7 +313,7 @@ const regimeConnu = nation.regime && TOUS_REGIMES.includes(nation.regime);
   }
   .modale__reglages input[type='text'] {
     padding: 0.5rem 0.7rem;
-    background: rgba(0, 0, 0, 0.28);
+    background: var(--saisie);
     border: 1px solid var(--trait);
     border-radius: var(--rayon-s);
     color: var(--parchemin);
@@ -347,7 +347,7 @@ const regimeConnu = nation.regime && TOUS_REGIMES.includes(nation.regime);
   }
   .champ-libre input {
     padding: 0.45rem 0.65rem;
-    background: rgba(0, 0, 0, 0.28);
+    background: var(--saisie);
     border: 1px solid var(--trait);
     border-radius: var(--rayon-s);
     color: var(--parchemin);
