@@ -297,6 +297,25 @@ la carte ne dit pas. `src/lib/lore.ts`, `/api/lore`, `/lore` et `/lore/[slug]`.
   mais son atelier n'est plus exposé : sans axe créable, les modes de carte par
   courant ne s'affichent tout simplement pas.
 
+## Les chroniques : le temps du monde
+
+Demandé « un truc pro, qu'on met en page nous-mêmes » en remplacement de la
+chronologie auto-générée. `src/lib/chroniques.ts`, `/api/chroniques`,
+`/chronologie`, `/chronologie/[chronique]`, `/chronologie/[chronique]/[evt]`.
+
+- **Une chronique** est une frise : celle du monde (intégrée, non supprimable),
+  ou une liée à un royaume (`portee: etat:<id>`), ou une libre. Structure
+  calquée sur le codex — index de portes, page composable, sous-pages.
+- **Un événement** se pose à une date (`an`, `anFin` facultatif), avec un type
+  libre, une couleur, une image et une accroche ; sa page se compose au même
+  atelier (`CATALOGUE_LORE`), son corps vit sous son identifiant en section
+  `chronique`. La frise elle-même est rendue par la page à partir des
+  événements triés, pas par le moteur de blocs : c'est de la donnée vivante,
+  pas une mise en page figée.
+- Le monde a sa frise vide et le dit ; rien n'est importé d'avance. Les
+  campagnes d'Azgaar (`chronologie.json`) ne sont plus affichées — elles
+  restent dans les données si Romain veut les ressusciter un jour.
+
 ## Les lieux remarquables
 
 - **Ils ne sont plus importés.** Azgaar en produisait 532 dont 140 « Dungeon »

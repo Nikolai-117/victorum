@@ -1,0 +1,372 @@
+---
+/**
+ * Une chronique : sa présentation composable, puis sa frise d'événements.
+ *
+ * L'en-tête et l'intro se mettent en page avec le même atelier que les fiches ;
+ * la frise, elle, est vivante — elle se peuple des événements que Romain pose,
+ * datés, typés, illustrés. Chaque événement a sa propre page composable.
+ */
+import Base from '../../../layouts/Base.astro';
+import Atelier from '../../../components/Atelier.astro';
+import { lireChroniques, chroniqueParSlug, evenementsDe, CHRONIQUE_MONDE } from '../../../lib/chroniques';
+import { lirePage, motDePasseDefini, stockage } from '../../../lib/stockage';
+import { rendrePage, dispositionParDefaut, markdownCourt, CATALOGUE_LORE } from '../../../lib/blocs.js';
+import { etats, monde } from '../../../lib/monde';
+
+export const prerender = false;
+
+const data = await lireChroniques(Astro.locals);
+const chronique = chroniqueParSlug(data, Astro.params.chronique ?? '');
+if (!chronique) return Astro.rewrite('/404');
+
+const evenements = evenementsDe(data, chronique.slug);
+const ere = monde.ereCourte ?? '';
+const nomEtat = new Map(etats.map((e) => [e.id, e.nom]));
+const lien = (() => {
+  const m = chronique.portee.match(/^etat:(\d+)$/);
+  return m ? { nom: nomEtat.get(Number(m[1])), slug: etats.find((e) => e.id === Number(m[1]))?.slug } : null;
+})();
+
+const clePage = `c-${chronique.slug}`;
+const enregistre = await lirePage(Astro.locals, 'lore', clePage);
+
+const contexte = {
+  type: 'lore',
+  slug: chronique.slug,
+  titre: chronique.titre,
+  surtitre: lien ? `Chronique · ${lien.nom}` : chronique.portee === 'monde' ? 'La grande chronologie' : 'Chronique',
+  couleur: chronique.couleur,
+  symbole: null,
+  blason: null,
+  url: `/chronologie/${chronique.slug}`,
+  cheminTexte: '',
+  corpsHtml: enregistre?.texte ? markdownCourt(enregistre.texte) : chronique.intro ? markdownCourt(chronique.intro) : null,
+  position: null,
+  faits: [],
+  chiffres: [],
+  groupes: {},
+};
+
+const enregistres = enregistre?.blocs as unknown[] | undefined;
+const blocs = enregistres?.length
+  ? enregistres
+  : [
+      { type: 'bandeau', largeur: 'pleine', options: chronique.intro ? { accroche: chronique.intro } : {} },
+    ];
+const html = rendrePage(blocs, contexte);
+
+const stockageActif = Boolean(stockage(Astro.locals));
+const mdpDefini = await motDePasseDefini(Astro.locals);
+const fmt = new Intl.NumberFormat('fr-FR');
+---
+
+<Base titre={chronique.titre} description={`${chronique.titre} — chronologie de ${monde.nom}.`}>
+  <div class="contenant">
+    <div class="lore-outils">
+      <a class="bouton" href="/chronologie">‹ Chroniques</a>
+      {lien?.slug && <a class="bouton" href={`/etats/${lien.slug}`}>Royaume · {lien.nom}</a>}
+      <button class="bouton bouton--or" id="nouvel-evenement" type="button">+ Événement</button>
+      <button class="bouton" id="ouvrir-props" type="button">Propriétés</button>
+    </div>
+
+    <Atelier
+      contexte={contexte}
+      blocs={blocs}
+      section="lore"
+      slug={clePage}
+      texte={enregistre?.texte ?? ''}
+      stockageActif={stockageActif}
+      motDePasseDefini={mdpDefini}
+      catalogue={CATALOGUE_LORE}
+    />
+    <div id="fiche" set:html={html} />
+
+    <section class="frise-pro" style={`--teinte:${chronique.couleur}`}>
+      {
+        evenements.length === 0 ? (
+          <p class="frise-vide discret">
+            Aucun événement pour l'instant. Clique « + Événement » pour poser le premier
+            sur cette frise.
+          </p>
+        ) : (
+          <ol class="frise">
+            {evenements.map((e) => (
+              <li class="frise__evt" style={`--teinte:${e.couleur}`}>
+                <div class="frise__annee">
+                  <span class="chiffre frise__an">{fmt.format(e.an)}</span>
+                  <span class="frise__ere">{ere}</span>
+                  {e.anFin !== undefined && (
+                    <span class="frise__fin chiffre">→ {fmt.format(e.anFin)}</span>
+                  )}
+                </div>
+                <div class="frise__axe"><span class="frise__noeud" /></div>
+                <a class="frise__carte" href={`/chronologie/${chronique.slug}/${e.slug}`}>
+                  {e.image && <img class="frise__vignette" src={e.image} alt="" loading="lazy" />}
+                  <div class="frise__texte">
+                    {e.type && <span class="frise__type">{e.type}</span>}
+                    <h3>{e.titre}</h3>
+                    {e.resume && <p>{e.resume}</p>}
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ol>
+        )
+      }
+    </section>
+  </div>
+
+  <!-- Poser un événement sur la frise. -->
+  <div class="modale" id="modale-evt" hidden>
+    <div class="modale__voile" data-fermer></div>
+    <div class="modale__boite modale__boite--etroite" role="dialog" aria-label="Nouvel événement">
+      <header class="modale__tete">
+        <h2>Nouvel événement</h2>
+        <button class="fermer" type="button" data-fermer aria-label="Fermer">×</button>
+      </header>
+      <div class="modale__corps">
+        <label class="champ"><span>Titre</span>
+          <input id="ev-titre" type="text" maxlength="120" placeholder="La Croisade de Labria" />
+        </label>
+        <div class="duo">
+          <label class="champ"><span>Année</span>
+            <input id="ev-an" type="number" step="1" placeholder="921" />
+          </label>
+          <label class="champ"><span>Fin (facultative)</span>
+            <input id="ev-anfin" type="number" step="1" placeholder="927" />
+          </label>
+        </div>
+        <div class="duo">
+          <label class="champ"><span>Type</span>
+            <input id="ev-type" type="text" maxlength="40" list="types-evt" placeholder="Bataille, Fondation…" />
+          </label>
+          <label class="champ"><span>Couleur</span>
+            <input id="ev-couleur" type="color" value={chronique.couleur} />
+          </label>
+        </div>
+        <datalist id="types-evt">
+          <option value="Bataille"></option><option value="Guerre"></option>
+          <option value="Fondation"></option><option value="Couronnement"></option>
+          <option value="Traité"></option><option value="Catastrophe"></option>
+          <option value="Découverte"></option><option value="Schisme"></option>
+        </datalist>
+        <label class="champ"><span>Accroche</span>
+          <input id="ev-resume" type="text" maxlength="240" placeholder="Une ligne, sur la frise" />
+        </label>
+        <label class="champ"><span>Image (facultative)</span>
+          <input id="ev-image" type="text" maxlength="500" placeholder="/illustrations/… ou https://…" />
+        </label>
+        <p class="modale__etat" id="ev-etat"></p>
+      </div>
+      <footer class="modale__pied modale__pied--simple">
+        <button class="bouton bouton--plein" id="ev-creer" type="button">Poser et composer</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Propriétés de la chronique. -->
+  <div class="modale" id="modale-props" hidden>
+    <div class="modale__voile" data-fermer></div>
+    <div class="modale__boite modale__boite--etroite" role="dialog" aria-label="Propriétés de la chronique">
+      <header class="modale__tete">
+        <h2>Propriétés</h2>
+        <button class="fermer" type="button" data-fermer aria-label="Fermer">×</button>
+      </header>
+      <div class="modale__corps">
+        <label class="champ"><span>Titre</span>
+          <input id="pc-titre" type="text" maxlength="80" value={chronique.titre} disabled={chronique.fixe} />
+        </label>
+        <label class="champ"><span>Couleur</span>
+          <input id="pc-couleur" type="color" value={chronique.couleur} />
+        </label>
+        <label class="champ"><span>Image de couverture</span>
+          <input id="pc-image" type="text" maxlength="500" value={chronique.image ?? ''} placeholder="/illustrations/… ou https://…" />
+        </label>
+        <label class="champ"><span>Présentation</span>
+          <textarea id="pc-intro" rows="3" maxlength="400">{chronique.intro ?? ''}</textarea>
+        </label>
+        {chronique.fixe && <p class="modale__note">La chronologie du monde ne se renomme ni ne se supprime.</p>}
+        <p class="modale__etat" id="pc-etat"></p>
+      </div>
+      <footer class="modale__pied modale__pied--simple">
+        {!chronique.fixe && <button class="bouton" id="pc-supprimer" type="button">Supprimer</button>}
+        <button class="bouton bouton--plein" id="pc-enregistrer" type="button">Enregistrer</button>
+      </footer>
+    </div>
+  </div>
+
+  <script
+    type="application/json"
+    id="donnees-ch"
+    set:html={JSON.stringify({ slug: chronique.slug, fixe: Boolean(chronique.fixe), stockageActif, motDePasseDefini: mdpDefini })}
+  />
+</Base>
+
+<style is:global>
+  .modale__tete .fermer { position: static; margin-left: auto; }
+  .lore-outils { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+  .modale__note { margin: 0; font-family: var(--chrome); font-size: 0.6875rem; color: var(--parchemin-faible); }
+  .modale__corps input[type='color'] {
+    height: 38px; padding: 2px; background: var(--saisie);
+    border: 1px solid var(--trait); border-radius: var(--rayon-s); cursor: pointer; width: 100%;
+  }
+  .modale__corps textarea {
+    padding: 0.5rem 0.7rem; background: var(--saisie); border: 1px solid var(--trait);
+    border-radius: var(--rayon-s); color: var(--parchemin); font-family: var(--texte-police);
+    font-size: 1.0625rem; resize: vertical;
+  }
+
+  /* ------------------------------------------------------------- la frise */
+
+  .frise-pro { margin-top: 2.5rem; }
+  .frise-vide {
+    border: 1px dashed var(--trait-vif); border-radius: var(--rayon);
+    padding: 2rem; text-align: center; background: var(--verre); backdrop-filter: var(--flou);
+  }
+  .frise { list-style: none; margin: 0; padding: 0; }
+
+  /** Une ligne : l'année, l'axe et son nœud, la carte de l'événement. */
+  .frise__evt {
+    display: grid;
+    grid-template-columns: 7.5rem 2.2rem minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .frise__annee {
+    text-align: right;
+    padding: 1.4rem 0.6rem 1.4rem 0;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 0.05rem;
+  }
+  .frise__an { font-size: 1.4rem; color: var(--parchemin); line-height: 1; }
+  .frise__ere {
+    font-family: var(--chrome); font-size: 0.55rem; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--parchemin-faible);
+  }
+  .frise__fin { font-size: 0.8125rem; color: var(--parchemin-doux); margin-top: 0.15rem; }
+
+  /* L'axe : un filet continu, un nœud coloré par événement. */
+  .frise__axe { position: relative; }
+  .frise__axe::before {
+    content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px;
+    background: var(--trait-vif); transform: translateX(-50%);
+  }
+  .frise__evt:first-child .frise__axe::before { top: 1.9rem; }
+  .frise__evt:last-child .frise__axe::before { bottom: calc(100% - 1.9rem); }
+  .frise__noeud {
+    position: absolute; left: 50%; top: 1.9rem; width: 15px; height: 15px; border-radius: 50%;
+    background: var(--teinte, var(--or)); transform: translate(-50%, -50%);
+    box-shadow: 0 0 0 4px var(--encre), 0 0 0 5px color-mix(in srgb, var(--teinte, var(--or)) 45%, transparent);
+  }
+
+  .frise__carte {
+    display: flex; gap: 1rem; align-items: stretch;
+    margin: 0.7rem 0 0.7rem 0.4rem; padding: 0.9rem 1.05rem;
+    background: var(--verre); backdrop-filter: var(--flou);
+    border: 1px solid var(--trait); border-left: 3px solid var(--teinte, var(--or));
+    border-radius: var(--rayon-s);
+    box-shadow: var(--ombre-basse), var(--lueur);
+    background-image: none;
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .frise__carte:hover {
+    transform: translateX(3px);
+    box-shadow: var(--ombre);
+    color: inherit;
+  }
+  .frise__vignette {
+    width: 96px; height: 96px; flex: none; object-fit: cover;
+    border-radius: var(--rayon-xs); border: 1px solid var(--trait);
+  }
+  .frise__texte { min-width: 0; }
+  .frise__type {
+    display: inline-block; font-family: var(--chrome); font-size: 0.5625rem;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: color-mix(in srgb, var(--teinte, var(--or)) 55%, #3d322e);
+    background: color-mix(in srgb, var(--teinte, var(--or)) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--teinte, var(--or)) 40%, transparent);
+    border-radius: var(--pilule); padding: 0.16rem 0.55rem; margin-bottom: 0.35rem;
+  }
+  .frise__texte h3 { font-size: 1.3rem; margin: 0; }
+  .frise__texte p { margin: 0.3rem 0 0; color: var(--parchemin-doux); font-size: 0.95rem; }
+
+  @media (max-width: 640px) {
+    .frise__evt { grid-template-columns: 4.5rem 1.6rem minmax(0, 1fr); }
+    .frise__an { font-size: 1.1rem; }
+    .frise__vignette { width: 64px; height: 64px; }
+  }
+</style>
+
+<script>
+  const donnees = JSON.parse(document.getElementById('donnees-ch').textContent);
+  const CLE_MDP = 'victorum:mot-de-passe';
+  const $ = (id) => document.getElementById(id);
+
+  function motDePasse() {
+    let mdp = sessionStorage.getItem(CLE_MDP);
+    if (!mdp) {
+      mdp = prompt(
+        donnees.motDePasseDefini
+          ? "Mot de passe de l'atelier :"
+          : "Choisis le mot de passe de ton atelier. Il te sera demandé pour toute modification, et personne d'autre ne pourra écrire sur ton site."
+      );
+      if (mdp) sessionStorage.setItem(CLE_MDP, mdp);
+    }
+    return mdp;
+  }
+
+  async function envoyer(corps, etatEl) {
+    if (!donnees.stockageActif) { if (etatEl) etatEl.textContent = "Stockage non relié."; return null; }
+    const mdp = motDePasse();
+    if (!mdp) return null;
+    const r = await fetch('/api/chroniques', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-mot-de-passe': mdp },
+      body: JSON.stringify(corps),
+    });
+    const res = await r.json().catch(() => ({}));
+    if (r.status === 401) { sessionStorage.removeItem(CLE_MDP); if (etatEl) etatEl.textContent = res.erreur || 'Mot de passe refusé.'; return null; }
+    if (!r.ok) { if (etatEl) etatEl.textContent = res.erreur || 'Échec.'; return null; }
+    return res.chroniques;
+  }
+
+  // Ouvertures / fermetures des modales.
+  const evt = $('modale-evt'), props = $('modale-props');
+  $('nouvel-evenement').addEventListener('click', () => (evt.hidden = false));
+  $('ouvrir-props').addEventListener('click', () => (props.hidden = false));
+  for (const m of [evt, props]) for (const b of m.querySelectorAll('[data-fermer]')) b.addEventListener('click', () => (m.hidden = true));
+
+  // Poser un événement, puis l'ouvrir pour le composer.
+  $('ev-creer').addEventListener('click', async () => {
+    const etat = $('ev-etat');
+    const titre = $('ev-titre').value.trim();
+    if (!titre) return (etat.textContent = 'Donne un titre.');
+    if ($('ev-an').value === '') return (etat.textContent = 'Donne une année.');
+    etat.textContent = 'Création…';
+    const chroniques = await envoyer({
+      action: 'evenement', chronique: donnees.slug, titre,
+      an: $('ev-an').value, anFin: $('ev-anfin').value,
+      type: $('ev-type').value, couleur: $('ev-couleur').value,
+      resume: $('ev-resume').value, image: $('ev-image').value,
+    }, etat);
+    if (!chroniques) return;
+    const cree = [...chroniques.evenements].reverse().find((e) => e.titre === titre && e.chronique === donnees.slug);
+    location.href = cree ? `/chronologie/${donnees.slug}/${cree.slug}` : location.reload();
+  });
+
+  // Propriétés de la chronique.
+  $('pc-enregistrer').addEventListener('click', async () => {
+    $('pc-etat').textContent = 'Enregistrement…';
+    const chroniques = await envoyer({
+      action: 'chronique', slug: donnees.slug,
+      titre: $('pc-titre').value, couleur: $('pc-couleur').value,
+      image: $('pc-image').value, intro: $('pc-intro').value,
+    }, $('pc-etat'));
+    if (chroniques) location.reload();
+  });
+  const suppr = $('pc-supprimer');
+  if (suppr) suppr.addEventListener('click', async () => {
+    if (!confirm('Supprimer cette chronique et tous ses événements ?')) return;
+    const chroniques = await envoyer({ action: 'supprimer-chronique', slug: donnees.slug }, $('pc-etat'));
+    if (chroniques) location.href = '/chronologie';
+  });
+</script>

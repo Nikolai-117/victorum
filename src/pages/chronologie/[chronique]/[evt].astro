@@ -1,0 +1,231 @@
+---
+/**
+ * Un événement de la frise, composé comme un article : sa page à blocs, son
+ * atelier. La date, le type et l'image vivent dans les chroniques ; la mise en
+ * page et le récit vivent dans le stockage des pages, sous l'identifiant.
+ */
+import Base from '../../../layouts/Base.astro';
+import Atelier from '../../../components/Atelier.astro';
+import { lireChroniques, chroniqueParSlug, evenementParSlug, evenementsDe } from '../../../lib/chroniques';
+import { lirePage, motDePasseDefini, stockage } from '../../../lib/stockage';
+import { rendrePage, dispositionParDefaut, markdownCourt, CATALOGUE_LORE } from '../../../lib/blocs.js';
+import { monde } from '../../../lib/monde';
+
+export const prerender = false;
+
+const data = await lireChroniques(Astro.locals);
+const evenement = evenementParSlug(data, Astro.params.evt ?? '');
+if (!evenement) return Astro.rewrite('/404');
+if (Astro.params.chronique !== evenement.chronique) {
+  return Astro.redirect(`/chronologie/${evenement.chronique}/${evenement.slug}`, 301);
+}
+
+const chronique = chroniqueParSlug(data, evenement.chronique);
+const chroniques = data.chroniques;
+const ere = monde.ereCourte ?? '';
+const fmt = new Intl.NumberFormat('fr-FR');
+const dateLisible =
+  evenement.anFin !== undefined
+    ? `${fmt.format(evenement.an)} → ${fmt.format(evenement.anFin)} ${ere}`
+    : `${fmt.format(evenement.an)} ${ere}`;
+
+const enregistre = await lirePage(Astro.locals, 'chronique', evenement.id);
+
+const contexte = {
+  type: 'lore',
+  slug: evenement.slug,
+  titre: evenement.titre,
+  surtitre: [dateLisible, evenement.type].filter(Boolean).join(' · '),
+  couleur: evenement.couleur,
+  symbole: null,
+  blason: null,
+  url: `/chronologie/${evenement.chronique}/${evenement.slug}`,
+  cheminTexte: '',
+  corpsHtml: enregistre?.texte ? markdownCourt(enregistre.texte) : null,
+  position: null,
+  faits: [],
+  chiffres: [],
+  groupes: {},
+};
+
+const enregistres = enregistre?.blocs as unknown[] | undefined;
+const blocs = enregistres?.length
+  ? enregistres
+  : [
+      { type: 'bandeau', largeur: 'pleine', options: evenement.resume ? { accroche: evenement.resume } : {} },
+      ...(evenement.image ? [{ type: 'image', largeur: 'pleine', options: { src: evenement.image } }] : []),
+      { type: 'texte', largeur: 'pleine', options: {} },
+    ];
+const html = rendrePage(blocs, contexte);
+
+// La liste des chroniques, pour pouvoir déplacer l'événement.
+const listeChroniques = [
+  { slug: 'monde', titre: chroniqueParSlug(data, 'monde')?.titre ?? 'Chronologie du monde' },
+  ...chroniques.filter((c) => c.slug !== 'monde').map((c) => ({ slug: c.slug, titre: c.titre })),
+];
+const voisins = evenementsDe(data, evenement.chronique).filter((e) => e.id !== evenement.id);
+
+const stockageActif = Boolean(stockage(Astro.locals));
+const mdpDefini = await motDePasseDefini(Astro.locals);
+---
+
+<Base titre={evenement.titre} description={evenement.resume || `${evenement.titre} — ${dateLisible}.`}>
+  <div class="contenant">
+    <div class="lore-outils">
+      <a class="bouton" href={`/chronologie/${evenement.chronique}`}>‹ {chronique?.titre ?? 'Chronique'}</a>
+      <button class="bouton" id="ouvrir-props" type="button">Propriétés</button>
+    </div>
+
+    <Atelier
+      contexte={contexte}
+      blocs={blocs}
+      section="chronique"
+      slug={evenement.id}
+      texte={enregistre?.texte ?? ''}
+      stockageActif={stockageActif}
+      motDePasseDefini={mdpDefini}
+      catalogue={CATALOGUE_LORE}
+    />
+    <div id="fiche" set:html={html} />
+
+    {
+      voisins.length > 0 && (
+        <section class="lore-suite">
+          <h2 class="etiquette etiquette--filet">Ailleurs sur cette frise</h2>
+          <div class="grille grille--lore">
+            {voisins.slice(0, 6).map((v) => (
+              <a class="carte" href={`/chronologie/${evenement.chronique}/${v.slug}`}>
+                <span class="carte__titre">{v.titre}</span>
+                <span class="carte__meta">{fmt.format(v.an)} {ere}{v.type ? ` · ${v.type}` : ''}</span>
+              </a>
+            ))}
+          </div>
+        </section>
+      )
+    }
+  </div>
+
+  <div class="modale" id="modale-props" hidden>
+    <div class="modale__voile" data-fermer></div>
+    <div class="modale__boite modale__boite--etroite" role="dialog" aria-label="Propriétés de l'événement">
+      <header class="modale__tete">
+        <h2>Propriétés</h2>
+        <button class="fermer" type="button" data-fermer aria-label="Fermer">×</button>
+      </header>
+      <div class="modale__corps">
+        <label class="champ"><span>Titre</span>
+          <input id="pe-titre" type="text" maxlength="120" value={evenement.titre} />
+        </label>
+        <label class="champ"><span>Chronique</span>
+          <select id="pe-chronique" class="select">
+            {listeChroniques.map((c) => (
+              <option value={c.slug} selected={c.slug === evenement.chronique}>{c.titre}</option>
+            ))}
+          </select>
+        </label>
+        <div class="duo">
+          <label class="champ"><span>Année</span>
+            <input id="pe-an" type="number" step="1" value={evenement.an} />
+          </label>
+          <label class="champ"><span>Fin (facultative)</span>
+            <input id="pe-anfin" type="number" step="1" value={evenement.anFin ?? ''} />
+          </label>
+        </div>
+        <div class="duo">
+          <label class="champ"><span>Type</span>
+            <input id="pe-type" type="text" maxlength="40" value={evenement.type} />
+          </label>
+          <label class="champ"><span>Couleur</span>
+            <input id="pe-couleur" type="color" value={evenement.couleur} />
+          </label>
+        </div>
+        <label class="champ"><span>Accroche</span>
+          <input id="pe-resume" type="text" maxlength="240" value={evenement.resume} />
+        </label>
+        <label class="champ"><span>Image (facultative)</span>
+          <input id="pe-image" type="text" maxlength="500" value={evenement.image ?? ''} placeholder="/illustrations/… ou https://…" />
+        </label>
+        <p class="modale__etat" id="pe-etat"></p>
+      </div>
+      <footer class="modale__pied modale__pied--simple">
+        <button class="bouton" id="pe-supprimer" type="button">Supprimer</button>
+        <button class="bouton bouton--plein" id="pe-enregistrer" type="button">Enregistrer</button>
+      </footer>
+    </div>
+  </div>
+
+  <script
+    type="application/json"
+    id="donnees-ev"
+    set:html={JSON.stringify({ id: evenement.id, chronique: evenement.chronique, stockageActif, motDePasseDefini: mdpDefini })}
+  />
+</Base>
+
+<style is:global>
+  .modale__tete .fermer { position: static; margin-left: auto; }
+  .lore-outils { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
+  .lore-suite { margin-top: 3.5rem; }
+  .lore-suite .grille { margin-top: 1.2rem; }
+  .grille--lore { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+  .modale__corps input[type='color'] {
+    height: 38px; padding: 2px; background: var(--saisie);
+    border: 1px solid var(--trait); border-radius: var(--rayon-s); cursor: pointer; width: 100%;
+  }
+</style>
+
+<script>
+  const donnees = JSON.parse(document.getElementById('donnees-ev').textContent);
+  const CLE_MDP = 'victorum:mot-de-passe';
+  const $ = (id) => document.getElementById(id);
+  const modale = $('modale-props');
+  $('ouvrir-props').addEventListener('click', () => (modale.hidden = false));
+  for (const b of modale.querySelectorAll('[data-fermer]')) b.addEventListener('click', () => (modale.hidden = true));
+
+  function motDePasse() {
+    let mdp = sessionStorage.getItem(CLE_MDP);
+    if (!mdp) {
+      mdp = prompt(
+        donnees.motDePasseDefini
+          ? "Mot de passe de l'atelier :"
+          : "Choisis le mot de passe de ton atelier. Il te sera demandé pour toute modification, et personne d'autre ne pourra écrire sur ton site."
+      );
+      if (mdp) sessionStorage.setItem(CLE_MDP, mdp);
+    }
+    return mdp;
+  }
+
+  async function envoyer(corps) {
+    if (!donnees.stockageActif) { $('pe-etat').textContent = "Stockage non relié."; return null; }
+    const mdp = motDePasse();
+    if (!mdp) return null;
+    const r = await fetch('/api/chroniques', {
+      method: 'POST', headers: { 'content-type': 'application/json', 'x-mot-de-passe': mdp },
+      body: JSON.stringify(corps),
+    });
+    const res = await r.json().catch(() => ({}));
+    if (r.status === 401) { sessionStorage.removeItem(CLE_MDP); $('pe-etat').textContent = res.erreur || 'Mot de passe refusé.'; return null; }
+    if (!r.ok) { $('pe-etat').textContent = res.erreur || 'Échec.'; return null; }
+    return res.chroniques;
+  }
+
+  $('pe-enregistrer').addEventListener('click', async () => {
+    $('pe-etat').textContent = 'Enregistrement…';
+    const chroniques = await envoyer({
+      action: 'evenement', id: donnees.id,
+      titre: $('pe-titre').value, chronique: $('pe-chronique').value,
+      an: $('pe-an').value, anFin: $('pe-anfin').value,
+      type: $('pe-type').value, couleur: $('pe-couleur').value,
+      resume: $('pe-resume').value, image: $('pe-image').value,
+    });
+    if (!chroniques) return;
+    const maj = chroniques.evenements.find((e) => e.id === donnees.id);
+    location.href = maj ? `/chronologie/${maj.chronique}/${maj.slug}` : '/chronologie';
+  });
+
+  $('pe-supprimer').addEventListener('click', async () => {
+    if (!confirm('Supprimer cet événement ?')) return;
+    const chroniques = await envoyer({ action: 'supprimer-evenement', id: donnees.id });
+    if (chroniques) location.href = `/chronologie/${donnees.chronique}`;
+  });
+</script>

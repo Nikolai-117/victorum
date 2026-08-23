@@ -1,0 +1,188 @@
+---
+/**
+ * Les chroniques : l'index des frises.
+ *
+ * La chronologie du monde en tête, puis celles que Romain a liées à ses
+ * royaumes, puis les libres. Chacune est une page composable — comme une
+ * catégorie du codex, mais avec une frise vivante d'événements datés.
+ */
+import Base from '../../layouts/Base.astro';
+import { lireChroniques, chroniquesDe, evenementsDe } from '../../lib/chroniques';
+import { motDePasseDefini, stockage } from '../../lib/stockage';
+import { etats, nombre } from '../../lib/monde';
+
+export const prerender = false;
+
+const data = await lireChroniques(Astro.locals);
+const chroniques = chroniquesDe(data);
+const nomEtat = new Map(etats.map((e) => [e.id, e.nom]));
+
+const sousTitre = (portee: string): string => {
+  if (portee === 'monde') return 'La grande chronologie';
+  const m = portee.match(/^etat:(\d+)$/);
+  if (m) return `Royaume · ${nomEtat.get(Number(m[1])) ?? '—'}`;
+  return 'Chronique libre';
+};
+
+const donnees = {
+  royaumes: etats.map((e) => ({ id: e.id, nom: e.nomComplet })),
+  stockageActif: Boolean(stockage(Astro.locals)),
+  motDePasseDefini: await motDePasseDefini(Astro.locals),
+};
+---
+
+<Base titre="Chronologie" description="Les chronologies du monde de Victorum, du royaume à l'ère.">
+  <div class="contenant">
+    <header class="cartouche">
+      <p class="etiquette">Les frises du temps</p>
+      <h1>Chronologie</h1>
+    </header>
+
+    <div class="tete-lore">
+      <p class="discret tete-lore__intro">
+        La chronologie du monde, et celles que tu lies à tes royaumes. Ouvre-en une
+        pour la mettre en page, y poser tes événements — avec leurs dates, leurs
+        images, leur récit.
+      </p>
+      <button id="nouvelle-chronique" class="bouton bouton--or" type="button">+ Chronique</button>
+    </div>
+
+    <div class="grille grille--lore">
+      {
+        chroniques.map((c) => {
+          const n = evenementsDe(data, c.slug).length;
+          return (
+            <a class="carte carte--porte" href={`/chronologie/${c.slug}`}>
+              <span class="porte__cadre">
+                {c.image ? (
+                  <img class="porte__image" src={c.image} alt="" loading="lazy" />
+                ) : (
+                  <span class="porte__vide" style={`--teinte:${c.couleur}`}>
+                    <span class="porte__ere chiffre">{n ? `${nombre(n)}` : '—'}</span>
+                  </span>
+                )}
+              </span>
+              <span class="porte__pied">
+                <span class="carte__titre">{c.titre}</span>
+                <span class="carte__meta">
+                  {sousTitre(c.portee)}
+                  {n ? ` · ${nombre(n)} événement${n > 1 ? 's' : ''}` : ' · vide'}
+                </span>
+              </span>
+            </a>
+          );
+        })
+      }
+    </div>
+  </div>
+
+  <!-- Créer une chronique : la lier au monde, à un royaume, ou la laisser libre. -->
+  <div class="modale" id="modale-chronique" hidden>
+    <div class="modale__voile" data-fermer></div>
+    <div class="modale__boite modale__boite--etroite" role="dialog" aria-label="Nouvelle chronique">
+      <header class="modale__tete">
+        <h2>Nouvelle chronique</h2>
+        <button class="fermer" type="button" data-fermer aria-label="Fermer">×</button>
+      </header>
+      <div class="modale__corps">
+        <label class="champ"><span>Titre</span>
+          <input id="ch-titre" type="text" maxlength="80" placeholder="Chronique de Levànzia, L'Âge des Cendres…" />
+        </label>
+        <label class="champ"><span>Lien</span>
+          <select id="ch-portee" class="select">
+            <option value="libre">Libre — pas de lien</option>
+            <optgroup label="Liée à un royaume">
+              {donnees.royaumes.map((r) => <option value={`etat:${r.id}`}>{r.nom}</option>)}
+            </optgroup>
+          </select>
+        </label>
+        <label class="champ"><span>Couleur</span>
+          <input id="ch-couleur" type="color" value="#df7f83" />
+        </label>
+        <p class="modale__etat" id="ch-etat"></p>
+      </div>
+      <footer class="modale__pied modale__pied--simple">
+        <button class="bouton bouton--plein" id="ch-creer" type="button">Créer et composer</button>
+      </footer>
+    </div>
+  </div>
+
+  <script type="application/json" id="donnees-chroniques" set:html={JSON.stringify(donnees)} />
+</Base>
+
+<style is:global>
+  .modale__tete .fermer { position: static; margin-left: auto; }
+  .tete-lore {
+    display: flex; align-items: flex-start; gap: 1.5rem;
+    margin: 2rem 0 2.5rem; flex-wrap: wrap;
+  }
+  .tete-lore__intro { flex: 1; min-width: 20rem; max-width: var(--mesure); margin: 0; }
+  .grille--lore { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+  .carte--porte { padding: 0; overflow: hidden; }
+  .porte__cadre { display: block; aspect-ratio: 16 / 10; background: var(--encre-2); }
+  .porte__image { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .porte__vide {
+    width: 100%; height: 100%; display: grid; place-items: center;
+    background:
+      radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--teinte) 26%, transparent), transparent 62%),
+      var(--encre-2);
+  }
+  .porte__ere {
+    font-size: 2rem;
+    color: color-mix(in srgb, var(--teinte) 62%, #3d322e);
+  }
+  .porte__pied { display: block; padding: 0.85rem 1.05rem 1rem; }
+  .porte__pied .carte__titre { font-size: 1.2rem; }
+  .modale__boite--etroite { width: min(460px, 100%); }
+  .modale__corps { padding: 1.1rem 1.4rem; display: flex; flex-direction: column; gap: 0.8rem; }
+  .modale__corps input[type='color'] {
+    height: 38px; padding: 2px; background: var(--saisie);
+    border: 1px solid var(--trait); border-radius: var(--rayon-s); cursor: pointer; width: 100%;
+  }
+  .modale__pied--simple { justify-content: flex-end; }
+</style>
+
+<script>
+  const donnees = JSON.parse(document.getElementById('donnees-chroniques').textContent);
+  const CLE_MDP = 'victorum:mot-de-passe';
+  const $ = (id) => document.getElementById(id);
+  const modale = $('modale-chronique');
+
+  $('nouvelle-chronique').addEventListener('click', () => { modale.hidden = false; $('ch-titre').focus(); });
+  for (const b of modale.querySelectorAll('[data-fermer]')) b.addEventListener('click', () => (modale.hidden = true));
+
+  function motDePasse() {
+    let mdp = sessionStorage.getItem(CLE_MDP);
+    if (!mdp) {
+      mdp = prompt(
+        donnees.motDePasseDefini
+          ? "Mot de passe de l'atelier :"
+          : "Choisis le mot de passe de ton atelier. Il te sera demandé pour toute modification, et personne d'autre ne pourra écrire sur ton site."
+      );
+      if (mdp) sessionStorage.setItem(CLE_MDP, mdp);
+    }
+    return mdp;
+  }
+
+  $('ch-creer').addEventListener('click', async () => {
+    const etat = $('ch-etat');
+    if (!donnees.stockageActif) return (etat.textContent = "Stockage non relié : impossible d'enregistrer.");
+    const titre = $('ch-titre').value.trim();
+    if (!titre) return (etat.textContent = 'Donne un titre à la chronique.');
+    const mdp = motDePasse();
+    if (!mdp) return (etat.textContent = 'Mot de passe non saisi.');
+    etat.textContent = 'Création…';
+    try {
+      const r = await fetch('/api/chroniques', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-mot-de-passe': mdp },
+        body: JSON.stringify({ action: 'chronique', titre, portee: $('ch-portee').value, couleur: $('ch-couleur').value }),
+      });
+      const res = await r.json().catch(() => ({}));
+      if (r.status === 401) { sessionStorage.removeItem(CLE_MDP); return (etat.textContent = res.erreur || 'Mot de passe refusé.'); }
+      if (!r.ok) return (etat.textContent = res.erreur || 'Échec.');
+      const creee = (res.chroniques.chroniques || []).find((c) => c.titre === titre);
+      location.href = creee ? `/chronologie/${creee.slug}` : '/chronologie';
+    } catch { etat.textContent = 'Réseau indisponible.'; }
+  });
+</script>

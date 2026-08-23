@@ -116,7 +116,7 @@ export const clePage = (section: string, slug: string) => `page:${section}/${slu
 
 /** Les sections dans lesquelles on accepte d'écrire. */
 const SECTIONS_VALIDES = new Set([
-  'etats', 'provinces', 'villes', 'lieux', 'cultures', 'religions', 'articles', 'lore',
+  'etats', 'provinces', 'villes', 'lieux', 'cultures', 'religions', 'articles', 'lore', 'chronique',
 ]);
 
 /** Refuse tout ce qui ne ressemble pas à une fiche connue. */
