@@ -695,6 +695,12 @@ h4 {
   background: rgba(223, 127, 131, 0.12);
 }
 /* Le geste principal, plein : la rose de la palette, texte sombre pour la lecture. */
+.bouton--televerser {
+  align-self: flex-start;
+  margin-top: 0.4rem;
+  padding: 0.34rem 0.8rem;
+  font-size: 0.6875rem;
+}
 .bouton--plein {
   background: var(--degrade);
   border-color: transparent;

@@ -327,6 +327,26 @@ chronologie auto-générée. `src/lib/chroniques.ts`, `/api/chroniques`,
   campagnes d'Azgaar (`chronologie.json`) ne sont plus affichées — elles
   restent dans les données si Romain veut les ressusciter un jour.
 
+## Le téléversement d'images
+
+Demandé pour ne plus passer par des URL ni le dossier `public/`. Sans rien à
+administrer : les images vivent dans **l'espace KV déjà relié**.
+
+- **`/api/images`** (multipart, mot de passe exigé) reçoit un fichier, le range
+  sous `image:<id>` avec son type en métadonnée, et renvoie `/img/<id>`.
+- **`/img/[id]`** le sert depuis KV, en `immutable, max-age=1 an` : l'identifiant
+  est unique, l'image ne change jamais, donc Cloudflare et le navigateur la
+  gardent — KV n'est lu qu'à la première demande.
+- **Le navigateur réduit avant d'envoyer** (`src/lib/upload.js`) : un canevas
+  reborne l'image à 1600 px et l'exporte en WebP. Une photo de plusieurs Mo part
+  en quelques dizaines de Ko — le serveur ne retouche rien, KV reste petit.
+- `brancherTeleversement()` greffe un bouton « Téléverser » sur n'importe quel
+  champ image : couvertures de catégories et de chroniques, image d'un
+  événement, et le bloc « Illustration » de l'atelier (gabarit `image`).
+- Quota gratuit : 1 000 écritures/jour (un envoi = une écriture), 1 Go de
+  stockage. Les images remplacées ou supprimées laissent un orphelin dans KV —
+  négligeable à cette échelle, à balayer un jour si besoin.
+
 ## Les lieux remarquables
 
 - **Ils ne sont plus importés.** Azgaar en produisait 532 dont 140 « Dungeon »

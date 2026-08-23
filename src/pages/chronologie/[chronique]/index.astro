@@ -297,9 +297,12 @@ const fmt = new Intl.NumberFormat('fr-FR');
 </style>
 
 <script>
+  import { brancherTeleversement } from '../../../lib/upload.js';
   const donnees = JSON.parse(document.getElementById('donnees-ch').textContent);
   const CLE_MDP = 'victorum:mot-de-passe';
   const $ = (id) => document.getElementById(id);
+  brancherTeleversement({ champ: $('ev-image'), motDePasse, etat: $('ev-etat') });
+  brancherTeleversement({ champ: $('pc-image'), motDePasse, etat: $('pc-etat') });
 
   function motDePasse() {
     let mdp = sessionStorage.getItem(CLE_MDP);

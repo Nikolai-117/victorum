@@ -82,6 +82,7 @@ const {
 
 <script>
   import { rendrePage, nouveauBloc, LARGEURS, modeles, BLOCS_CONNUS, markdownCourt } from '../lib/blocs.js';
+  import { televerserImage } from '../lib/upload.js';
 
   const lire = (id) => JSON.parse(document.getElementById(id).textContent);
   const fiche = document.getElementById('fiche');
@@ -294,7 +295,7 @@ const {
       ],
       carte: [{ cle: 'zoom', libelle: 'Agrandissement', gabarit: 'nombre' }],
       image: [
-        { cle: 'src', libelle: 'Chemin (dépose le fichier dans public/illustrations/)', gabarit: 'input' },
+        { cle: 'src', libelle: 'Image — colle une URL, ou téléverse', gabarit: 'image' },
         { cle: 'alt', libelle: 'Description pour les lecteurs d’écran', gabarit: 'input' },
         { cle: 'legende', libelle: 'Légende', gabarit: 'input' },
       ],
@@ -356,6 +357,42 @@ const {
         });
 
         etiquette.append(document.createTextNode(champ.libelle), controle);
+
+        // Un bloc image peut recevoir un fichier : on le réduit et on l'envoie,
+        // puis son URL remplit le champ, comme si on l'avait collée.
+        if (champ.gabarit === 'image') {
+          const bouton = document.createElement('button');
+          bouton.type = 'button';
+          bouton.className = 'bouton bouton--televerser';
+          bouton.textContent = 'Téléverser une image';
+          const fichier = document.createElement('input');
+          fichier.type = 'file';
+          fichier.accept = 'image/*';
+          fichier.hidden = true;
+          bouton.addEventListener('click', () => fichier.click());
+          fichier.addEventListener('change', async () => {
+            const f = fichier.files && fichier.files[0];
+            if (!f) return;
+            const mdp = motDePasse(false);
+            if (!mdp) return;
+            bouton.disabled = true;
+            const avant = bouton.textContent;
+            bouton.textContent = 'Téléversement…';
+            try {
+              const url = await televerserImage(f, mdp);
+              controle.value = url;
+              controle.dispatchEvent(new Event('change'));
+            } catch (e) {
+              if (e.code === 401) sessionStorage.removeItem('victorum:mot-de-passe');
+              alert(e.message);
+            } finally {
+              bouton.disabled = false;
+              bouton.textContent = avant;
+              fichier.value = '';
+            }
+          });
+          etiquette.append(bouton, fichier);
+        }
         boite.appendChild(etiquette);
       }
       return boite;

@@ -175,9 +175,11 @@ const mdpDefini = await motDePasseDefini(Astro.locals);
 </style>
 
 <script>
+  import { brancherTeleversement } from '../../../lib/upload.js';
   const donnees = JSON.parse(document.getElementById('donnees-ev').textContent);
   const CLE_MDP = 'victorum:mot-de-passe';
   const $ = (id) => document.getElementById(id);
+  brancherTeleversement({ champ: $('pe-image'), motDePasse, etat: $('pe-etat') });
   const modale = $('modale-props');
   $('ouvrir-props').addEventListener('click', () => (modale.hidden = false));
   for (const b of modale.querySelectorAll('[data-fermer]')) b.addEventListener('click', () => (modale.hidden = true));

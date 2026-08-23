@@ -154,9 +154,11 @@ const mdpDefini = await motDePasseDefini(Astro.locals);
 </style>
 
 <script>
+  import { brancherTeleversement } from '../../../lib/upload.js';
   const donnees = JSON.parse(document.getElementById('donnees-cat').textContent);
   const CLE_MDP = 'victorum:mot-de-passe';
   const $ = (id) => document.getElementById(id);
+  brancherTeleversement({ champ: $('pc-image'), motDePasse, etat: $('pc-etat') });
 
   function motDePasse() {
     let mdp = sessionStorage.getItem(CLE_MDP);
