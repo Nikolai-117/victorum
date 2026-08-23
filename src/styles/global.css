@@ -320,8 +320,8 @@ h4 {
   background: var(--velin-haut);
 }
 .nav a[aria-current='page'] {
-  color: var(--or-clair);
-  background: rgba(207, 169, 58, 0.13);
+  color: var(--or);
+  background: rgba(223, 127, 131, 0.15);
 }
 
 /** La date du monde, comme une horloge : on sait toujours quand on est. */

@@ -435,7 +435,7 @@
   margin: -13px 0 0 -13px;
   border: 1px solid var(--or);
   border-radius: 50%;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 14px rgba(201, 162, 39, 0.6);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6), 0 0 14px rgba(223, 127, 131, 0.55);
 }
 .situation__mire::before,
 .situation__mire::after {
