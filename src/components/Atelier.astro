@@ -20,9 +20,14 @@ interface Props {
   texte: string;
   stockageActif: boolean;
   motDePasseDefini: boolean;
+  /** Le catalogue de blocs proposé ; le codex en passe un réduit. */
+  catalogue?: unknown;
 }
 
-const { contexte, blocs, section, slug, texte, stockageActif, motDePasseDefini } = Astro.props;
+const {
+  contexte, blocs, section, slug, texte, stockageActif, motDePasseDefini,
+  catalogue = CATALOGUE,
+} = Astro.props;
 ---
 
 <div class="atelier-barre contenant" id="atelier-barre" role="toolbar" aria-label="Mise en page">
@@ -68,7 +73,7 @@ const { contexte, blocs, section, slug, texte, stockageActif, motDePasseDefini }
 
 <script type="application/json" id="atelier-contexte" set:html={JSON.stringify(contexte)}></script>
 <script type="application/json" id="atelier-blocs" set:html={JSON.stringify(blocs)}></script>
-<script type="application/json" id="atelier-catalogue" set:html={JSON.stringify(CATALOGUE)}></script>
+<script type="application/json" id="atelier-catalogue" set:html={JSON.stringify(catalogue)}></script>
 <script
   type="application/json"
   id="atelier-page"

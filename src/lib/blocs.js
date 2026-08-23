@@ -155,6 +155,19 @@ export const CATALOGUE = [
   },
 ];
 
+/**
+ * Le catalogue proposé pour un article de codex : les blocs d'entité (blason,
+ * chiffres, relations, situation) n'ont aucun fait à afficher ici, on ne les
+ * offre donc pas. Restent l'en-tête, les textes, l'image et la mise en forme.
+ */
+const TYPES_LORE = new Set([
+  'bandeau', 'titre', 'texte', 'note', 'chapeau', 'citation', 'image', 'separateur', 'espace',
+]);
+
+export const CATALOGUE_LORE = CATALOGUE
+  .map((famille) => ({ ...famille, blocs: famille.blocs.filter((b) => TYPES_LORE.has(b.type)) }))
+  .filter((famille) => famille.blocs.length);
+
 export const BLOCS_CONNUS = new Map(
   CATALOGUE.flatMap((f) => f.blocs.map((b) => [b.type, { ...b, famille: f.famille }]))
 );
@@ -187,7 +200,9 @@ const RENDUS = {
   bandeau(o, c) {
     const blason = c.blason && o.blason !== false
       ? `<img class="bandeau__blason" src="${esc(c.blason)}" alt="" width="120" height="120">`
-      : '';
+      : c.symbole
+        ? `<span class="bandeau__sceau lore-marque" style="--teinte:${esc(c.couleur || '')}">${esc(c.symbole)}</span>`
+        : '';
     const sous = o.sousTitre ?? c.surtitre;
     return (
       `<header class="bandeau">${blason}<div class="bandeau__texte">` +
@@ -220,6 +235,12 @@ const RENDUS = {
 
   texte(o, c) {
     if (c.corpsHtml) return `<div class="prose">${c.corpsHtml}</div>`;
+    if (c.type === 'lore') {
+      return (
+        `<div class="a-ecrire"><p class="etiquette">Page à écrire</p>` +
+        `<p>Cet article n'a pas encore de texte. Clique « Écrire » dans l'atelier ci-dessus.</p></div>`
+      );
+    }
     return (
       `<div class="a-ecrire"><p class="etiquette">Page à écrire</p>` +
       `<p>Cette fiche n'affiche que les faits de la carte. Pour l'écrire, crée le fichier :</p>` +
@@ -498,6 +519,13 @@ export function rendrePage(blocs, contexte) {
  * serve à la singulariser, pas à la rendre acceptable.
  */
 export function dispositionParDefaut(type, contexte) {
+  if (type === 'lore') {
+    return [
+      { type: 'bandeau', largeur: 'pleine', options: {} },
+      { type: 'texte', largeur: 'pleine', options: {} },
+    ];
+  }
+
   const groupes = Object.keys(contexte.groupes || {});
   const blocs = [{ type: 'bandeau', largeur: 'pleine', options: {} }];
 
@@ -539,6 +567,41 @@ export function dispositionParDefaut(type, contexte) {
 
 /** Les modèles proposés par le bouton « Modèles ». */
 export function modeles(contexte) {
+  if (contexte.type === 'lore') {
+    return [
+      {
+        id: 'defaut',
+        nom: 'Article simple',
+        description: 'Un bandeau, puis le texte.',
+        blocs: () => dispositionParDefaut('lore', contexte),
+      },
+      {
+        id: 'illustre',
+        nom: 'Illustré',
+        description: 'Une image en tête, puis le récit.',
+        blocs: () => [
+          { type: 'bandeau', largeur: 'pleine', options: {} },
+          { type: 'image', largeur: 'pleine', options: {} },
+          { type: 'texte', largeur: 'pleine', options: {} },
+        ],
+      },
+      {
+        id: 'chapitres',
+        nom: 'En chapitres',
+        description: 'Des sections titrées, pour un long article.',
+        blocs: () => [
+          { type: 'bandeau', largeur: 'pleine', options: {} },
+          { type: 'chapeau', largeur: 'pleine', options: { texte: 'Une phrase d’ouverture.' } },
+          { type: 'titre', largeur: 'pleine', options: { texte: 'Première partie' } },
+          { type: 'texte', largeur: 'pleine', options: {} },
+          { type: 'separateur', largeur: 'pleine', options: { motif: '❧' } },
+          { type: 'titre', largeur: 'pleine', options: { texte: 'Seconde partie' } },
+          { type: 'note', largeur: 'pleine', options: { md: 'À remplacer.' } },
+        ],
+      },
+    ];
+  }
+
   const premierGroupe = Object.keys(contexte.groupes || {})[0];
   return [
     {

@@ -11,7 +11,7 @@
  * clé KV, lue en entier et réécrite d'un bloc.
  */
 
-import { stockage } from './stockage';
+import { stockage, clePage } from './stockage';
 
 export interface Categorie {
   slug: string;
@@ -31,8 +31,6 @@ export interface Article {
   titre: string;
   /** Une ligne d'accroche, montrée sur les vignettes. */
   resume: string;
-  /** Le texte, en Markdown court. */
-  corps: string;
   symbole: string;
   couleur: string;
   creeLe: string;
@@ -174,7 +172,6 @@ export async function enregistrerArticle(
     categorie,
     titre,
     resume: texte(brut.resume, 200),
-    corps: texte(brut.corps, 40000),
     symbole: symboleValide(brut.symbole, existant?.symbole ?? '◆'),
     couleur: couleurValide(brut.couleur, existant?.couleur ?? '#c9a227'),
     creeLe: existant?.creeLe ?? new Date().toISOString(),
@@ -190,6 +187,9 @@ export async function enregistrerArticle(
 export async function supprimerArticle(locals: App.Locals, id: string): Promise<Lore> {
   const lore = await lireLore(locals);
   lore.articles = lore.articles.filter((a) => a.id !== id);
+  // La mise en page vit sous l'identifiant, pas le slug : on l'efface avec.
+  const espace = stockage(locals);
+  if (espace) await espace.delete(clePage('lore', id));
   return ecrire(locals, lore);
 }
 

@@ -51,6 +51,12 @@
   flex: none;
   filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.6));
 }
+.bandeau__sceau {
+  width: 88px;
+  height: 88px;
+  font-size: 2.4rem;
+  flex: none;
+}
 .bandeau__texte {
   min-width: 0;
 }

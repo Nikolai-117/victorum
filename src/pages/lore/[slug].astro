@@ -1,13 +1,17 @@
 ---
 /**
- * Un article du codex : ce que Romain a écrit, tel qu'il l'a écrit.
+ * Un article du codex : composé, comme une fiche, avec le même atelier de blocs.
  *
- * La page ne rend que son texte — jamais un résumé fabriqué ici. Sans corps,
- * elle l'annonce plutôt que de meubler.
+ * Les métadonnées (titre, catégorie, sceau, couleur, accroche) vivent dans le
+ * lore ; la mise en page et le texte vivent, eux, dans le stockage des pages,
+ * sous l'identifiant de l'article — un renommage ne perd donc rien. Rendu à la
+ * demande, comme les fiches, pour servir le dernier enregistrement aussitôt.
  */
 import Base from '../../layouts/Base.astro';
+import Atelier from '../../components/Atelier.astro';
 import { lireLore, articleParSlug, categoriesDe, articlesDe } from '../../lib/lore';
-import { markdownCourt } from '../../lib/blocs.js';
+import { lirePage, motDePasseDefini, stockage } from '../../lib/stockage';
+import { rendrePage, dispositionParDefaut, markdownCourt, CATALOGUE_LORE } from '../../lib/blocs.js';
 
 export const prerender = false;
 
@@ -18,109 +22,71 @@ if (!article) return Astro.rewrite('/404');
 const categorie = categoriesDe(lore).find((c) => c.slug === article.categorie);
 const voisins = articlesDe(lore, article.categorie).filter((a) => a.id !== article.id);
 
-const DATE = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-const dateLisible = (iso: string) => {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? null : DATE.format(d);
+// La mise en page est rangée sous l'identifiant, pas le slug : stable au renommage.
+const enregistre = await lirePage(Astro.locals, 'lore', article.id);
+
+const contexte = {
+  type: 'lore',
+  slug: article.slug,
+  titre: article.titre,
+  surtitre: categorie ? `${categorie.symbole} ${categorie.nom}` : 'Codex',
+  couleur: article.couleur,
+  symbole: article.symbole,
+  blason: null,
+  url: `/lore/${article.slug}`,
+  cheminTexte: '',
+  corpsHtml: enregistre?.texte ? markdownCourt(enregistre.texte) : null,
+  position: null,
+  faits: [],
+  chiffres: [],
+  groupes: {},
 };
+
+const enregistres = enregistre?.blocs as unknown[] | undefined;
+const blocs = enregistres?.length ? enregistres : dispositionParDefaut('lore', contexte);
+const html = rendrePage(blocs, contexte);
 ---
 
 <Base titre={article.titre} description={article.resume || `${article.titre} — codex de Victorum.`}>
   <div class="contenant">
-    <header class="cartouche article-tete">
-      <i class="lore-marque lore-marque--grand" style={`--teinte:${article.couleur}`}>{article.symbole}</i>
-      <div>
-        <p class="etiquette">
-          <a href="/lore">Codex</a>
-          {categorie && <> · <a href={`/lore#${categorie.slug}`}>{categorie.nom}</a></>}
-        </p>
-        <h1>{article.titre}</h1>
-        {article.resume && <p class="article-tete__resume">{article.resume}</p>}
-      </div>
-    </header>
+    <Atelier
+      contexte={contexte}
+      blocs={blocs}
+      section="lore"
+      slug={article.id}
+      texte={enregistre?.texte ?? ''}
+      stockageActif={Boolean(stockage(Astro.locals))}
+      motDePasseDefini={await motDePasseDefini(Astro.locals)}
+      catalogue={CATALOGUE_LORE}
+    />
+    <div id="fiche" set:html={html} />
 
-    <div class="article-corps">
-      <article class="pile">
-        {
-          article.corps ? (
-            <div class="prose" set:html={markdownCourt(article.corps)} />
-          ) : (
-            <div class="a-ecrire">
-              <p class="etiquette">Sans texte</p>
-              <p>Cet article n'a pas encore de contenu. Ouvre le codex pour l'écrire.</p>
-            </div>
-          )
-        }
-        <p class="article-date">Modifié le {dateLisible(article.modifieLe) ?? '—'}.</p>
-      </article>
-
-      {
-        voisins.length > 0 && (
-          <aside class="pile">
-            <div class="identite">
-              <p class="etiquette">{categorie?.nom ?? 'Même catégorie'}</p>
-              <ul class="lore-voisins">
-                {voisins.map((v) => (
-                  <li>
-                    <i class="lore-marque" style={`--teinte:${v.couleur}`}>{v.symbole}</i>
-                    <a href={`/lore/${v.slug}`}>{v.titre}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </aside>
-        )
-      }
-    </div>
+    {
+      voisins.length > 0 && (
+        <section class="lore-suite">
+          <h2 class="etiquette etiquette--filet">Dans {categorie?.nom ?? 'la même catégorie'}</h2>
+          <div class="grille">
+            {voisins.map((v) => (
+              <a class="carte carte--lore" href={`/lore/${v.slug}`}>
+                <span class="carte__titre">
+                  <i class="lore-marque" style={`--teinte:${v.couleur}`}>{v.symbole}</i>
+                  {v.titre}
+                </span>
+                {v.resume && <span class="carte__meta">{v.resume}</span>}
+              </a>
+            ))}
+          </div>
+        </section>
+      )
+    }
   </div>
 </Base>
 
-<style is:global>
-  .article-tete {
-    display: flex;
-    align-items: center;
-    gap: 1.25rem;
+<style>
+  .lore-suite {
+    margin-top: 3.5rem;
   }
-  .article-tete__resume {
-    margin: 0.6rem 0 0;
-    font-size: 1.15rem;
-    color: var(--parchemin-doux);
-    max-width: var(--mesure);
-  }
-  .lore-marque--grand {
-    width: 74px;
-    height: 74px;
-    font-size: 2rem;
-    flex: none;
-  }
-  .article-corps {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-    gap: 2rem;
-    margin-top: 2.5rem;
-  }
-  .article-date {
-    margin-top: 2rem;
-    font-family: var(--chrome);
-    font-size: 0.6875rem;
-    color: var(--parchemin-faible);
-  }
-  .lore-voisins {
-    list-style: none;
-    margin: 0.8rem 0 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.55rem;
-  }
-  .lore-voisins li {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-  }
-  @media (max-width: 860px) {
-    .article-corps {
-      grid-template-columns: 1fr;
-    }
+  .lore-suite .grille {
+    margin-top: 1.2rem;
   }
 </style>

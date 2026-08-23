@@ -117,9 +117,10 @@ const donnees = {
           <label class="champ"><span>Accroche</span>
             <input id="art-resume" type="text" maxlength="200" placeholder="Une ligne, en vignette" />
           </label>
-          <label class="champ"><span>Texte</span>
-            <textarea id="art-corps" rows="10" maxlength="40000" placeholder="Markdown accepté : ## titres, **gras**, listes, > citations…"></textarea>
-          </label>
+          <p class="colonne__note" id="art-note" hidden>
+            Le texte et la mise en page se composent sur la page de l'article :
+            <a id="art-lien" href="#">l'ouvrir</a>.
+          </p>
           <div class="colonne__actions">
             <button class="bouton bouton--or" type="submit">Enregistrer</button>
             <button class="bouton" type="button" id="supprimer-article">Supprimer</button>
@@ -275,6 +276,12 @@ const donnees = {
     margin-left: auto;
     font-family: var(--chrome);
     font-size: 0.625rem;
+    color: var(--parchemin-faible);
+  }
+  .colonne__note {
+    margin: 0;
+    font-family: var(--chrome);
+    font-size: 0.6875rem;
     color: var(--parchemin-faible);
   }
   .colonne__forme {
@@ -464,7 +471,13 @@ const donnees = {
     $('art-symbole').value = a?.symbole || '◆';
     $('art-couleur').value = a?.couleur || '#c9a227';
     $('art-resume').value = a?.resume || '';
-    $('art-corps').value = a?.corps || '';
+    const note = $('art-note');
+    if (a) {
+      note.hidden = false;
+      $('art-lien').href = `/lore/${a.slug}`;
+    } else {
+      note.hidden = true;
+    }
     $('supprimer-article').hidden = !a;
   }
 
@@ -485,7 +498,6 @@ const donnees = {
       symbole: $('art-symbole').value,
       couleur: $('art-couleur').value,
       resume: $('art-resume').value,
-      corps: $('art-corps').value,
     });
   });
 

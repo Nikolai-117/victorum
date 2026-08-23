@@ -257,6 +257,15 @@ la carte ne dit pas. `src/lib/lore.ts`, `/api/lore`, `/lore` et `/lore/[slug]`.
   `/lore/[slug]`. Rien n'est pré-rempli : le codex vierge le dit et s'arrête là.
 - L'atelier écrit par `/api/lore`, sous le même mot de passe que le reste, et
   recharge après enregistrement — la vue publique est rendue par le serveur.
+- **Un article se compose comme une fiche**, avec le même atelier de blocs
+  (`Atelier.astro`, moteur `blocs.js`) : sa page `/lore/[slug]` rend une
+  disposition et l'édite en place. La métadonnée (titre, catégorie, sceau,
+  accroche) vit dans le lore ; la **mise en page et le texte** vivent dans le
+  stockage des pages, sous l'**identifiant** de l'article — un renommage ne perd
+  donc rien. `blocs.js` expose un `CATALOGUE_LORE` réduit (en-tête, textes,
+  image, mise en forme) : les blocs d'entité — blason, chiffres, relations,
+  situation — n'auraient aucun fait à montrer ici. Le bandeau affiche le sceau
+  de l'article à défaut de blason.
 - **« Peuples » a disparu de la navigation** : la culture est désormais une
   catégorie du codex. Les fiches de cultures et de religions
   (`/cultures/[slug]`, `/religions/[slug]`) restent atteignables ; seuls les
