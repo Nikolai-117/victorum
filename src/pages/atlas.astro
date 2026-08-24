@@ -446,7 +446,7 @@ import { monde } from '../lib/monde';
        Éclaircie pour l'affichage : le pourpre d'un royaume, posé tel quel sur
        ce noir, ne se verrait pas. */
     --teinte: var(--or);
-    --teinte-vive: color-mix(in srgb, var(--teinte) 60%, #3d322e);
+    --teinte-vive: color-mix(in srgb, var(--teinte) 60%, #464646);
     animation: panneau-entree 0.22s ease-out;
   }
   .panneau[hidden] {
@@ -632,7 +632,7 @@ import { monde } from '../lib/monde';
     border-radius: 50%;
     font-size: 0.75rem;
     line-height: 1;
-    color: color-mix(in srgb, var(--teinte-courant) 65%, #3d322e);
+    color: color-mix(in srgb, var(--teinte-courant) 65%, #464646);
     background: color-mix(in srgb, var(--teinte-courant) 18%, transparent);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teinte-courant) 45%, transparent);
   }
@@ -804,12 +804,12 @@ import { monde } from '../lib/monde';
   .bouton--plein {
     background: var(--or);
     border-color: var(--or);
-    color: #14100a;
+    color: #ffffff;
   }
   .bouton--plein:hover {
     background: var(--or-clair);
     border-color: var(--or-clair);
-    color: #14100a;
+    color: #ffffff;
   }
 
   /* ------------------------------------------------------------- commandes */
@@ -2399,7 +2399,7 @@ import { monde } from '../lib/monde';
       cercle.setAttribute('cy', entree.y);
       cercle.setAttribute('r', 7);
       cercle.setAttribute('fill', 'none');
-      cercle.setAttribute('stroke', '#e2c257');
+      cercle.setAttribute('stroke', '#f87472');
       cercle.setAttribute('vector-effect', 'non-scaling-stroke');
       cercle.setAttribute('stroke-width', '2');
       gSurbrillance.appendChild(cercle);

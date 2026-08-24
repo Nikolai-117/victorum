@@ -17,44 +17,48 @@
 @import './blocs.css';
 
 :root {
-  /* Surfaces : une crème chaude, des cartes blanches nettes, un anthracite */
-  --encre: #efe4d3;          /* la page, crème un peu ambrée */
-  --encre-2: #f6ecdd;        /* teinte de fond secondaire */
-  --velin: #f7ddca;          /* pêche pâle */
-  --velin-haut: #fbe7d7;
-  --sombre: #2c2926;         /* l'anthracite : entête, pied, bandes */
-  --sombre-2: #3b3733;
-  --sur-sombre: #f3ead9;     /* le texte posé sur le sombre */
+  /* Palette imposée : 6 codes, aucun autre.
+     pêche #FEBE98 · rose #DF7F83 · neutre clair #F0CFBA · crème #F2E9D9
+     corail #F87472 · texte #464646  (+ le blanc pour le texte des boutons). */
 
-  /* Filets */
-  --trait: rgba(44, 41, 38, 0.12);
-  --trait-vif: rgba(44, 41, 38, 0.24);
+  /* Surfaces */
+  --encre: #f2e9d9;          /* fond général de la page : crème */
+  --encre-2: #f0cfba;        /* fond des cartes et encadrés : neutre clair */
+  --velin: #f0cfba;
+  --velin-haut: #febe98;
+  --sombre: #464646;         /* bandes sombres (entête, pied) : le gris texte */
+  --sombre-2: #464646;
+  --sur-sombre: #f2e9d9;     /* texte crème posé sur le sombre */
 
-  /* Encres : un brun-gris profond, plus riche que le gris nu */
-  --parchemin: #3a332e;
-  --parchemin-doux: #6c6259;
-  --parchemin-faible: #9a9088;
+  /* Filets : le gris texte, à peine posé */
+  --trait: rgba(70, 70, 70, 0.16);
+  --trait-vif: rgba(70, 70, 70, 0.32);
 
-  /* Accents : toute la palette — rose, corail, pêche, et leurs mélanges */
-  --or: #df7f83;             /* rose (accent premier ; alias historique --or) */
-  --or-clair: #e99aa0;
-  --or-sourd: #c96a70;
-  --sang: #f87472;           /* corail */
-  --peche: #febe98;
-  --verdet: #7fa38f;
-  /* La signature : un dégradé chaud pêche → corail, pour les gestes forts */
+  /* Encres : tout le texte courant en #464646 */
+  --parchemin: #464646;
+  --parchemin-doux: rgba(70, 70, 70, 0.7);
+  --parchemin-faible: rgba(70, 70, 70, 0.5);
+
+  /* Accents */
+  --or: #df7f83;             /* rose : titres, liens */
+  --or-clair: #f87472;       /* corail au survol */
+  --or-sourd: #df7f83;
+  --sang: #f87472;           /* corail : boutons principaux, ce qui ressort */
+  --peche: #febe98;          /* pêche : boutons secondaires, bordures */
+  --verdet: #df7f83;
+  /* Dégradés : uniquement des couleurs de la palette */
   --degrade: linear-gradient(135deg, #febe98 0%, #f87472 100%);
-  --degrade-doux: linear-gradient(135deg, #fed3b4 0%, #f79a9c 100%);
+  --degrade-doux: linear-gradient(135deg, #febe98 0%, #f0cfba 100%);
 
-  /* Cartes : blanches et solides, un vrai relief plutôt qu'un voile délavé */
-  --carte: #fffdf9;
-  --verre: rgba(255, 253, 249, 0.9);
-  --verre-haut: #ffffff;
+  /* Cartes : neutre clair */
+  --carte: #f0cfba;
+  --verre: #f0cfba;
+  --verre-haut: #febe98;
   --flou: blur(18px) saturate(1.05);
-  --ombre: 0 26px 52px -22px rgba(60, 40, 34, 0.4);
-  --ombre-basse: 0 14px 28px -18px rgba(60, 40, 34, 0.24);
-  --lueur: inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  --saisie: #fffdf9;
+  --ombre: 0 20px 44px -20px rgba(70, 70, 70, 0.32);
+  --ombre-basse: 0 12px 24px -16px rgba(70, 70, 70, 0.2);
+  --lueur: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  --saisie: #f2e9d9;
 
   /* Typographie */
   --display: 'Almendra SC', 'Iowan Old Style', Georgia, serif;
@@ -161,6 +165,7 @@ h4 {
   margin: 0;
   text-wrap: balance;
   letter-spacing: 0.01em;
+  color: var(--or);
 }
 
 ::selection {
@@ -290,7 +295,7 @@ h4 {
   letter-spacing: 0.13em;
   text-transform: uppercase;
   white-space: nowrap;
-  color: var(--sur-sombre);
+  color: var(--or);
   background: none;
   padding: 0.32rem 0.75rem;
   border-radius: var(--pilule);
@@ -325,7 +330,7 @@ h4 {
   background: rgba(255, 255, 255, 0.1);
 }
 .nav a[aria-current='page'] {
-  color: #2c2926;
+  color: #464646;
   background: var(--peche);
 }
 
@@ -490,7 +495,7 @@ h4 {
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  color: var(--parchemin);
+  color: var(--or);
 }
 
 .carte__meta {
@@ -672,9 +677,9 @@ h4 {
   align-items: center;
   gap: 0.5rem;
   padding: 0.52rem 1.05rem;
-  border: 1px solid var(--trait-vif);
+  border: 1px solid var(--peche);
   border-radius: var(--pilule);
-  background: var(--carte);
+  background: var(--encre);
   color: var(--parchemin);
   font-family: var(--chrome);
   font-size: 0.8125rem;
@@ -688,7 +693,7 @@ h4 {
   transform: translateY(-1px);
 }
 .bouton--or {
-  border-color: var(--or-sourd);
+  border-color: var(--peche);
   color: var(--or);
 }
 .bouton--or:hover {
@@ -702,15 +707,15 @@ h4 {
   font-size: 0.6875rem;
 }
 .bouton--plein {
-  background: var(--degrade);
+  background: var(--sang);
   border-color: transparent;
-  color: #40201d;
+  color: #ffffff;
   font-weight: 500;
   box-shadow: 0 10px 22px -10px rgba(248, 116, 114, 0.7);
 }
 .bouton--plein:hover {
-  filter: brightness(1.04);
-  color: #40201d;
+  filter: brightness(1.05);
+  color: #ffffff;
   transform: translateY(-1px);
 }
 
@@ -726,7 +731,7 @@ h4 {
   border-radius: 50%;
   font-size: 0.8125rem;
   line-height: 1;
-  color: color-mix(in srgb, var(--teinte, var(--or)) 65%, #3d322e);
+  color: color-mix(in srgb, var(--teinte, var(--or)) 65%, #464646);
   background: color-mix(in srgb, var(--teinte, var(--or)) 18%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teinte, var(--or)) 45%, transparent);
 }
