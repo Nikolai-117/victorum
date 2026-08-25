@@ -191,11 +191,11 @@ const donneesFrise = {
       </header>
       <div class="modale__corps">
         <input type="hidden" id="ev-id" />
-        <label class="champ"><span>Titre</span>
+        <label class="champ"><span class="champ-requis">Titre</span>
           <input id="ev-titre" type="text" maxlength="120" placeholder="La Croisade de Labria" />
         </label>
         <div class="duo">
-          <label class="champ"><span>Année</span>
+          <label class="champ"><span class="champ-requis">Année</span>
             <input id="ev-an" type="number" step="1" placeholder="921" />
           </label>
           <label class="champ"><span>Fin (facultative)</span>
@@ -336,6 +336,14 @@ const donneesFrise = {
     font-size: 1.0625rem; width: 100%;
   }
   .modale__corps textarea { resize: vertical; }
+  /* Champ requis manquant : on le fait clignoter en corail le temps qu'on le voie. */
+  .champ-manque, .modale__corps .champ-manque {
+    border-color: var(--sang) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--sang) 22%, transparent) !important;
+    animation: champ-secoue 0.3s ease;
+  }
+  @keyframes champ-secoue { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+  .champ-requis::after { content: ' *'; color: var(--sang); }
   .modale__corps input[type='color'] {
     height: 38px; padding: 2px; background: var(--saisie);
     border: 1px solid var(--trait); border-radius: var(--rayon-s); cursor: pointer; width: 100%;
@@ -560,8 +568,9 @@ const donneesFrise = {
   const SLOT = 262, PAD = 150;
   let nodes = [], current = 'all', legendsOn = true;
   let activeIdx = -1, activeEl = null;
-
-  if (hasFrise) construireFrise();
+  // NB : la construction est lancée tout en bas, une fois `bubble`, l'éditeur et
+  // tout le câblage initialisés — sinon applyFilter → closeBubble toucherait
+  // `bubble` avant sa déclaration (zone morte temporelle) et casserait la page.
 
   function construireFrise() {
     const scroller = $('scroller'), track = $('track'), eraLane = $('eraLane'), spine = $('spine'), viewport = $('viewport');
@@ -800,11 +809,21 @@ const donneesFrise = {
 
   $('nouvel-evenement').addEventListener('click', () => ouvrirEditeur(null));
 
+  // Un champ manquant ne laisse plus perplexe : on y saute et on le signale.
+  function exiger(champ, message) {
+    $('ev-etat').textContent = message;
+    champ.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    champ.focus({ preventScroll: true });
+    champ.classList.add('champ-manque');
+    setTimeout(() => champ.classList.remove('champ-manque'), 1800);
+    return null;
+  }
+
   $('ev-enregistrer').addEventListener('click', async () => {
     const etat = $('ev-etat');
     const titre = $('ev-titre').value.trim();
-    if (!titre) return (etat.textContent = 'Donne un titre.');
-    if ($('ev-an').value === '') return (etat.textContent = 'Donne une année.');
+    if (!titre) return exiger($('ev-titre'), 'Il manque le titre — c’est ici, tout en haut.');
+    if ($('ev-an').value.trim() === '') return exiger($('ev-an'), 'Il manque l’année (un nombre, négatif si avant l’origine).');
     const categorie = catSel.value === '__autre' ? catLibre.value.trim() : catSel.value;
     etat.textContent = 'Enregistrement…';
     const chroniques = await envoyer({
@@ -842,4 +861,7 @@ const donneesFrise = {
     const chroniques = await envoyer({ action: 'supprimer-chronique', slug: meta.slug }, $('pc-etat'));
     if (chroniques) location.href = '/chronologie';
   });
+
+  /* Tout est prêt : on construit la frise en dernier, `bubble` et l'éditeur en place. */
+  if (hasFrise) construireFrise();
 </script>
