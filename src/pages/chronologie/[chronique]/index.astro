@@ -2,12 +2,12 @@
 /**
  * Une chronique : sa présentation composable, puis sa frise vivante.
  *
- * L'en-tête et l'intro se mettent en page avec le même atelier que les fiches.
- * La frise, elle, est une chronologie horizontale — âges en bandes, événements
- * en nœuds alternés, chacun ouvrant une bulle détaillée. Elle se peuple des
- * seuls événements que Romain pose ; vide, elle le dit. Le rendu de la frise
- * est fait par la page à partir des données (pas par le moteur de blocs) :
- * c'est de la donnée vivante, pas une mise en page figée.
+ * La frise est une vraie ligne du temps : chaque événement est placé à sa
+ * DATE sur un axe continu, pas à un rang dans une liste. C'est ce qui permet
+ * de zoomer comme sur un banc de montage, de tracer des âges à la souris, et
+ * de créer un événement en cliquant simplement là où il doit tomber.
+ *
+ * Elle occupe toute la largeur de l'écran : le temps a besoin de place.
  */
 import Base from '../../../layouts/Base.astro';
 import Atelier from '../../../components/Atelier.astro';
@@ -15,6 +15,7 @@ import {
   lireChroniques,
   chroniqueParSlug,
   evenementsDe,
+  agesDe,
   CATEGORIES_EVT,
   STATUTS_EVT,
 } from '../../../lib/chroniques';
@@ -29,6 +30,7 @@ const chronique = chroniqueParSlug(data, Astro.params.chronique ?? '');
 if (!chronique) return Astro.rewrite('/404');
 
 const evenements = evenementsDe(data, chronique.slug);
+const ages = agesDe(data, chronique.slug);
 const nomEtat = new Map(etats.map((e) => [e.id, e.nom]));
 const lien = (() => {
   const m = chronique.portee.match(/^etat:(\d+)$/);
@@ -64,15 +66,38 @@ const html = rendrePage(blocs, contexte);
 const stockageActif = Boolean(stockage(Astro.locals));
 const mdpDefini = await motDePasseDefini(Astro.locals);
 
-// Âges déjà employés, pour la saisie assistée de l'éditeur.
-const eresConnues = [...new Set(evenements.map((e) => e.ere).filter(Boolean))] as string[];
+/**
+ * Les bornes de la frise. Choisies par Romain dans les propriétés ; à défaut,
+ * déduites de ce qu'elle contient, avec un peu d'air de chaque côté. Une frise
+ * vierge s'ouvre sur un siècle : de quoi poser le premier jalon.
+ */
+const bornes = (() => {
+  if (chronique.anMin !== undefined && chronique.anMax !== undefined) {
+    return { min: chronique.anMin, max: chronique.anMax };
+  }
+  const ans = [
+    ...evenements.map((e) => e.an),
+    ...evenements.filter((e) => e.anFin !== undefined).map((e) => e.anFin as number),
+    ...ages.flatMap((a) => [a.debut, a.fin]),
+  ];
+  if (!ans.length) return { min: 0, max: 100 };
+  const bas = Math.min(...ans);
+  const haut = Math.max(...ans);
+  const air = Math.max(10, Math.round((haut - bas) * 0.08));
+  return { min: bas - air, max: haut + air };
+})();
 
 const donneesFrise = {
   slug: chronique.slug,
   teinte: chronique.couleur,
   baseUrl: `/chronologie/${chronique.slug}`,
+  anMin: bornes.min,
+  anMax: bornes.max,
+  suffixeAvant: chronique.suffixeAvant ?? 'av.',
+  suffixeApres: chronique.suffixeApres ?? 'ap.',
   categories: CATEGORIES_EVT,
   statuts: STATUTS_EVT,
+  ages: ages.map((a) => ({ id: a.id, nom: a.nom, debut: a.debut, fin: a.fin, couleur: a.couleur })),
   evenements: evenements.map((e) => ({
     id: e.id,
     slug: e.slug,
@@ -83,7 +108,6 @@ const donneesFrise = {
     categorie: e.categorie ?? 'autre',
     statut: e.statut ?? 'atteste',
     couleur: e.couleur,
-    ere: e.ere ?? '',
     lieu: e.lieu ?? '',
     acteurs: e.acteurs ?? '',
     consequence: e.consequence ?? '',
@@ -100,7 +124,6 @@ const donneesFrise = {
     <div class="lore-outils">
       <a class="bouton" href="/chronologie">‹ Chroniques</a>
       {lien?.slug && <a class="bouton" href={`/etats/${lien.slug}`}>Royaume · {lien.nom}</a>}
-      <button class="bouton bouton--plein" id="nouvel-evenement" type="button">+ Événement</button>
       <button class="bouton" id="ouvrir-props" type="button">Propriétés</button>
     </div>
 
@@ -117,150 +140,193 @@ const donneesFrise = {
     <div id="fiche" set:html={html} />
   </div>
 
-  <!-- La frise vivante. Rendue par le client à partir des événements. -->
-  <section class="frise-hote" style={`--teinte:${chronique.couleur}`}>
-    <div class="contenant">
-      {
-        evenements.length === 0 ? (
-          <p class="frise-vide discret">
-            Aucun événement sur cette frise. Clique « + Événement » pour poser le
-            premier — une date, une nature, et ce que tu veux en dire.
-          </p>
-        ) : (
-          <>
-            <div class="controls" id="filters"></div>
-            <div class="stage">
-              <div class="viewport" id="viewport">
-                <div class="scroller" id="scroller">
-                  <div class="era-lane" id="eraLane"></div>
-                  <div class="track" id="track"><div class="spine" id="spine"></div></div>
-                </div>
-              </div>
-            </div>
-            <div class="rail"><i id="railFill"></i></div>
-            <div class="footline">
-              <div class="legend">
-                <span><i class="m a"></i>Attesté</span>
-                <span><i class="m l"></i>Légende</span>
-                <span><i class="m c"></i>Contesté</span>
-              </div>
-              <span class="hint">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12h16M4 12l4-4M4 12l4 4M20 12l-4-4M20 12l-4 4"/></svg>
-                Glisse ou molette pour traverser les âges
-              </span>
-            </div>
-          </>
-        )
-      }
+  <!-- ================== LA FRISE, PLEIN ÉCRAN ================== -->
+  <section class="frise" style={`--teinte:${chronique.couleur}`}>
+    <div class="contenant frise__barre">
+      <div class="frise__outils">
+        <button class="pastille pastille--geste" id="mode-edition" type="button" aria-pressed="false" title="Mode modification">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          <span>Modifier</span>
+        </button>
+        <button class="pastille" id="ajouter-evt" type="button" title="Poser un événement au centre de la vue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          <span>Événement</span>
+        </button>
+        <button class="pastille" id="ouvrir-ages" type="button" title="Les âges de cette frise">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h13"/></svg>
+          <span>Âges</span>
+        </button>
+      </div>
+
+      <div class="frise__filtres" id="filtres"></div>
+
+      <div class="frise__zoom">
+        <button class="pastille pastille--carree" id="zoom-moins" type="button" aria-label="Dézoomer">−</button>
+        <span class="frise__niveau chiffre" id="niveau-zoom">100 %</span>
+        <button class="pastille pastille--carree" id="zoom-plus" type="button" aria-label="Zoomer">+</button>
+        <button class="pastille" id="zoom-ajuster" type="button" title="Voir toute la frise">Tout voir</button>
+      </div>
+    </div>
+
+    <!-- L'astuce du mode modification, affichée seulement quand il est actif. -->
+    <p class="frise__astuce" id="astuce" hidden>
+      Clique n'importe où sur la frise pour y poser un événement · glisse dans la
+      bande du haut pour tracer un âge
+    </p>
+
+    <div class="frise__scene" id="scene">
+      <div class="frise__vue" id="vue">
+        <div class="frise__ruban" id="ruban">
+          <div class="frise__ages" id="bande-ages"></div>
+          <div class="frise__piste" id="piste">
+            <div class="frise__axe" id="axe"></div>
+            <div class="frise__guide" id="guide" hidden><span class="frise__guide-date chiffre" id="guide-date"></span></div>
+            <div class="frise__trace-age" id="trace-age" hidden></div>
+          </div>
+        </div>
+      </div>
+      <div class="frise__vide" id="frise-vide" hidden>
+        <p>Cette frise est vierge.</p>
+        <p class="frise__vide-aide">
+          Passe en <b>Modifier</b>, puis clique sur la ligne du temps là où doit
+          tomber ton premier événement.
+        </p>
+      </div>
+    </div>
+
+    <div class="contenant frise__pied">
+      <div class="frise__legende">
+        <span><i class="marqueur marqueur--a"></i>Attesté</span>
+        <span><i class="marqueur marqueur--l"></i>Légende</span>
+        <span><i class="marqueur marqueur--c"></i>Contesté</span>
+      </div>
+      <span class="frise__compte" id="compte"></span>
+      <span class="frise__aide">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12h16M4 12l4-4M4 12l4 4M20 12l-4-4M20 12l-4 4"/></svg>
+        Glisse pour parcourir · <b>Ctrl + molette</b> pour zoomer
+      </span>
     </div>
   </section>
 
-  <!-- La bulle d'un événement : sa chronique complète, ouverte au clic. -->
-  <div class="scrim" id="scrim"></div>
-  <div class="bubble" id="bubble" role="dialog" aria-modal="false" aria-label="Chronique de l'évènement" hidden>
-    <div class="cap"></div>
-    <span class="arrow" id="arrow"></span>
-    <div class="body">
-      <img class="bImg" id="bImg" alt="" hidden />
-      <div class="head">
-        <span class="badge" id="bBadge"></span>
-        <button class="close" id="bClose" type="button" aria-label="Fermer"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <!-- ================== LA TUILE D'UN ÉVÉNEMENT ================== -->
+  <div class="voile-tuile" id="voile-tuile"></div>
+  <div class="tuile" id="tuile" role="dialog" aria-modal="false" aria-label="Chronique de l'évènement">
+    <div class="tuile__filet"></div>
+    <span class="tuile__fleche" id="tuile-fleche"></span>
+    <div class="tuile__corps">
+      <img class="tuile__image" id="t-image" alt="" hidden />
+      <div class="tuile__tete">
+        <span class="tuile__badge" id="t-badge"></span>
+        <button class="tuile__fermer" id="t-fermer" type="button" aria-label="Fermer"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
-      <span class="status" id="bStatus"></span>
-      <p class="year" id="bYear"></p>
-      <h3 id="bTitle"></h3>
-      <p class="desc" id="bDesc"></p>
-      <div class="epi" id="bEpi" hidden></div>
-      <div class="meta" id="bMeta"></div>
-      <div class="conseq" id="bConseq" hidden></div>
-      <div class="tags" id="bTags"></div>
-      <div class="bActions">
-        <a class="bouton bouton--mini" id="bOuvrir" href="#">Ouvrir la page ›</a>
-        <button class="bouton bouton--mini" id="bEditer" type="button">Éditer</button>
+      <span class="tuile__statut" id="t-statut"></span>
+      <p class="tuile__an chiffre" id="t-an"></p>
+      <h3 id="t-titre"></h3>
+      <p class="tuile__desc" id="t-desc"></p>
+      <div class="tuile__citation" id="t-citation" hidden></div>
+      <div class="tuile__meta" id="t-meta"></div>
+      <div class="tuile__suite" id="t-consequence" hidden></div>
+      <div class="tuile__mots" id="t-mots"></div>
+      <div class="tuile__gestes">
+        <a class="bouton bouton--mini" id="t-ouvrir" href="#">Ouvrir la page ›</a>
+        <button class="bouton bouton--mini" id="t-editer" type="button">Modifier</button>
       </div>
     </div>
   </div>
 
-  <!-- L'atelier d'un événement : tout ce qu'on peut en dire, en un seul endroit. -->
+  <!-- ================== L'ATELIER D'UN ÉVÉNEMENT ================== -->
   <div class="modale" id="modale-evt" hidden>
     <div class="modale__voile" data-fermer></div>
     <div class="modale__boite modale__boite--large" role="dialog" aria-label="Événement">
       <header class="modale__tete">
-        <h2 id="ev-titre-modale">Nouvel événement</h2>
+        <h2 id="ev-tete">Nouvel événement</h2>
         <button class="fermer" type="button" data-fermer aria-label="Fermer">×</button>
       </header>
       <div class="modale__corps">
         <input type="hidden" id="ev-id" />
+
         <label class="champ"><span class="champ-requis">Titre</span>
-          <input id="ev-titre" type="text" maxlength="120" placeholder="La Croisade de Labria" />
+          <input id="ev-titre" type="text" maxlength="120" placeholder="La Fondation d'Aubefer" />
         </label>
-        <div class="duo">
-          <label class="champ"><span class="champ-requis">Année</span>
-            <input id="ev-an" type="number" step="1" placeholder="921" />
-          </label>
-          <label class="champ"><span>Fin (facultative)</span>
-            <input id="ev-anfin" type="number" step="1" placeholder="927" />
-          </label>
+
+        <!-- La date : le réglage vedette, avec un pas à la molette. -->
+        <div class="reglage-date">
+          <span class="reglage-date__lb">Date</span>
+          <div class="reglage-date__champs">
+            <button class="pastille pastille--carree" id="ev-an-moins" type="button" aria-label="Année précédente">−</button>
+            <input id="ev-an" type="number" step="1" placeholder="0" />
+            <button class="pastille pastille--carree" id="ev-an-plus" type="button" aria-label="Année suivante">+</button>
+            <label class="reglage-date__fin">
+              <input id="ev-duree" type="checkbox" /> <span>sur une durée</span>
+            </label>
+            <input id="ev-anfin" type="number" step="1" placeholder="fin" hidden />
+          </div>
+          <span class="reglage-date__lecture chiffre" id="ev-an-lecture"></span>
         </div>
+
+        <label class="champ"><span>Description</span>
+          <textarea id="ev-resume" rows="3" maxlength="600" placeholder="Ce qui s'est passé, en quelques phrases."></textarea>
+        </label>
+
+        <label class="champ"><span>Image (paysage — elle coiffe la tuile)</span>
+          <input id="ev-image" type="text" maxlength="500" placeholder="/illustrations/… ou https://…" />
+        </label>
+
         <div class="duo">
-          <label class="champ"><span>Âge</span>
-            <input id="ev-ere" type="text" maxlength="60" list="eres-connues" placeholder="Âge des Cendres" />
-          </label>
           <label class="champ"><span>Nature</span>
             <select id="ev-cat">
               {CATEGORIES_EVT.map((c) => <option value={c.cle}>{c.label}</option>)}
               <option value="__autre">Autre…</option>
             </select>
           </label>
-        </div>
-        <label class="champ champ--cache" id="ev-cat-libre-champ"><span>Nature libre</span>
-          <input id="ev-cat-libre" type="text" maxlength="30" placeholder="Schisme, Découverte…" />
-        </label>
-        <datalist id="eres-connues">
-          {eresConnues.map((e) => <option value={e}></option>)}
-        </datalist>
-        <div class="duo">
           <label class="champ"><span>Statut</span>
             <select id="ev-statut">
               {STATUTS_EVT.map((s) => <option value={s.cle}>{s.label}</option>)}
             </select>
           </label>
-          <label class="champ"><span>Couleur</span>
-            <input id="ev-couleur" type="color" value={chronique.couleur} />
-            <button type="button" class="lien-mini" id="ev-couleur-auto">Suivre la nature</button>
-          </label>
         </div>
-        <label class="champ"><span>Description</span>
-          <textarea id="ev-resume" rows="3" maxlength="600" placeholder="Ce qui s'est passé, en quelques phrases."></textarea>
+        <label class="champ champ--cache" id="ev-cat-libre-champ"><span>Nature libre</span>
+          <input id="ev-cat-libre" type="text" maxlength="30" placeholder="Schisme, Découverte…" />
         </label>
+
         <div class="duo">
           <label class="champ"><span>Lieu</span>
-            <input id="ev-lieu" type="text" maxlength="120" placeholder="Mont Kaldr, Hautes-Aubes" />
+            <input id="ev-lieu" type="text" maxlength="120" placeholder="Gué d'Aubefer" />
           </label>
           <label class="champ"><span>Acteurs</span>
-            <input id="ev-acteurs" type="text" maxlength="160" placeholder="Les Veilleurs · les Peuples des Brumes" />
+            <input id="ev-acteurs" type="text" maxlength="160" placeholder="Les Maçons du Gué" />
           </label>
         </div>
-        <label class="champ"><span>Conséquence</span>
-          <textarea id="ev-consequence" rows="2" maxlength="400" placeholder="Ce que l'événement a changé."></textarea>
-        </label>
-        <div class="duo">
-          <label class="champ"><span>Citation</span>
-            <input id="ev-cit-texte" type="text" maxlength="300" placeholder="Et la nuit recula…" />
-          </label>
-          <label class="champ"><span>Source de la citation</span>
-            <input id="ev-cit-source" type="text" maxlength="120" placeholder="Livre des Aubes, tablette I" />
-          </label>
-        </div>
-        <label class="champ"><span>Mots-clés (séparés par des virgules)</span>
-          <input id="ev-tags" type="text" maxlength="400" placeholder="Mythe fondateur, Feu sacré" />
-        </label>
-        <label class="champ"><span>Lien (facultatif)</span>
-          <input id="ev-lien" type="text" maxlength="500" placeholder="/etats/… ou https://…" />
-        </label>
-        <label class="champ"><span>Image (facultative)</span>
-          <input id="ev-image" type="text" maxlength="500" placeholder="/illustrations/… ou https://…" />
-        </label>
+
+        <details class="replis">
+          <summary>Aller plus loin</summary>
+          <div class="replis__corps">
+            <label class="champ"><span>Conséquence</span>
+              <textarea id="ev-consequence" rows="2" maxlength="400" placeholder="Ce que l'événement a changé."></textarea>
+            </label>
+            <div class="duo">
+              <label class="champ"><span>Citation</span>
+                <input id="ev-cit-texte" type="text" maxlength="300" placeholder="Nous lui avons donné une porte." />
+              </label>
+              <label class="champ"><span>Source</span>
+                <input id="ev-cit-source" type="text" maxlength="120" placeholder="Pierre d'angle d'Aubefer" />
+              </label>
+            </div>
+            <label class="champ"><span>Mots-clés (séparés par des virgules)</span>
+              <input id="ev-tags" type="text" maxlength="400" placeholder="Capitale, An 0" />
+            </label>
+            <div class="duo">
+              <label class="champ"><span>Lien</span>
+                <input id="ev-lien" type="text" maxlength="500" placeholder="/etats/… ou https://…" />
+              </label>
+              <label class="champ"><span>Couleur</span>
+                <input id="ev-couleur" type="color" value={chronique.couleur} />
+                <button type="button" class="lien-mini" id="ev-couleur-auto">Suivre la nature</button>
+              </label>
+            </div>
+          </div>
+        </details>
+
         <p class="modale__etat" id="ev-etat"></p>
       </div>
       <footer class="modale__pied">
@@ -270,7 +336,42 @@ const donneesFrise = {
     </div>
   </div>
 
-  <!-- Propriétés de la chronique. -->
+  <!-- ================== LES ÂGES ================== -->
+  <div class="modale" id="modale-ages" hidden>
+    <div class="modale__voile" data-fermer></div>
+    <div class="modale__boite modale__boite--etroite" role="dialog" aria-label="Les âges">
+      <header class="modale__tete">
+        <h2 id="age-tete">Les âges</h2>
+        <button class="fermer" type="button" data-fermer aria-label="Fermer">×</button>
+      </header>
+      <div class="modale__corps">
+        <ul class="liste-ages" id="liste-ages"></ul>
+        <div class="separateur"><span>Ajouter ou modifier</span></div>
+        <input type="hidden" id="age-id" />
+        <label class="champ"><span class="champ-requis">Nom de l'âge</span>
+          <input id="age-nom" type="text" maxlength="60" placeholder="Âge de Fer" />
+        </label>
+        <div class="duo">
+          <label class="champ"><span class="champ-requis">Début</span>
+            <input id="age-debut" type="number" step="1" />
+          </label>
+          <label class="champ"><span class="champ-requis">Fin</span>
+            <input id="age-fin" type="number" step="1" />
+          </label>
+        </div>
+        <label class="champ"><span>Couleur</span>
+          <input id="age-couleur" type="color" value={chronique.couleur} />
+        </label>
+        <p class="modale__etat" id="age-etat"></p>
+      </div>
+      <footer class="modale__pied">
+        <button class="bouton" id="age-annuler" type="button" hidden>Nouvel âge</button>
+        <button class="bouton bouton--plein" id="age-enregistrer" type="button">Enregistrer l'âge</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ================== PROPRIÉTÉS DE LA CHRONIQUE ================== -->
   <div class="modale" id="modale-props" hidden>
     <div class="modale__voile" data-fermer></div>
     <div class="modale__boite modale__boite--etroite" role="dialog" aria-label="Propriétés de la chronique">
@@ -282,6 +383,24 @@ const donneesFrise = {
         <label class="champ"><span>Titre</span>
           <input id="pc-titre" type="text" maxlength="80" value={chronique.titre} disabled={chronique.fixe} />
         </label>
+        <div class="separateur"><span>L'étendue du temps</span></div>
+        <div class="duo">
+          <label class="champ"><span>Première année</span>
+            <input id="pc-anmin" type="number" step="1" value={bornes.min} />
+          </label>
+          <label class="champ"><span>Dernière année</span>
+            <input id="pc-anmax" type="number" step="1" value={bornes.max} />
+          </label>
+        </div>
+        <div class="duo">
+          <label class="champ"><span>Avant l'origine</span>
+            <input id="pc-avant" type="text" maxlength="16" value={chronique.suffixeAvant ?? 'av.'} placeholder="av. F." />
+          </label>
+          <label class="champ"><span>Après l'origine</span>
+            <input id="pc-apres" type="text" maxlength="16" value={chronique.suffixeApres ?? 'ap.'} placeholder="ap. F." />
+          </label>
+        </div>
+        <div class="separateur"><span>Apparence</span></div>
         <label class="champ"><span>Couleur</span>
           <input id="pc-couleur" type="color" value={chronique.couleur} />
         </label>
@@ -313,230 +432,365 @@ const donneesFrise = {
   .modale__tete .fermer { position: static; margin-left: auto; }
   .lore-outils { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
   .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
-  .modale__note { margin: 0; font-family: var(--chrome); font-size: 0.6875rem; color: var(--parchemin-faible); }
+  .modale__note { margin: 0; font-family: var(--chrome); font-size: 0.6875rem; color: var(--muted); }
   .champ--cache { display: none; }
   .champ--cache.ouvert { display: flex; }
+  .champ-requis::after { content: ' *'; color: var(--accent); }
   .lien-mini {
     background: none; border: 0; padding: 0; margin-top: 0.3rem; cursor: pointer; align-self: flex-start;
-    font-family: var(--chrome); font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--parchemin-doux);
+    font-family: var(--chrome); font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
   }
-  .lien-mini:hover { color: var(--or); }
-  .modale__boite--large { width: min(600px, 100%); max-height: min(82svh, 720px); }
-  /* Le corps défile dans la fenêtre plafonnée : elle ne déborde plus de l'écran. */
+  .lien-mini:hover { color: var(--accent); }
+  .bouton--mini { padding: 0.34rem 0.8rem; font-size: 0.7rem; }
+
+  .modale__boite--large { width: min(620px, 100%); max-height: min(86svh, 780px); }
   .modale__corps {
-    padding: 1.05rem 1.35rem 1.2rem; display: flex; flex-direction: column; gap: 0.7rem;
+    padding: 1.05rem 1.35rem 1.2rem; display: flex; flex-direction: column; gap: 0.75rem;
     flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   }
   .modale__corps input[type='text'],
   .modale__corps input[type='number'],
   .modale__corps select,
   .modale__corps textarea {
-    padding: 0.5rem 0.7rem; background: var(--saisie); border: 1px solid var(--trait);
-    border-radius: var(--rayon-s); color: var(--parchemin); font-family: var(--texte-police);
+    padding: 0.5rem 0.7rem; background: var(--saisie); border: 1px solid var(--line);
+    border-radius: var(--rayon-s); color: var(--ink); font-family: var(--texte-police);
     font-size: 1.0625rem; width: 100%;
   }
   .modale__corps textarea { resize: vertical; }
-  /* Champ requis manquant : on le fait clignoter en corail le temps qu'on le voie. */
-  .champ-manque, .modale__corps .champ-manque {
-    border-color: var(--sang) !important;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--sang) 22%, transparent) !important;
-    animation: champ-secoue 0.3s ease;
-  }
-  @keyframes champ-secoue { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
-  .champ-requis::after { content: ' *'; color: var(--sang); }
   .modale__corps input[type='color'] {
     height: 38px; padding: 2px; background: var(--saisie);
-    border: 1px solid var(--trait); border-radius: var(--rayon-s); cursor: pointer; width: 100%;
+    border: 1px solid var(--line); border-radius: var(--rayon-s); cursor: pointer; width: 100%;
   }
-  .bouton--mini { padding: 0.34rem 0.8rem; font-size: 0.7rem; }
+  .champ-manque, .modale__corps .champ-manque {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent) !important;
+    animation: secousse 0.3s ease;
+  }
+  @keyframes secousse { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+  /* Le réglage de date : mis en avant, c'est lui qui place l'événement. */
+  .reglage-date {
+    display: flex; flex-direction: column; gap: 0.4rem;
+    padding: 0.8rem 0.9rem; border: 1px solid var(--line); border-radius: var(--rayon-s);
+    background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+  }
+  .reglage-date__lb {
+    font-family: var(--chrome); font-size: 0.5625rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .reglage-date__champs { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+  .reglage-date__champs input[type='number'] { width: 7rem !important; font-size: 1.25rem !important; text-align: center; font-variant-numeric: tabular-nums; }
+  .reglage-date__fin {
+    display: inline-flex; align-items: center; gap: 0.35rem; margin-left: auto;
+    font-family: var(--chrome); font-size: 0.66rem; color: var(--muted); cursor: pointer; white-space: nowrap;
+  }
+  .reglage-date__fin input { width: auto !important; }
+  .reglage-date__lecture { font-family: var(--chrome); font-size: 0.7rem; color: var(--accent); }
+
+  .replis > summary {
+    cursor: pointer; font-family: var(--chrome); font-size: 0.66rem; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted); padding: 0.3rem 0;
+  }
+  .replis > summary:hover { color: var(--accent); }
+  .replis__corps { display: flex; flex-direction: column; gap: 0.75rem; padding-top: 0.6rem; }
+
+  .separateur {
+    display: flex; align-items: center; gap: 0.7rem; margin-top: 0.3rem;
+    font-family: var(--chrome); font-size: 0.5625rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .separateur::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+  .liste-ages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+  .liste-ages:empty::after {
+    content: 'Aucun âge pour l’instant.'; font-family: var(--chrome); font-size: 0.7rem; color: var(--muted);
+  }
+  .liste-ages li {
+    display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.6rem;
+    border: 1px solid var(--line); border-radius: var(--rayon-s); background: var(--surface);
+  }
+  .liste-ages .pastille-couleur { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+  .liste-ages .nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .liste-ages .ans { font-family: var(--chrome); font-size: 0.66rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .liste-ages button {
+    border: 0; background: none; cursor: pointer; padding: 0.2rem 0.35rem; border-radius: 6px;
+    font-family: var(--chrome); font-size: 0.62rem; color: var(--muted);
+  }
+  .liste-ages button:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 
   /* =====================================================================
-     La frise — chronologie horizontale posée sur l'atmosphère du monde.
-     Structure et gestes repris d'une référence de Romain ; les couleurs
-     suivent les tokens du site, les teintes de nature restent parlantes.
+     LA FRISE — une ligne du temps plein écran.
      ===================================================================== */
-
-  .frise-hote { margin-top: 2.5rem; }
-  .frise-vide {
-    border: 1px dashed var(--trait-vif); border-radius: var(--rayon);
-    padding: 2.4rem; text-align: center; background: var(--verre); backdrop-filter: var(--flou);
-    box-shadow: var(--ombre-basse), var(--lueur);
+  .frise {
+    margin-top: 3rem;
+    padding: 1.4rem 0 1.8rem;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--surface) 70%, transparent);
+    --verre-frise: linear-gradient(150deg, rgba(255,255,255,.78), rgba(255,255,255,.5));
+    --bord-frise: rgba(255,255,255,.72);
   }
 
-  /* Plaque de verre : la forme de base de tout ce qui flotte sur la frise. */
-  :root { --fr-verre: linear-gradient(150deg, rgba(255,255,255,.7), rgba(255,255,255,.42)); }
-  :root { --fr-verre-fort: linear-gradient(150deg, rgba(255,255,255,.86), rgba(255,255,255,.62)); }
-  :root { --fr-bord: rgba(255,255,255,.7); }
-  :root { --fr-hi: inset 0 1px 0 rgba(255,255,255,.85); }
-
-  .controls { display: flex; gap: 0.55rem; flex-wrap: wrap; margin: 0 0 0.3rem; align-items: center; }
-  .chip {
-    font-family: var(--chrome); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.04em;
-    border: 1px solid var(--trait); background: var(--fr-verre); backdrop-filter: var(--flou);
-    color: var(--parchemin-doux); padding: 0.5rem 0.85rem 0.5rem 0.72rem; border-radius: var(--pilule);
-    cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem;
-    box-shadow: var(--ombre-basse), var(--fr-hi); transition: color .2s, transform .18s, box-shadow .2s;
+  .frise__barre {
+    display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap;
+    margin-bottom: 0.9rem;
   }
-  .chip:hover { transform: translateY(-2px); color: var(--parchemin); }
-  .chip .swatch { width: 9px; height: 9px; border-radius: 50%; background: var(--dot, var(--parchemin-faible)); box-shadow: 0 0 8px var(--dot, transparent); }
-  .chip[aria-pressed="true"] { color: #fff; border-color: color-mix(in srgb, var(--dot, var(--parchemin)) 55%, white); background: linear-gradient(150deg, color-mix(in srgb, var(--dot, var(--parchemin)) 88%, white), var(--dot, var(--parchemin))); }
-  .chip[data-cat="all"][aria-pressed="true"] { background: linear-gradient(150deg, #4a4038, var(--parchemin)); }
-  .chip[aria-pressed="true"] .swatch { background: rgba(255,255,255,.95); box-shadow: 0 0 8px rgba(255,255,255,.6); }
-  .toggle {
-    margin-left: auto; display: inline-flex; align-items: center; gap: 0.6rem; font-family: var(--chrome);
-    font-size: 0.72rem; color: var(--parchemin-doux); border: 1px solid var(--trait); background: var(--fr-verre);
-    backdrop-filter: var(--flou); padding: 0.45rem 0.8rem; border-radius: var(--pilule); cursor: pointer;
-    box-shadow: var(--ombre-basse), var(--fr-hi);
+  .frise__filtres { display: flex; gap: 0.4rem; flex-wrap: wrap; flex: 1; min-width: 0; }
+  .frise__outils, .frise__zoom { display: flex; align-items: center; gap: 0.4rem; }
+  .frise__niveau { font-family: var(--chrome); font-size: 0.66rem; color: var(--muted); min-width: 3.4rem; text-align: center; }
+
+  .pastille {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-family: var(--chrome); font-size: 0.7rem; letter-spacing: 0.02em;
+    padding: 0.42rem 0.8rem; border: 1px solid var(--line); border-radius: var(--pilule);
+    background: var(--surface); color: var(--ink); cursor: pointer;
+    transition: border-color .18s, color .18s, background .18s, transform .18s;
   }
-  .toggle .sw { width: 34px; height: 19px; border-radius: 999px; background: color-mix(in srgb, var(--parchemin-faible) 55%, transparent); position: relative; transition: background .25s; flex: none; }
-  .toggle .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,.3); transition: transform .28s cubic-bezier(.34,1.56,.64,1); }
-  .toggle[aria-pressed="true"] .sw { background: linear-gradient(120deg, #c6982f, #d5a044); }
-  .toggle[aria-pressed="true"] .sw::after { transform: translateX(15px); }
-  .count { font-family: var(--chrome); font-size: 0.64rem; color: var(--parchemin-faible); width: 100%; text-align: right; letter-spacing: 0.04em; }
-
-  .stage { position: relative; margin-top: 0.8rem; }
-  .viewport {
-    overflow-x: auto; overflow-y: hidden; padding: 0.5rem 0 0.4rem;
-    scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--teinte) 45%, transparent) transparent;
-    cursor: grab; -webkit-overflow-scrolling: touch;
+  .pastille svg { width: 14px; height: 14px; }
+  .pastille:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+  .pastille--carree { padding: 0.42rem 0; width: 2rem; justify-content: center; font-size: 0.95rem; line-height: 1; }
+  .pastille--geste[aria-pressed='true'] {
+    background: var(--accent); border-color: var(--accent); color: var(--on-accent);
+    box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--accent) 70%, transparent);
   }
-  .viewport.dragging { cursor: grabbing; scroll-behavior: auto; }
-  .viewport::-webkit-scrollbar { height: 8px; }
-  .viewport::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--teinte) 45%, transparent); border-radius: 8px; }
-  .viewport::-webkit-scrollbar-track { background: transparent; }
+  .pastille--geste[aria-pressed='true']:hover { background: var(--accent-strong); color: var(--on-accent); }
 
-  .scroller { position: relative; }
-  .era-lane { position: relative; height: 32px; margin-bottom: 4px; }
-  .era { position: absolute; top: 0; height: 100%; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-  .era .lab {
-    font-family: var(--chrome); font-size: 0.6rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
-    color: color-mix(in srgb, var(--era) 70%, var(--parchemin)); white-space: nowrap; padding: 0.32rem 0.85rem; border-radius: 999px;
-    background: color-mix(in srgb, var(--era) 15%, transparent); backdrop-filter: blur(10px);
-    border: 1px solid color-mix(in srgb, var(--era) 30%, transparent); box-shadow: var(--fr-hi);
+  .puce {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-family: var(--chrome); font-size: 0.68rem;
+    padding: 0.36rem 0.72rem 0.36rem 0.6rem; border: 1px solid var(--line);
+    border-radius: var(--pilule); background: var(--surface); color: var(--muted);
+    cursor: pointer; transition: color .18s, transform .18s, border-color .18s;
+  }
+  .puce:hover { transform: translateY(-1px); color: var(--ink); }
+  .puce i { width: 8px; height: 8px; border-radius: 50%; background: var(--pointe, var(--muted)); }
+  .puce[aria-pressed='true'] {
+    color: var(--on-accent); border-color: transparent;
+    background: var(--pointe, var(--ink));
+  }
+  .puce[aria-pressed='true'] i { background: rgba(255,255,255,.9); }
+
+  .frise__astuce {
+    margin: 0 0 0.7rem; text-align: center;
+    font-family: var(--chrome); font-size: 0.66rem; color: var(--accent);
+    animation: apparait .3s ease;
+  }
+  @keyframes apparait { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+  .frise__scene { position: relative; }
+  .frise__vue {
+    overflow-x: auto; overflow-y: hidden; cursor: grab;
+    scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--teinte) 40%, transparent) transparent;
+    -webkit-overflow-scrolling: touch;
+  }
+  .frise__vue.glisse { cursor: grabbing; scroll-behavior: auto; }
+  .frise--edition .frise__vue { cursor: crosshair; }
+  .frise__vue::-webkit-scrollbar { height: 9px; }
+  .frise__vue::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--teinte) 40%, transparent); border-radius: 9px; }
+  .frise__vue::-webkit-scrollbar-track { background: transparent; }
+  .frise__ruban { position: relative; }
+
+  /* La bande des âges, en tête du ruban. */
+  .frise__ages { position: relative; height: 34px; margin-bottom: 6px; }
+  .frise--edition .frise__ages { cursor: ew-resize; }
+  .age {
+    position: absolute; top: 0; height: 100%; display: flex; align-items: center; justify-content: center;
+    border-radius: 999px; overflow: hidden; white-space: nowrap;
+    background: color-mix(in srgb, var(--ton) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ton) 34%, transparent);
+    font-family: var(--chrome); font-size: 0.6rem; letter-spacing: 0.13em; text-transform: uppercase;
+    color: color-mix(in srgb, var(--ton) 62%, var(--ink));
+    animation: age-pousse .35s cubic-bezier(.2,.8,.3,1);
+  }
+  @keyframes age-pousse { from { transform: scaleX(.85); opacity: 0; } to { transform: none; opacity: 1; } }
+  .frise--edition .age { cursor: pointer; }
+  .frise--edition .age:hover { background: color-mix(in srgb, var(--ton) 26%, transparent); }
+
+  .frise__piste { position: relative; }
+  /* Le fond coloré d'un âge, derrière les événements. */
+  .nappe { position: absolute; top: 0; bottom: 0; z-index: 0; background: color-mix(in srgb, var(--ton) 8%, transparent); }
+  .nappe--bord { border-left: 1px dashed color-mix(in srgb, var(--muted) 40%, transparent); }
+
+  .frise__axe {
+    position: absolute; top: 50%; left: 0; height: 3px; border-radius: 3px; z-index: 1;
+    transform: translateY(-50%) scaleX(var(--tracer, 1)); transform-origin: left center;
+    background: linear-gradient(90deg,
+      color-mix(in srgb, var(--teinte) 30%, transparent) 0%,
+      var(--teinte) 12%, var(--teinte) 88%,
+      color-mix(in srgb, var(--teinte) 30%, transparent) 100%);
+  }
+  .graduation {
+    position: absolute; top: 50%; transform: translate(-50%, -50%); z-index: 1;
+    font-family: var(--chrome); font-size: 0.62rem; font-variant-numeric: tabular-nums;
+    color: var(--muted); background: var(--surface); padding: 0.16rem 0.45rem;
+    border: 1px solid var(--line); border-radius: 7px; pointer-events: none; white-space: nowrap;
+  }
+  .graduation--zero { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); font-weight: 600; }
+
+  /* Le guide du mode modification : on voit où l'on va poser la date. */
+  .frise__guide { position: absolute; top: 0; bottom: 0; width: 0; z-index: 4; pointer-events: none; border-left: 1px dashed color-mix(in srgb, var(--accent) 65%, transparent); }
+  .frise__guide-date {
+    position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%);
+    font-family: var(--chrome); font-size: 0.66rem; white-space: nowrap;
+    background: var(--accent); color: var(--on-accent); padding: 0.22rem 0.6rem; border-radius: var(--pilule);
+    box-shadow: 0 6px 14px -8px rgba(0,0,0,.5);
+  }
+  /* Le tracé d'un âge en cours de dessin. */
+  .frise__trace-age {
+    position: absolute; top: 0; bottom: 0; z-index: 4; pointer-events: none;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-left: 2px solid var(--accent); border-right: 2px solid var(--accent);
   }
 
-  .track { position: relative; height: 456px; }
-  .era-band { position: absolute; top: 0; bottom: 0; z-index: 0; border-radius: 26px; background: color-mix(in srgb, var(--era) 9%, transparent); }
-  .era-div { position: absolute; top: 10px; bottom: 10px; width: 0; border-left: 1px dashed color-mix(in srgb, var(--parchemin-doux) 45%, transparent); opacity: .55; z-index: 0; }
-  .spine {
-    position: absolute; top: 50%; left: 0; height: 4px; border-radius: 4px;
-    transform: translateY(-50%) scaleX(var(--draw, 1)); transform-origin: left center;
-    background: linear-gradient(90deg, color-mix(in srgb, var(--teinte) 45%, #fff), var(--teinte) 60%, color-mix(in srgb, var(--teinte) 80%, #000 12%));
-    box-shadow: 0 0 18px color-mix(in srgb, var(--teinte) 45%, transparent); z-index: 1;
+  /* Un événement : un nœud sur l'axe, une carte au-dessus ou au-dessous. */
+  .evt { position: absolute; top: 0; z-index: 2; width: 0; }
+  .evt__tige { position: absolute; left: 0; width: 2px; transform: translateX(-50%); opacity: .45; background: var(--ton); }
+  .evt__noeud {
+    position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%);
+    width: 20px; height: 20px; border-radius: 50%; padding: 0; cursor: pointer; z-index: 3;
+    border: 1px solid var(--bord-frise); background: var(--surface);
+    display: grid; place-items: center;
+    box-shadow: 0 0 0 4px var(--bg), 0 3px 8px -2px rgba(38,32,28,.35);
+    transition: transform .26s cubic-bezier(.34,1.56,.64,1), box-shadow .26s;
   }
-  .year-tick {
-    position: absolute; top: 50%; transform: translate(-50%, -50%); font-family: var(--chrome);
-    font-size: 0.62rem; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.03em;
-    color: var(--parchemin-doux); background: var(--fr-verre-fort); backdrop-filter: blur(10px);
-    padding: 0.18rem 0.5rem; border-radius: 8px; pointer-events: none; border: 1px solid var(--trait);
-    box-shadow: var(--fr-hi); z-index: 1;
+  .evt__noeud::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--ton); }
+  .evt__noeud:hover { transform: translate(-50%, -50%) scale(1.25); }
+  .evt--legende .evt__noeud::after { background: transparent; border: 2px solid var(--ton); }
+  .evt--conteste .evt__noeud::after { opacity: .45; }
+  .evt--actif .evt__noeud { box-shadow: 0 0 0 4px var(--bg), 0 0 0 6px var(--ton); }
+  .evt__noeud:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--bg), 0 0 0 6px var(--ton); }
+
+  .carte-evt {
+    position: absolute; left: 0; transform: translateX(-50%);
+    width: 200px; height: 96px; overflow: hidden; text-align: left; cursor: pointer;
+    display: flex; flex-direction: column; gap: 0.28rem;
+    padding: 0.6rem 0.75rem; border-radius: 14px;
+    background: var(--verre-frise); backdrop-filter: blur(10px);
+    border: 1px solid var(--bord-frise); box-shadow: var(--ombre);
+    transition: transform .26s cubic-bezier(.34,1.4,.64,1), box-shadow .24s, border-color .24s;
   }
-
-  .event { position: absolute; top: 0; height: 100%; width: 230px; transform: translateX(-50%); z-index: 2; opacity: 0; }
-  .event.in { animation: fr-pop .55s cubic-bezier(.2,.7,.3,1) forwards; }
-  @keyframes fr-pop { from { opacity: 0; transform: translateX(-50%) translateY(12px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
-
-  .event .node {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 22px; height: 22px; border-radius: 50%;
-    border: 1px solid var(--fr-bord); padding: 0; cursor: pointer; background: var(--fr-verre-fort); backdrop-filter: blur(6px);
-    display: grid; place-items: center; z-index: 3;
-    box-shadow: 0 0 0 5px var(--encre), 0 4px 10px -2px rgba(42,36,32,.28), inset 0 1px 1px rgba(255,255,255,.9);
-    transition: transform .28s cubic-bezier(.34,1.56,.64,1), box-shadow .28s;
+  .carte-evt:hover { transform: translateX(-50%) translateY(-3px); box-shadow: 0 20px 40px -18px rgba(38,32,28,.42); }
+  .evt--actif .carte-evt { border-color: color-mix(in srgb, var(--ton) 55%, var(--bord-frise)); }
+  .carte-evt__an {
+    display: flex; align-items: center; gap: 0.35rem;
+    font-family: var(--chrome); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase;
+    font-variant-numeric: tabular-nums; color: var(--muted);
   }
-  .event .node::after { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--cat); box-shadow: 0 0 8px color-mix(in srgb, var(--cat) 70%, transparent); }
-  .event .node::before { content: ""; position: absolute; inset: -5px; border-radius: 50%; background: var(--cat); opacity: .25; transform: scale(.4); transition: transform .3s, opacity .3s; }
-  .event .node:hover { transform: translate(-50%, -50%) scale(1.2); }
-  .event .node:hover::before, .event.active .node::before { transform: scale(1); opacity: .2; }
-  .event.active .node { box-shadow: 0 0 0 5px var(--encre), 0 0 0 7px var(--cat), 0 4px 12px -2px rgba(42,36,32,.28); }
-  .event .node:focus-visible { outline: none; box-shadow: 0 0 0 5px var(--encre), 0 0 0 7px var(--cat); }
-  .event.st-legende .node::after { background: transparent; border: 2px solid var(--cat); box-shadow: none; }
-  .event.st-conteste .node::after { background: var(--cat); opacity: .42; }
-
-  .event .stem { position: absolute; left: 50%; width: 2px; transform: translateX(-50%); opacity: .5; z-index: 1; }
-  .event.top .stem { bottom: 50%; height: 64px; background: linear-gradient(0deg, var(--cat), transparent); }
-  .event.bottom .stem { top: 50%; height: 64px; background: linear-gradient(180deg, var(--cat), transparent); }
-
-  .card {
-    position: absolute; left: 50%; transform: translateX(-50%); width: 212px; text-align: left; display: flex; flex-direction: column;
-    align-items: flex-start; background: var(--fr-verre); backdrop-filter: var(--flou); border: 1px solid var(--fr-bord);
-    border-radius: 18px; padding: 0.85rem 1rem; cursor: pointer; box-shadow: var(--ombre), var(--fr-hi); z-index: 2;
-    transition: transform .32s cubic-bezier(.34,1.4,.64,1), box-shadow .3s, border-color .3s;
+  .carte-evt__an b { width: 6px; height: 6px; border-radius: 50%; background: var(--ton); flex: none; }
+  .carte-evt__titre {
+    font-family: var(--display); font-size: 1rem; line-height: 1.12; color: var(--ink);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   }
-  .event.top .card { bottom: calc(50% + 70px); }
-  .event.bottom .card { top: calc(50% + 70px); }
-  .card:hover { transform: translateX(-50%) translateY(-4px); box-shadow: 0 22px 50px -18px rgba(42,36,32,.4), var(--fr-hi); }
-  .event.active .card { border-color: color-mix(in srgb, var(--cat) 60%, var(--fr-bord)); }
-  .card .k { display: flex; align-items: center; gap: 0.45rem; font-family: var(--chrome); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.05em; font-variant-numeric: tabular-nums; color: var(--parchemin-doux); text-transform: uppercase; }
-  .card .k b { width: 7px; height: 7px; border-radius: 50%; background: var(--cat); flex: none; box-shadow: 0 0 6px color-mix(in srgb, var(--cat) 70%, transparent); }
-  .card .t { margin: 0.5rem 0 0; font-family: var(--display); font-weight: 400; font-size: 1.12rem; line-height: 1.12; color: var(--parchemin); letter-spacing: 0.005em; }
-  .card .cat { margin-top: 0.55rem; font-family: var(--chrome); font-size: 0.64rem; color: var(--parchemin-faible); }
-  .card .cat .st { font-weight: 600; color: var(--sc); }
+  .carte-evt__nature { margin-top: auto; font-family: var(--chrome); font-size: 0.6rem; color: var(--muted); }
+  .carte-evt__nature b { font-weight: 500; color: var(--tonStatut); }
 
-  .event.dim { pointer-events: none; }
-  .event.dim .card, .event.dim .node, .event.dim .stem { opacity: .13; filter: grayscale(.5); }
+  .evt--efface { pointer-events: none; }
+  .evt--efface .carte-evt, .evt--efface .evt__noeud, .evt--efface .evt__tige { opacity: .12; filter: grayscale(.6); }
 
-  .rail { margin: 1.4rem auto 0; height: 5px; width: min(360px, 70%); background: color-mix(in srgb, var(--parchemin-doux) 22%, transparent); border-radius: 5px; overflow: hidden; box-shadow: var(--fr-hi); }
-  .rail i { display: block; height: 100%; width: 20%; background: linear-gradient(90deg, color-mix(in srgb, var(--teinte) 45%, #fff), var(--teinte)); border-radius: 5px; }
-  .footline { display: flex; justify-content: center; align-items: center; gap: 1.4rem; flex-wrap: wrap; margin: 0.9rem 0 0; }
-  .legend { display: flex; gap: 1rem; flex-wrap: wrap; font-family: var(--chrome); font-size: 0.64rem; font-weight: 500; color: var(--parchemin-doux); letter-spacing: 0.02em; }
-  .legend span { display: inline-flex; align-items: center; gap: 0.45rem; }
-  .legend .m { width: 12px; height: 12px; border-radius: 50%; flex: none; }
-  .legend .m.a { background: var(--parchemin-doux); }
-  .legend .m.l { background: transparent; border: 2px solid var(--parchemin-doux); }
-  .legend .m.c { background: var(--parchemin-doux); opacity: .42; }
-  .hint { font-family: var(--chrome); font-size: 0.64rem; color: var(--parchemin-faible); letter-spacing: 0.02em; display: inline-flex; align-items: center; gap: 0.45rem; }
-  .hint svg { width: 13px; height: 13px; opacity: .7; }
-
-  /* ------------------------------------------------------------- la bulle */
-  .bubble {
-    position: fixed; z-index: 70; width: min(364px, 92vw); background: var(--fr-verre-fort);
-    backdrop-filter: blur(28px) saturate(160%); border: 1px solid var(--fr-bord); border-radius: var(--rayon);
-    box-shadow: var(--ombre), 0 40px 80px -30px rgba(42,36,32,.4), var(--fr-hi); overflow: hidden; opacity: 0;
-    transform: scale(.92) translateY(8px); transform-origin: var(--org, center bottom); pointer-events: none;
-    transition: opacity .24s, transform .32s cubic-bezier(.34,1.56,.64,1);
+  /* Arrivée d'un événement : il tombe sur l'axe. */
+  .evt--neuf .evt__noeud { animation: noeud-tombe .5s cubic-bezier(.3,1.5,.5,1); }
+  .evt--neuf .carte-evt { animation: carte-arrive .45s cubic-bezier(.2,.9,.3,1); }
+  @keyframes noeud-tombe {
+    0% { transform: translate(-50%,-50%) scale(.2); }
+    60% { transform: translate(-50%,-50%) scale(1.5); }
+    100% { transform: translate(-50%,-50%) scale(1); }
   }
-  .bubble.show { opacity: 1; transform: scale(1) translateY(0); pointer-events: auto; }
-  .bubble[hidden] { display: block; }
-  .bubble .cap { height: 5px; background: linear-gradient(90deg, var(--cat), color-mix(in srgb, var(--cat) 40%, white)); }
-  .bubble .body { padding: 1.1rem 1.3rem 1.3rem; max-height: 78vh; overflow-y: auto; }
-  .bubble .bImg { width: 100%; height: 130px; object-fit: cover; border-radius: 12px; margin-bottom: 0.9rem; border: 1px solid var(--trait); }
-  .bubble .head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
-  .bubble .badge {
-    display: inline-flex; align-items: center; gap: 0.45rem; font-family: var(--chrome); font-size: 0.62rem; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.08em; color: var(--cat); background: color-mix(in srgb, var(--cat) 15%, transparent);
-    padding: 0.36rem 0.65rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--cat) 26%, transparent);
-  }
-  .bubble .badge svg { width: 13px; height: 13px; }
-  .bubble .close { border: 1px solid var(--fr-bord); background: var(--fr-verre); color: var(--parchemin-doux); width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: grid; place-items: center; flex: none; transition: background .2s, color .2s, transform .25s; }
-  .bubble .close:hover { background: var(--cat); color: #fff; transform: rotate(90deg); }
-  .bubble .status { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0.85rem 0 0; font-family: var(--chrome); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sc); background: color-mix(in srgb, var(--sc) 16%, transparent); padding: 0.32rem 0.65rem; border-radius: 999px; }
-  .bubble .status .d { width: 7px; height: 7px; border-radius: 50%; background: var(--sc); }
-  .bubble .year { font-family: var(--chrome); font-size: 0.72rem; font-variant-numeric: tabular-nums; color: var(--parchemin-doux); margin: 0.8rem 0 0; }
-  .bubble h3 { font-family: var(--display); font-weight: 400; font-size: 1.45rem; line-height: 1.08; margin: 0.25rem 0 0; letter-spacing: 0.005em; text-wrap: balance; }
-  .bubble p.desc { margin: 0.75rem 0 0; font-size: 0.95rem; color: var(--parchemin); line-height: 1.55; }
-  .bubble .epi { margin: 0.95rem 0 0; padding: 0.7rem 0.9rem; border-left: 3px solid color-mix(in srgb, var(--cat) 55%, transparent); background: color-mix(in srgb, var(--cat) 7%, transparent); border-radius: 0 12px 12px 0; }
-  .bubble .epi q { font-family: var(--display); font-style: italic; font-size: 1rem; line-height: 1.45; color: var(--parchemin); quotes: "«\00a0" "\00a0»"; }
-  .bubble .epi cite { display: block; margin-top: 0.45rem; font-style: normal; font-family: var(--chrome); font-size: 0.64rem; font-weight: 500; color: var(--parchemin-doux); letter-spacing: 0.02em; }
-  .bubble .meta { margin: 1rem 0 0; display: flex; flex-direction: column; gap: 0.65rem; }
-  .bubble .row { display: flex; align-items: flex-start; gap: 0.6rem; font-size: 0.88rem; }
-  .bubble .row svg { width: 15px; height: 15px; flex: none; color: var(--parchemin-doux); margin-top: 2px; }
-  .bubble .row .lb { font-family: var(--chrome); font-size: 0.58rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--parchemin-faible); width: 54px; flex: none; margin-top: 3px; }
-  .bubble .row .vl { color: var(--parchemin); }
-  .bubble .conseq { margin: 1rem 0 0; padding: 0.75rem 0.9rem; border-radius: 14px; background: color-mix(in srgb, var(--cat) 10%, transparent); border: 1px solid color-mix(in srgb, var(--cat) 24%, transparent); }
-  .bubble .conseq .lb { font-family: var(--chrome); font-size: 0.58rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--cat); display: block; margin-bottom: 0.3rem; }
-  .bubble .conseq p { margin: 0; font-size: 0.88rem; color: var(--parchemin); line-height: 1.5; }
-  .bubble .tags { margin: 1rem 0 0; display: flex; gap: 0.45rem; flex-wrap: wrap; }
-  .bubble .tags:empty { display: none; }
-  .bubble .tag { font-family: var(--chrome); font-size: 0.66rem; color: var(--parchemin-doux); background: var(--fr-verre); border: 1px solid var(--trait); padding: 0.3rem 0.6rem; border-radius: 999px; }
-  .bubble .bActions { margin: 1.1rem 0 0; display: flex; gap: 0.5rem; }
-  .bubble .arrow { position: absolute; width: 15px; height: 15px; background: var(--fr-verre-fort); backdrop-filter: blur(28px); border: 1px solid var(--fr-bord); transform: rotate(45deg); z-index: -1; }
-  .scrim { position: fixed; inset: 0; z-index: 65; background: transparent; opacity: 0; pointer-events: none; transition: opacity .2s; }
-  .scrim.show { opacity: 1; pointer-events: auto; }
+  @keyframes carte-arrive { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%); } }
 
-  @media (max-width: 560px) { .track { height: 416px; } .event { width: 200px; } .card { width: 186px; } }
+  .frise__vide {
+    position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 0.3rem;
+    pointer-events: none;
+  }
+  .frise__vide p { margin: 0; font-family: var(--display); font-size: 1.35rem; color: var(--ink); }
+  .frise__vide-aide { font-family: var(--texte-police) !important; font-size: 0.95rem !important; color: var(--muted) !important; max-width: 42ch; }
+
+  .frise__pied {
+    display: flex; align-items: center; justify-content: space-between; gap: 1.2rem; flex-wrap: wrap;
+    margin-top: 1rem;
+  }
+  .frise__legende { display: flex; gap: 1rem; flex-wrap: wrap; font-family: var(--chrome); font-size: 0.64rem; color: var(--muted); }
+  .frise__legende span { display: inline-flex; align-items: center; gap: 0.45rem; }
+  .marqueur { width: 11px; height: 11px; border-radius: 50%; flex: none; background: var(--muted); }
+  .marqueur--l { background: transparent; border: 2px solid var(--muted); }
+  .marqueur--c { opacity: .45; }
+  .frise__compte, .frise__aide { font-family: var(--chrome); font-size: 0.64rem; color: var(--muted); display: inline-flex; align-items: center; gap: 0.45rem; }
+  .frise__aide svg { width: 13px; height: 13px; opacity: .7; }
+
+  /* -------------------------------------------------- la tuile détaillée */
+  .tuile {
+    position: fixed; z-index: 70; width: min(370px, 92vw);
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--rayon);
+    box-shadow: 0 30px 70px -28px rgba(38,32,28,.5); overflow: hidden;
+    opacity: 0; transform: scale(.94) translateY(8px); transform-origin: var(--origine, center bottom);
+    pointer-events: none; transition: opacity .22s, transform .3s cubic-bezier(.34,1.56,.64,1);
+  }
+  .tuile--ouverte { opacity: 1; transform: none; pointer-events: auto; }
+  .tuile__filet { height: 4px; background: linear-gradient(90deg, var(--ton), color-mix(in srgb, var(--ton) 35%, white)); }
+  .tuile__corps { padding: 0 1.2rem 1.2rem; max-height: 78vh; overflow-y: auto; }
+  .tuile__image {
+    width: calc(100% + 2.4rem); margin: 0 -1.2rem 0.9rem; display: block;
+    aspect-ratio: 16 / 9; object-fit: cover;
+  }
+  .tuile__tete { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; padding-top: 1rem; }
+  .tuile__image + .tuile__tete { padding-top: 0; }
+  .tuile__badge {
+    display: inline-flex; align-items: center; gap: 0.4rem; font-family: var(--chrome); font-size: 0.6rem;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--ton);
+    background: color-mix(in srgb, var(--ton) 13%, transparent);
+    padding: 0.34rem 0.62rem; border-radius: var(--pilule);
+    border: 1px solid color-mix(in srgb, var(--ton) 26%, transparent);
+  }
+  .tuile__badge svg { width: 13px; height: 13px; }
+  .tuile__fermer {
+    border: 1px solid var(--line); background: var(--bg); color: var(--muted);
+    width: 29px; height: 29px; border-radius: 50%; cursor: pointer; display: grid; place-items: center; flex: none;
+    transition: background .2s, color .2s, transform .25s;
+  }
+  .tuile__fermer:hover { background: var(--ton); color: #fff; transform: rotate(90deg); }
+  .tuile__statut {
+    display: inline-flex; align-items: center; gap: 0.35rem; margin-top: 0.8rem;
+    font-family: var(--chrome); font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--tonStatut); background: color-mix(in srgb, var(--tonStatut) 15%, transparent);
+    padding: 0.3rem 0.6rem; border-radius: var(--pilule);
+  }
+  .tuile__an { font-family: var(--chrome); font-size: 0.72rem; color: var(--muted); margin: 0.75rem 0 0; }
+  .tuile h3 { font-family: var(--display); font-size: 1.42rem; line-height: 1.08; margin: 0.22rem 0 0; text-wrap: balance; }
+  .tuile__desc { margin: 0.7rem 0 0; font-size: 0.95rem; color: var(--ink); line-height: 1.55; }
+  .tuile__citation {
+    margin: 0.9rem 0 0; padding: 0.65rem 0.85rem; border-radius: 0 12px 12px 0;
+    border-left: 3px solid color-mix(in srgb, var(--ton) 55%, transparent);
+    background: color-mix(in srgb, var(--ton) 7%, transparent);
+  }
+  .tuile__citation q { font-family: var(--display); font-style: italic; font-size: 0.98rem; line-height: 1.45; quotes: "«\00a0" "\00a0»"; }
+  .tuile__citation cite { display: block; margin-top: 0.4rem; font-style: normal; font-family: var(--chrome); font-size: 0.63rem; color: var(--muted); }
+  .tuile__meta { margin: 0.95rem 0 0; display: flex; flex-direction: column; gap: 0.55rem; }
+  .tuile__meta:empty { display: none; }
+  .tuile__ligne { display: flex; align-items: flex-start; gap: 0.55rem; font-size: 0.88rem; }
+  .tuile__ligne svg { width: 15px; height: 15px; flex: none; color: var(--muted); margin-top: 2px; }
+  .tuile__ligne .lb { font-family: var(--chrome); font-size: 0.57rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); width: 52px; flex: none; margin-top: 3px; }
+  .tuile__suite {
+    margin: 0.95rem 0 0; padding: 0.7rem 0.85rem; border-radius: 12px;
+    background: color-mix(in srgb, var(--ton) 9%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ton) 22%, transparent);
+  }
+  .tuile__suite .lb { font-family: var(--chrome); font-size: 0.57rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ton); display: block; margin-bottom: 0.28rem; }
+  .tuile__suite p { margin: 0; font-size: 0.88rem; line-height: 1.5; }
+  .tuile__mots { margin: 0.95rem 0 0; display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .tuile__mots:empty { display: none; }
+  .tuile__mot { font-family: var(--chrome); font-size: 0.65rem; color: var(--muted); background: var(--bg); border: 1px solid var(--line); padding: 0.28rem 0.58rem; border-radius: var(--pilule); }
+  .tuile__gestes { margin: 1.05rem 0 0; display: flex; gap: 0.5rem; }
+  .tuile__fleche { position: absolute; width: 14px; height: 14px; background: var(--surface); border: 1px solid var(--line); transform: rotate(45deg); z-index: -1; }
+  .voile-tuile { position: fixed; inset: 0; z-index: 65; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .voile-tuile--ouvert { opacity: 1; pointer-events: auto; }
+
+  @media (max-width: 640px) {
+    .frise__barre { gap: 0.5rem; }
+    .frise__zoom { margin-left: auto; }
+    .carte-evt { width: 168px; }
+  }
   @media (prefers-reduced-motion: reduce) {
-    .event.in { animation: none; opacity: 1; }
-    .spine { transform: translateY(-50%); }
+    .evt--neuf .evt__noeud, .evt--neuf .carte-evt, .age { animation: none; }
+    .frise__axe { transform: translateY(-50%); }
   }
 </style>
 
@@ -549,267 +803,475 @@ const donneesFrise = {
   const $ = (id) => document.getElementById(id);
   const fmt = new Intl.NumberFormat('fr-FR');
   const CATS = Object.fromEntries(D.categories.map((c) => [c.cle, c]));
-  const STAT = Object.fromEntries(D.statuts.map((s) => [s.cle, s]));
-  const catDe = (k) => CATS[k] || { cle: k, label: k ? k[0].toUpperCase() + k.slice(1) : 'Événement', couleur: '#b24634', icone: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>' };
-  const statDe = (k) => STAT[k] || D.statuts[0];
-  const svg = (inner, w) => '<svg viewBox="0 0 24 24" width="' + (w || 15) + '" height="' + (w || 15) + '" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>';
+  const STATS = Object.fromEntries(D.statuts.map((s) => [s.cle, s]));
+  const catDe = (k) => CATS[k] || { cle: k, label: k ? k[0].toUpperCase() + k.slice(1) : 'Événement', couleur: '#8a2f3c', icone: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>' };
+  const statDe = (k) => STATS[k] || D.statuts[0];
+  const svg = (dedans, t) => '<svg viewBox="0 0 24 24" width="' + (t || 15) + '" height="' + (t || 15) + '" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + dedans + '</svg>';
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const anLabel = (y) => 'An ' + fmt.format(y);
+  const borne = (v, bas, haut) => Math.min(haut, Math.max(bas, v));
 
   const IC = {
-    era: '<path d="M6 3h12M6 21h12M8 3c0 4 8 5 8 9s-8 5-8 9M16 3c0 4-8 5-8 9"/>',
-    place: '<path d="M12 21s6-5.3 6-10a6 6 0 1 0-12 0c0 4.7 6 10 6 10z"/><circle cx="12" cy="11" r="2.3"/>',
-    actors: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 6.2A3 3 0 0 1 18 12M21 20c0-2.6-1.4-4.2-3.6-4.8"/>',
+    lieu: '<path d="M12 21s6-5.3 6-10a6 6 0 1 0-12 0c0 4.7 6 10 6 10z"/><circle cx="12" cy="11" r="2.3"/>',
+    acteurs: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 6.2A3 3 0 0 1 18 12M21 20c0-2.6-1.4-4.2-3.6-4.8"/>',
+    age: '<path d="M6 3h12M6 21h12M8 3c0 4 8 5 8 9s-8 5-8 9M16 3c0 4-8 5-8 9"/>',
   };
 
-  /* ===================== construction de la frise ===================== */
-  const EV = D.evenements;
-  const hasFrise = EV.length > 0;
-  const SLOT = 262, PAD = 150;
-  let nodes = [], current = 'all', legendsOn = true;
-  let activeIdx = -1, activeEl = null;
-  // NB : la construction est lancée tout en bas, une fois `bubble`, l'éditeur et
-  // tout le câblage initialisés — sinon applyFilter → closeBubble toucherait
-  // `bubble` avant sa déclaration (zone morte temporelle) et casserait la page.
+  /* ------------------------------------------------------------- l'échelle */
+  const MARGE = 130;              // air de part et d'autre de la frise
+  const LARG_CARTE = 200;
+  const ECART_TIGE = 58;          // de l'axe au bord de la première carte
+  const PAS_VOIE = 108;           // d'une rangée de cartes à la suivante
+  const VOIES_MAX = 3;
 
-  function construireFrise() {
-    const scroller = $('scroller'), track = $('track'), eraLane = $('eraLane'), spine = $('spine'), viewport = $('viewport');
-    const trackW = PAD * 2 + (EV.length - 1) * SLOT;
-    [scroller, track, eraLane, spine].forEach((el) => (el.style.width = trackW + 'px'));
-    const xOf = (i) => PAD + i * SLOT;
+  let EV = D.evenements.slice();
+  let AGES = D.ages.slice();
+  let anMin = D.anMin, anMax = D.anMax;
+  let pxParAn = 1, pxMin = 0.05, pxMax = 26;
+  let modeEdition = false, filtreCat = 'all', legendesOn = true;
+  let idAnime = null, idOuvert = null, elOuvert = null;
 
-    // Âges : bandes des événements consécutifs partageant le même âge.
-    const aDesEres = EV.some((e) => e.ere);
-    if (aDesEres) {
-      const eras = [];
-      EV.forEach((ev, i) => {
-        const last = eras[eras.length - 1];
-        const nom = ev.ere || '—';
-        if (last && last.name === nom) last.end = i;
-        else eras.push({ name: nom, start: i, end: i, couleur: ev.couleur });
-      });
-      eras.forEach((er, idx) => {
-        let left = xOf(er.start) - SLOT / 2, right = xOf(er.end) + SLOT / 2;
-        if (idx === 0) left = 0;
-        if (idx === eras.length - 1) right = trackW;
-        const band = document.createElement('div');
-        band.className = 'era-band'; band.style.left = left + 'px'; band.style.width = (right - left) + 'px';
-        band.style.setProperty('--era', er.couleur); track.appendChild(band);
-        if (idx > 0) { const d = document.createElement('div'); d.className = 'era-div'; d.style.left = left + 'px'; track.appendChild(d); }
-        if (er.name !== '—') {
-          const lab = document.createElement('div');
-          lab.className = 'era'; lab.style.left = left + 'px'; lab.style.width = (right - left) + 'px';
-          lab.style.setProperty('--era', er.couleur); lab.innerHTML = '<span class="lab">' + esc(er.name) + '</span>';
-          eraLane.appendChild(lab);
-        }
-      });
-    } else {
-      eraLane.style.display = 'none';
+  const frise = document.querySelector('.frise');
+  const vue = $('vue'), ruban = $('ruban'), piste = $('piste'), bandeAges = $('bande-ages');
+  const axe = $('axe'), guide = $('guide'), traceAge = $('trace-age');
+
+  const etendue = () => Math.max(1, anMax - anMin);
+  const largeur = () => etendue() * pxParAn + MARGE * 2;
+  const xDe = (an) => MARGE + (an - anMin) * pxParAn;
+  const anDe = (x) => anMin + (x - MARGE) / pxParAn;
+
+  /** Une date lisible : « 412 av. » / « An 0 » / « 301 ap. ». */
+  function libelleAn(an) {
+    if (an === 0) return 'An 0';
+    return fmt.format(Math.abs(an)) + ' ' + (an < 0 ? D.suffixeAvant : D.suffixeApres);
+  }
+
+  /** Le pas de graduation : un nombre rond, assez espacé pour rester lisible. */
+  function pasGraduation() {
+    const vise = 118 / pxParAn;
+    const pas = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000, 10000];
+    return pas.find((p) => p >= vise) ?? pas[pas.length - 1];
+  }
+
+  /* --------------------------------------------------------- le dessin */
+
+  /** Range les cartes en rangées pour qu'elles ne se chevauchent jamais. */
+  function repartirVoies(liste) {
+    const cotes = [[], []];
+    liste.forEach((ev, i) => cotes[i % 2].push(ev));
+    for (const cote of cotes) {
+      const finVoie = [];
+      for (const ev of cote) {
+        const x = xDe(ev.an);
+        const g = x - LARG_CARTE / 2 - 12, d = x + LARG_CARTE / 2 + 12;
+        let voie = finVoie.findIndex((f) => f <= g);
+        if (voie === -1) { voie = finVoie.length; finVoie.push(d); }
+        else finVoie[voie] = d;
+        ev._voie = voie;
+      }
+    }
+  }
+
+  function dessiner() {
+    const tries = EV.slice().sort((a, b) => a.an - b.an);
+    tries.forEach((ev, i) => (ev._haut = i % 2 === 0));
+    repartirVoies(tries);
+
+    const voies = Math.min(VOIES_MAX, Math.max(1, ...tries.map((e) => e._voie + 1), 1));
+    const demi = ECART_TIGE + voies * PAS_VOIE + 16;
+    const L = largeur();
+
+    ruban.style.width = L + 'px';
+    piste.style.width = L + 'px';
+    piste.style.height = demi * 2 + 'px';
+    bandeAges.style.width = L + 'px';
+    axe.style.width = L + 'px';
+
+    // On repart d'une piste nette, en gardant les pièces fixes.
+    [...piste.children].forEach((n) => { if (!n.id) n.remove(); });
+    bandeAges.innerHTML = '';
+
+    const frag = document.createDocumentFragment();
+
+    // Les âges : une nappe derrière, une étiquette au-dessus.
+    for (const age of AGES) {
+      const g = xDe(Math.max(age.debut, anMin)), d = xDe(Math.min(age.fin, anMax));
+      if (d <= g) continue;
+      const nappe = document.createElement('div');
+      nappe.className = 'nappe nappe--bord';
+      nappe.style.left = g + 'px';
+      nappe.style.width = (d - g) + 'px';
+      nappe.style.setProperty('--ton', age.couleur);
+      frag.appendChild(nappe);
+
+      const eti = document.createElement('div');
+      eti.className = 'age';
+      eti.style.left = g + 'px';
+      eti.style.width = (d - g) + 'px';
+      eti.style.setProperty('--ton', age.couleur);
+      eti.textContent = age.nom;
+      eti.dataset.age = age.id;
+      eti.title = age.nom + ' · ' + libelleAn(age.debut) + ' → ' + libelleAn(age.fin);
+      bandeAges.appendChild(eti);
     }
 
-    // Filtres : « Tout » + une puce par nature présente, + bascule légendes.
-    const fWrap = $('filters');
-    const presentes = [...new Set(EV.map((e) => e.categorie))];
-    const chip = (cat, label, dot) => {
-      const b = document.createElement('button');
-      b.className = 'chip'; b.dataset.cat = cat; b.type = 'button'; b.setAttribute('aria-pressed', cat === 'all');
-      if (dot) b.style.setProperty('--dot', dot);
-      b.innerHTML = '<span class="swatch"></span>' + esc(label);
-      b.addEventListener('click', () => { current = cat; applyFilter(); });
-      return b;
-    };
-    fWrap.appendChild(chip('all', 'Tout', null));
-    presentes.forEach((k) => fWrap.appendChild(chip(k, catDe(k).label, catDe(k).couleur)));
-    const aDesRecits = EV.some((e) => e.statut !== 'atteste');
-    if (aDesRecits) {
-      const toggle = document.createElement('button');
-      toggle.className = 'toggle'; toggle.type = 'button'; toggle.setAttribute('aria-pressed', 'true');
-      toggle.innerHTML = '<span class="sw"></span>Légendes & récits';
-      toggle.addEventListener('click', () => { legendsOn = !legendsOn; toggle.setAttribute('aria-pressed', legendsOn); applyFilter(); });
-      fWrap.appendChild(toggle);
+    // Les graduations, à intervalle rond.
+    const pas = pasGraduation();
+    const depart = Math.ceil(anMin / pas) * pas;
+    for (let an = depart; an <= anMax; an += pas) {
+      const t = document.createElement('div');
+      t.className = 'graduation' + (an === 0 ? ' graduation--zero' : '');
+      t.style.left = xDe(an) + 'px';
+      t.textContent = libelleAn(an);
+      frag.appendChild(t);
     }
-    const countEl = document.createElement('span'); countEl.className = 'count'; fWrap.appendChild(countEl);
-    fWrap._countEl = countEl;
 
-    // Événements.
-    EV.forEach((ev, i) => {
+    // Les événements.
+    for (const ev of tries) {
       const cat = catDe(ev.categorie), st = statDe(ev.statut);
       const el = document.createElement('div');
-      el.className = 'event ' + (i % 2 === 0 ? 'top' : 'bottom') + ' st-' + ev.statut;
-      el.style.left = xOf(i) + 'px'; el.style.setProperty('--cat', ev.couleur); el.style.setProperty('--sc', st.couleur);
-      const an = anLabel(ev.an) + (ev.anFin != null ? '–' + fmt.format(ev.anFin) : '');
+      el.className = 'evt evt--' + ev.statut + (ev.id === idAnime ? ' evt--neuf' : '');
+      el.style.left = xDe(ev.an) + 'px';
+      el.style.height = demi * 2 + 'px';
+      el.style.setProperty('--ton', ev.couleur);
+      el.style.setProperty('--tonStatut', st.couleur);
+      el.dataset.id = ev.id;
+
+      const voie = Math.min(ev._voie, VOIES_MAX - 1);
+      const cache = ev._voie >= VOIES_MAX;         // trop dense : le nœud suffit
+      const dist = ECART_TIGE + voie * PAS_VOIE;
+
+      const an = libelleAn(ev.an) + (ev.anFin != null ? ' → ' + libelleAn(ev.anFin) : '');
       el.innerHTML =
-        '<div class="stem"></div>' +
-        '<button class="node" type="button" aria-label="' + esc(ev.titre) + ' — ' + esc(st.label) + '"></button>' +
-        '<button class="card" type="button"><span class="k"><b></b>' + esc(an) + '</span>' +
-        '<span class="t">' + esc(ev.titre) + '</span>' +
-        '<span class="cat">' + esc(cat.label) + ' · <span class="st">' + esc(st.label) + '</span></span></button>';
-      track.appendChild(el);
-      el.querySelector('.node').addEventListener('click', (e) => { e.stopPropagation(); openBubble(i, el); });
-      el.querySelector('.card').addEventListener('click', (e) => { e.stopPropagation(); openBubble(i, el); });
-      nodes.push({ el, ev });
-      setTimeout(() => el.classList.add('in'), 120 + i * 55);
-    });
-    EV.forEach((ev, i) => {
-      const t = document.createElement('div'); t.className = 'year-tick'; t.textContent = fmt.format(ev.an);
-      t.style.left = xOf(i) + 'px'; t.style.top = (i % 2 === 0 ? '62%' : '38%'); track.appendChild(t);
-    });
+        (cache ? '' :
+          '<div class="evt__tige" style="' + (ev._haut ? 'bottom:50%;height:' + dist + 'px' : 'top:50%;height:' + dist + 'px') + '"></div>') +
+        '<button class="evt__noeud" type="button" aria-label="' + esc(ev.titre) + '"></button>' +
+        (cache ? '' :
+          '<button class="carte-evt" type="button" style="' +
+          (ev._haut ? 'bottom:calc(50% + ' + dist + 'px)' : 'top:calc(50% + ' + dist + 'px)') + '">' +
+          '<span class="carte-evt__an"><b></b>' + esc(an) + '</span>' +
+          '<span class="carte-evt__titre">' + esc(ev.titre) + '</span>' +
+          '<span class="carte-evt__nature">' + esc(cat.label) + ' · <b>' + esc(st.label) + '</b></span>' +
+          '</button>');
 
-    // Défilement horizontal : molette, glissé, rail.
-    viewport.addEventListener('wheel', (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { viewport.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
-    let down = false, startX = 0, startL = 0;
-    viewport.addEventListener('pointerdown', (e) => { if (e.target.closest('.card') || e.target.closest('.node')) return; down = true; startX = e.clientX; startL = viewport.scrollLeft; viewport.classList.add('dragging'); viewport.setPointerCapture(e.pointerId); });
-    viewport.addEventListener('pointermove', (e) => { if (down) viewport.scrollLeft = startL - (e.clientX - startX); });
-    const up = () => { down = false; viewport.classList.remove('dragging'); };
-    viewport.addEventListener('pointerup', up); viewport.addEventListener('pointercancel', up);
-    viewport.addEventListener('scroll', () => { if (activeIdx >= 0) position(); updateRail(); }, { passive: true });
-    window.addEventListener('resize', () => { if (activeIdx >= 0) position(); updateRail(); });
-
-    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      spine.style.setProperty('--draw', '0');
-      requestAnimationFrame(() => { spine.style.transition = 'transform 1.1s cubic-bezier(.22,.7,.2,1)'; spine.style.setProperty('--draw', '1'); });
+      el.querySelectorAll('.evt__noeud, .carte-evt').forEach((b) =>
+        b.addEventListener('click', (e) => { e.stopPropagation(); ouvrirTuile(ev.id, el); })
+      );
+      frag.appendChild(el);
     }
-    applyFilter(); updateRail();
+
+    piste.appendChild(frag);
+    idAnime = null;
+    appliquerFiltre();
+    majZoom();
+    $('frise-vide').hidden = EV.length > 0;
+    if (idOuvert) {
+      const encore = piste.querySelector('.evt[data-id="' + idOuvert + '"]');
+      if (encore) { elOuvert = encore; encore.classList.add('evt--actif'); placerTuile(); }
+      else fermerTuile();
+    }
   }
 
-  function applyFilter() {
-    const fWrap = $('filters');
-    fWrap.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', c.dataset.cat === current));
-    let shown = 0;
-    nodes.forEach((n) => {
-      const vis = (current === 'all' || n.ev.categorie === current) && (n.ev.statut === 'atteste' || legendsOn);
-      n.el.classList.toggle('dim', !vis); if (vis) shown++;
-    });
-    if (fWrap._countEl) fWrap._countEl.textContent = shown + (shown > 1 ? ' évènements visibles' : ' évènement visible');
-    closeBubble();
+  /* ------------------------------------------------------------- le zoom */
+  function calculerPxMin() {
+    pxMin = Math.max(0.01, (vue.clientWidth - MARGE * 2) / etendue());
+    pxMax = Math.max(pxMin * 1.5, 26);
+  }
+  function majZoom() {
+    const pct = pxMin > 0 ? Math.round((pxParAn / pxMin) * 100) : 100;
+    $('niveau-zoom').textContent = pct + ' %';
+  }
+  function zoomerVers(cible, ancreClientX) {
+    calculerPxMin();
+    const rect = vue.getBoundingClientRect();
+    const xVue = ancreClientX == null ? vue.clientWidth / 2 : ancreClientX - rect.left;
+    const anAncre = anDe(vue.scrollLeft + xVue);
+    pxParAn = borne(cible, pxMin, pxMax);
+    dessiner();
+    vue.scrollLeft = xDe(anAncre) - xVue;
+  }
+  function ajuster() {
+    calculerPxMin();
+    pxParAn = pxMin;
+    dessiner();
+    vue.scrollLeft = 0;
   }
 
-  function updateRail() {
-    const viewport = $('viewport'), railFill = $('railFill'); if (!viewport || !railFill) return;
-    const max = viewport.scrollWidth - viewport.clientWidth;
-    const ratio = max > 0 ? viewport.scrollLeft / max : 0;
-    const vis = Math.max(.14, viewport.clientWidth / viewport.scrollWidth);
-    railFill.style.width = (vis * 100) + '%'; railFill.style.marginLeft = (ratio * (100 - vis * 100)) + '%';
+  /* ---------------------------------------------------------- les filtres */
+  function construireFiltres() {
+    const f = $('filtres');
+    f.innerHTML = '';
+    const presentes = [...new Set(EV.map((e) => e.categorie))];
+    const puce = (cle, label, ton) => {
+      const b = document.createElement('button');
+      b.className = 'puce'; b.type = 'button'; b.dataset.cat = cle;
+      b.setAttribute('aria-pressed', cle === filtreCat);
+      if (ton) b.style.setProperty('--pointe', ton);
+      b.innerHTML = '<i></i>' + esc(label);
+      b.addEventListener('click', () => { filtreCat = cle; appliquerFiltre(); });
+      return b;
+    };
+    if (!EV.length) return;
+    f.appendChild(puce('all', 'Tout', null));
+    presentes.forEach((k) => f.appendChild(puce(k, catDe(k).label, catDe(k).couleur)));
+    if (EV.some((e) => e.statut !== 'atteste')) {
+      const t = document.createElement('button');
+      t.className = 'puce'; t.type = 'button'; t.id = 'bascule-legendes';
+      t.setAttribute('aria-pressed', legendesOn);
+      t.style.setProperty('--pointe', '#c6982f');
+      t.innerHTML = '<i></i>Légendes';
+      t.addEventListener('click', () => { legendesOn = !legendesOn; t.setAttribute('aria-pressed', legendesOn); appliquerFiltre(); });
+      f.appendChild(t);
+    }
+  }
+  function appliquerFiltre() {
+    $('filtres').querySelectorAll('.puce[data-cat]').forEach((p) => p.setAttribute('aria-pressed', p.dataset.cat === filtreCat));
+    let vus = 0;
+    for (const el of piste.querySelectorAll('.evt')) {
+      const ev = EV.find((e) => e.id === el.dataset.id);
+      if (!ev) continue;
+      const ok = (filtreCat === 'all' || ev.categorie === filtreCat) && (ev.statut === 'atteste' || legendesOn);
+      el.classList.toggle('evt--efface', !ok);
+      if (ok) vus++;
+    }
+    $('compte').textContent = EV.length ? vus + (vus > 1 ? ' évènements visibles' : ' évènement visible') : '';
   }
 
-  /* ========================= la bulle détaillée ========================= */
-  const bubble = $('bubble'), scrim = $('scrim'), arrow = $('arrow');
-  const metaRow = (icon, label, val) => '<div class="row">' + svg(icon) + '<span class="lb">' + label + '</span><span class="vl">' + esc(val) + '</span></div>';
-
-  function openBubble(i, el) {
-    const ev = EV[i], cat = catDe(ev.categorie), st = statDe(ev.statut);
-    if (activeEl) activeEl.classList.remove('active');
-    activeIdx = i; activeEl = el; el.classList.add('active');
-    bubble.style.setProperty('--cat', ev.couleur); bubble.style.setProperty('--sc', st.couleur);
-    const img = $('bImg');
+  /* ------------------------------------------------------------ la tuile */
+  const tuile = $('tuile'), voileTuile = $('voile-tuile'), fleche = $('tuile-fleche');
+  function ligneMeta(icone, lb, val) {
+    return '<div class="tuile__ligne">' + svg(icone) + '<span class="lb">' + lb + '</span><span>' + esc(val) + '</span></div>';
+  }
+  function ouvrirTuile(id, el) {
+    const ev = EV.find((e) => e.id === id);
+    if (!ev) return;
+    const cat = catDe(ev.categorie), st = statDe(ev.statut);
+    if (elOuvert) elOuvert.classList.remove('evt--actif');
+    idOuvert = id; elOuvert = el; el.classList.add('evt--actif');
+    tuile.style.setProperty('--ton', ev.couleur);
+    tuile.style.setProperty('--tonStatut', st.couleur);
+    const img = $('t-image');
     if (ev.image) { img.src = ev.image; img.hidden = false; } else { img.hidden = true; img.removeAttribute('src'); }
-    $('bBadge').innerHTML = svg(cat.icone, 13) + esc(cat.label);
-    $('bStatus').innerHTML = '<span class="d"></span>' + esc(st.label);
-    $('bYear').textContent = anLabel(ev.an) + (ev.anFin != null ? ' → ' + anLabel(ev.anFin) : '') + (ev.ere ? '  ·  ' + ev.ere : '');
-    $('bTitle').textContent = ev.titre;
-    const desc = $('bDesc'); desc.textContent = ev.resume || ''; desc.hidden = !ev.resume;
-    const epi = $('bEpi');
-    if (ev.citation && ev.citation.texte) { epi.hidden = false; epi.innerHTML = '<q>' + esc(ev.citation.texte) + '</q>' + (ev.citation.source ? '<cite>' + esc(ev.citation.source) + '</cite>' : ''); }
-    else epi.hidden = true;
-    let rows = '';
-    if (ev.ere) rows += metaRow(IC.era, 'Âge', ev.ere);
-    if (ev.lieu) rows += metaRow(IC.place, 'Lieu', ev.lieu);
-    if (ev.acteurs) rows += metaRow(IC.actors, 'Acteurs', ev.acteurs);
-    $('bMeta').innerHTML = rows;
-    const cq = $('bConseq');
+    $('t-badge').innerHTML = svg(cat.icone, 13) + esc(cat.label);
+    $('t-statut').innerHTML = esc(st.label);
+    $('t-an').textContent = libelleAn(ev.an) + (ev.anFin != null ? '  →  ' + libelleAn(ev.anFin) : '') + ageDe(ev.an);
+    $('t-titre').textContent = ev.titre;
+    const d = $('t-desc'); d.textContent = ev.resume || ''; d.hidden = !ev.resume;
+    const c = $('t-citation');
+    if (ev.citation && ev.citation.texte) {
+      c.hidden = false;
+      c.innerHTML = '<q>' + esc(ev.citation.texte) + '</q>' + (ev.citation.source ? '<cite>' + esc(ev.citation.source) + '</cite>' : '');
+    } else c.hidden = true;
+    let lignes = '';
+    if (ev.lieu) lignes += ligneMeta(IC.lieu, 'Lieu', ev.lieu);
+    if (ev.acteurs) lignes += ligneMeta(IC.acteurs, 'Acteurs', ev.acteurs);
+    $('t-meta').innerHTML = lignes;
+    const cq = $('t-consequence');
     if (ev.consequence) { cq.hidden = false; cq.innerHTML = '<span class="lb">Conséquence</span><p>' + esc(ev.consequence) + '</p>'; }
     else cq.hidden = true;
-    $('bTags').innerHTML = (ev.tags || []).map((t) => '<span class="tag">' + esc(t) + '</span>').join('');
-    $('bOuvrir').href = D.baseUrl + '/' + ev.slug;
-    $('bEditer').onclick = () => { closeBubble(); ouvrirEditeur(ev); };
-    scrim.classList.add('show'); bubble.classList.add('show'); position();
+    $('t-mots').innerHTML = (ev.tags || []).map((t) => '<span class="tuile__mot">' + esc(t) + '</span>').join('');
+    $('t-ouvrir').href = D.baseUrl + '/' + ev.slug;
+    $('t-editer').onclick = () => { fermerTuile(); ouvrirEditeur(ev); };
+    voileTuile.classList.add('voile-tuile--ouvert');
+    tuile.classList.add('tuile--ouverte');
+    placerTuile();
   }
-  function position() {
-    if (activeIdx < 0 || !activeEl) return;
-    const r = activeEl.querySelector('.node').getBoundingClientRect();
-    const bw = bubble.offsetWidth, bh = bubble.offsetHeight, gap = 16, margin = 10;
+  function ageDe(an) {
+    const a = AGES.find((x) => an >= x.debut && an <= x.fin);
+    return a ? '  ·  ' + a.nom : '';
+  }
+  function placerTuile() {
+    if (!elOuvert) return;
+    const n = elOuvert.querySelector('.evt__noeud');
+    if (!n) return;
+    const r = n.getBoundingClientRect();
+    const lg = tuile.offsetWidth, ht = tuile.offsetHeight, ecart = 16, marge = 10;
     const cx = r.left + r.width / 2;
-    const left = Math.max(margin, Math.min(cx - bw / 2, innerWidth - bw - margin));
-    const below = r.top < bh + gap + 20;
-    let top = below ? r.bottom + gap : r.top - bh - gap;
-    top = Math.max(margin, Math.min(top, innerHeight - bh - margin));
-    bubble.style.left = left + 'px'; bubble.style.top = top + 'px'; bubble.style.setProperty('--org', below ? 'center top' : 'center bottom');
-    const ax = Math.max(16, Math.min(cx - left - 7, bw - 30)); arrow.style.left = ax + 'px';
-    if (below) { arrow.style.top = '-1px'; arrow.style.borderRight = 'none'; arrow.style.borderBottom = 'none'; arrow.style.borderTop = '1px solid var(--fr-bord)'; arrow.style.borderLeft = '1px solid var(--fr-bord)'; }
-    else { arrow.style.top = (bh - 7) + 'px'; arrow.style.borderTop = 'none'; arrow.style.borderLeft = 'none'; arrow.style.borderRight = '1px solid var(--fr-bord)'; arrow.style.borderBottom = '1px solid var(--fr-bord)'; }
+    const g = borne(cx - lg / 2, marge, innerWidth - lg - marge);
+    const dessous = r.top < ht + ecart + 20;
+    const h = borne(dessous ? r.bottom + ecart : r.top - ht - ecart, marge, innerHeight - ht - marge);
+    tuile.style.left = g + 'px';
+    tuile.style.top = h + 'px';
+    tuile.style.setProperty('--origine', dessous ? 'center top' : 'center bottom');
+    const fx = borne(cx - g - 7, 16, lg - 30);
+    fleche.style.left = fx + 'px';
+    if (dessous) {
+      Object.assign(fleche.style, { top: '-1px', borderRight: 'none', borderBottom: 'none', borderTop: '1px solid var(--line)', borderLeft: '1px solid var(--line)' });
+    } else {
+      Object.assign(fleche.style, { top: (ht - 7) + 'px', borderTop: 'none', borderLeft: 'none', borderRight: '1px solid var(--line)', borderBottom: '1px solid var(--line)' });
+    }
   }
-  function closeBubble() { bubble.classList.remove('show'); scrim.classList.remove('show'); if (activeEl) activeEl.classList.remove('active'); activeEl = null; activeIdx = -1; }
-  $('bClose').addEventListener('click', closeBubble);
-  scrim.addEventListener('click', closeBubble);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeBubble(); fermerEditeur(); } });
+  function fermerTuile() {
+    tuile.classList.remove('tuile--ouverte');
+    voileTuile.classList.remove('voile-tuile--ouvert');
+    if (elOuvert) elOuvert.classList.remove('evt--actif');
+    elOuvert = null; idOuvert = null;
+  }
+  $('t-fermer').addEventListener('click', fermerTuile);
+  voileTuile.addEventListener('click', fermerTuile);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerTuile(); });
 
-  /* ===================== l'atelier d'un événement ===================== */
-  const modale = $('modale-evt');
-  brancherTeleversement({ champ: $('ev-image'), motDePasse, etat: $('ev-etat') });
-  brancherTeleversement({ champ: $('pc-image'), motDePasse, etat: $('pc-etat') });
+  /* --------------------------------------------- parcourir, zoomer, poser */
+  let glisse = false, departX = 0, departScroll = 0, aBouge = false;
 
+  vue.addEventListener('wheel', (e) => {
+    if (e.ctrlKey || e.metaKey) {           // molette + Ctrl : zoom, comme au montage
+      e.preventDefault();
+      zoomerVers(pxParAn * (e.deltaY < 0 ? 1.18 : 1 / 1.18), e.clientX);
+    } else if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      vue.scrollLeft += e.deltaY; e.preventDefault();
+    }
+  }, { passive: false });
+
+  vue.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.carte-evt') || e.target.closest('.evt__noeud')) return;
+    if (modeEdition && e.target.closest('.frise__ages')) return;   // tracé d'âge
+    glisse = true; aBouge = false;
+    departX = e.clientX; departScroll = vue.scrollLeft;
+    vue.classList.add('glisse');
+    vue.setPointerCapture(e.pointerId);
+  });
+  vue.addEventListener('pointermove', (e) => {
+    if (glisse) {
+      const d = e.clientX - departX;
+      if (Math.abs(d) > 4) aBouge = true;
+      vue.scrollLeft = departScroll - d;
+    }
+    if (modeEdition && !glisse) majGuide(e.clientX);
+  });
+  const relacher = () => { glisse = false; vue.classList.remove('glisse'); };
+  vue.addEventListener('pointerup', relacher);
+  vue.addEventListener('pointercancel', relacher);
+  vue.addEventListener('pointerleave', () => { guide.hidden = true; });
+  vue.addEventListener('scroll', () => { if (idOuvert) placerTuile(); }, { passive: true });
+  addEventListener('resize', () => { calculerPxMin(); if (pxParAn < pxMin) ajuster(); if (idOuvert) placerTuile(); });
+
+  function majGuide(clientX) {
+    const r = piste.getBoundingClientRect();
+    const x = clientX - r.left;
+    const an = Math.round(anDe(x));
+    guide.hidden = false;
+    guide.style.left = xDe(an) + 'px';
+    $('guide-date').textContent = libelleAn(an);
+  }
+
+  // Cliquer sur la frise en mode modification : on y pose un événement.
+  piste.addEventListener('click', (e) => {
+    if (!modeEdition || aBouge) return;
+    if (e.target.closest('.carte-evt') || e.target.closest('.evt__noeud')) return;
+    const r = piste.getBoundingClientRect();
+    ouvrirEditeur(null, Math.round(anDe(e.clientX - r.left)));
+  });
+
+  // Tracer un âge à la souris, dans la bande du haut.
+  let traceDepart = null;
+  bandeAges.addEventListener('pointerdown', (e) => {
+    if (!modeEdition) return;
+    const cible = e.target.closest('.age');
+    if (cible) { ouvrirAges(AGES.find((a) => a.id === cible.dataset.age)); return; }
+    const r = bandeAges.getBoundingClientRect();
+    traceDepart = e.clientX - r.left;
+    traceAge.hidden = false;
+    traceAge.style.left = traceDepart + 'px';
+    traceAge.style.width = '0px';
+    bandeAges.setPointerCapture(e.pointerId);
+    e.stopPropagation();
+  });
+  bandeAges.addEventListener('pointermove', (e) => {
+    if (traceDepart == null) return;
+    const r = bandeAges.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    traceAge.style.left = Math.min(traceDepart, x) + 'px';
+    traceAge.style.width = Math.abs(x - traceDepart) + 'px';
+  });
+  bandeAges.addEventListener('pointerup', (e) => {
+    if (traceDepart == null) return;
+    const r = bandeAges.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const a = Math.round(anDe(Math.min(traceDepart, x)));
+    const b = Math.round(anDe(Math.max(traceDepart, x)));
+    traceDepart = null; traceAge.hidden = true;
+    if (b - a >= 1) ouvrirAges({ id: '', nom: '', debut: a, fin: b, couleur: D.teinte });
+  });
+
+  /* ------------------------------------------------------ les commandes */
+  $('zoom-plus').addEventListener('click', () => zoomerVers(pxParAn * 1.5, null));
+  $('zoom-moins').addEventListener('click', () => zoomerVers(pxParAn / 1.5, null));
+  $('zoom-ajuster').addEventListener('click', ajuster);
+  $('mode-edition').addEventListener('click', () => {
+    modeEdition = !modeEdition;
+    $('mode-edition').setAttribute('aria-pressed', modeEdition);
+    frise.classList.toggle('frise--edition', modeEdition);
+    $('astuce').hidden = !modeEdition;
+    guide.hidden = true;
+  });
+  $('ajouter-evt').addEventListener('click', () => {
+    const anCentre = Math.round(anDe(vue.scrollLeft + vue.clientWidth / 2));
+    ouvrirEditeur(null, anCentre);
+  });
+  $('ouvrir-ages').addEventListener('click', () => ouvrirAges(null));
+
+  /* ------------------------------------------------------ l'enregistrement */
   function motDePasse() {
     let mdp = sessionStorage.getItem(CLE_MDP);
     if (!mdp) {
-      mdp = prompt(meta.motDePasseDefini ? "Mot de passe de l'atelier :" : "Choisis le mot de passe de ton atelier. Il te sera demandé pour toute modification, et personne d'autre ne pourra écrire sur ton site.");
+      mdp = prompt(meta.motDePasseDefini
+        ? "Mot de passe de l'atelier :"
+        : "Choisis le mot de passe de ton atelier. Il te sera demandé pour toute modification, et personne d'autre ne pourra écrire sur ton site.");
       if (mdp) sessionStorage.setItem(CLE_MDP, mdp);
     }
     return mdp;
   }
-
   async function envoyer(corps, etatEl) {
     if (!meta.stockageActif) { if (etatEl) etatEl.textContent = 'Stockage non relié.'; return null; }
     const mdp = motDePasse(); if (!mdp) return null;
-    const r = await fetch('/api/chroniques', { method: 'POST', headers: { 'content-type': 'application/json', 'x-mot-de-passe': mdp }, body: JSON.stringify(corps) });
+    const r = await fetch('/api/chroniques', {
+      method: 'POST', headers: { 'content-type': 'application/json', 'x-mot-de-passe': mdp }, body: JSON.stringify(corps),
+    });
     const res = await r.json().catch(() => ({}));
     if (r.status === 401) { sessionStorage.removeItem(CLE_MDP); if (etatEl) etatEl.textContent = res.erreur || 'Mot de passe refusé.'; return null; }
     if (!r.ok) { if (etatEl) etatEl.textContent = res.erreur || 'Échec.'; return null; }
     return res.chroniques;
   }
-
-  function fermerEditeur() { modale.hidden = true; }
-  for (const b of modale.querySelectorAll('[data-fermer]')) b.addEventListener('click', fermerEditeur);
-
-  // Bascule du champ « nature libre » selon le choix du menu.
-  const catSel = $('ev-cat'), catLibreChamp = $('ev-cat-libre-champ'), catLibre = $('ev-cat-libre');
-  const majCatLibre = () => catLibreChamp.classList.toggle('ouvert', catSel.value === '__autre');
-  catSel.addEventListener('change', majCatLibre);
-  // « Suivre la nature » : réaligne la couleur sur la teinte de la nature.
-  $('ev-couleur-auto').addEventListener('click', () => {
-    const cle = catSel.value === '__autre' ? '' : catSel.value;
-    const c = catDe(cle); if (c && c.couleur) $('ev-couleur').value = c.couleur;
-  });
-
-  function ouvrirEditeur(ev) {
-    $('ev-titre-modale').textContent = ev ? 'Modifier l’événement' : 'Nouvel événement';
-    $('ev-id').value = ev?.id || '';
-    $('ev-titre').value = ev?.titre || '';
-    $('ev-an').value = ev && ev.an != null ? ev.an : '';
-    $('ev-anfin').value = ev && ev.anFin != null ? ev.anFin : '';
-    $('ev-ere').value = ev?.ere || '';
-    const cle = ev?.categorie || 'fondation';
-    if (ev && !CATS[cle]) { catSel.value = '__autre'; catLibre.value = cle; } else { catSel.value = cle; catLibre.value = ''; }
-    majCatLibre();
-    $('ev-statut').value = ev?.statut || 'atteste';
-    $('ev-couleur').value = ev?.couleur || catDe(cle).couleur;
-    $('ev-resume').value = ev?.resume || '';
-    $('ev-lieu').value = ev?.lieu || '';
-    $('ev-acteurs').value = ev?.acteurs || '';
-    $('ev-consequence').value = ev?.consequence || '';
-    $('ev-cit-texte').value = ev?.citation?.texte || '';
-    $('ev-cit-source').value = ev?.citation?.source || '';
-    $('ev-tags').value = (ev?.tags || []).join(', ');
-    $('ev-lien').value = ev?.lien || '';
-    $('ev-image').value = ev?.image || '';
-    $('ev-etat').textContent = '';
-    $('ev-supprimer').hidden = !ev;
-    modale.hidden = false;
-    $('ev-titre').focus();
+  /** On rafraîchit la frise sur place : pas de rechargement, donc l'animation se voit. */
+  function rafraichir(chroniques, idNeuf) {
+    EV = chroniques.evenements.filter((e) => e.chronique === meta.slug).map((e) => ({
+      id: e.id, slug: e.slug, titre: e.titre, an: e.an, anFin: e.anFin ?? null, resume: e.resume ?? '',
+      categorie: e.categorie ?? 'autre', statut: e.statut ?? 'atteste', couleur: e.couleur,
+      lieu: e.lieu ?? '', acteurs: e.acteurs ?? '', consequence: e.consequence ?? '',
+      citation: e.citation ?? null, tags: e.tags ?? [], lien: e.lien ?? '', image: e.image ?? '',
+    }));
+    AGES = (chroniques.ages || []).filter((a) => a.chronique === meta.slug).sort((a, b) => a.debut - b.debut);
+    idAnime = idNeuf || null;
+    construireFiltres();
+    dessiner();
   }
 
-  $('nouvel-evenement').addEventListener('click', () => ouvrirEditeur(null));
+  /* -------------------------------------------------- l'atelier d'un événement */
+  const modaleEvt = $('modale-evt');
+  brancherTeleversement({ champ: $('ev-image'), motDePasse, etat: $('ev-etat') });
+  brancherTeleversement({ champ: $('pc-image'), motDePasse, etat: $('pc-etat') });
+  for (const b of modaleEvt.querySelectorAll('[data-fermer]')) b.addEventListener('click', () => (modaleEvt.hidden = true));
 
-  // Un champ manquant ne laisse plus perplexe : on y saute et on le signale.
+  const catSel = $('ev-cat'), catLibre = $('ev-cat-libre'), catLibreChamp = $('ev-cat-libre-champ');
+  const majCatLibre = () => catLibreChamp.classList.toggle('ouvert', catSel.value === '__autre');
+  catSel.addEventListener('change', () => {
+    majCatLibre();
+    const c = catDe(catSel.value === '__autre' ? '' : catSel.value);
+    if (c && c.couleur && !$('ev-id').value) $('ev-couleur').value = c.couleur;
+  });
+  $('ev-couleur-auto').addEventListener('click', () => {
+    const c = catDe(catSel.value === '__autre' ? '' : catSel.value);
+    if (c && c.couleur) $('ev-couleur').value = c.couleur;
+  });
+  const majLectureAn = () => {
+    const v = $('ev-an').value;
+    $('ev-an-lecture').textContent = v === '' ? '' : libelleAn(Number(v)) + ageDe(Number(v));
+  };
+  $('ev-an').addEventListener('input', majLectureAn);
+  $('ev-an-moins').addEventListener('click', () => { $('ev-an').value = (Number($('ev-an').value || 0) - 1); majLectureAn(); });
+  $('ev-an-plus').addEventListener('click', () => { $('ev-an').value = (Number($('ev-an').value || 0) + 1); majLectureAn(); });
+  $('ev-duree').addEventListener('change', () => { $('ev-anfin').hidden = !$('ev-duree').checked; if (!$('ev-duree').checked) $('ev-anfin').value = ''; });
+
   function exiger(champ, message) {
     $('ev-etat').textContent = message;
     champ.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -819,49 +1281,180 @@ const donneesFrise = {
     return null;
   }
 
+  function ouvrirEditeur(ev, anPropose) {
+    $('ev-tete').textContent = ev ? 'Modifier l’événement' : 'Nouvel événement';
+    $('ev-id').value = ev?.id || '';
+    $('ev-titre').value = ev?.titre || '';
+    $('ev-an').value = ev ? ev.an : (anPropose ?? Math.round((anMin + anMax) / 2));
+    $('ev-duree').checked = Boolean(ev && ev.anFin != null);
+    $('ev-anfin').hidden = !$('ev-duree').checked;
+    $('ev-anfin').value = ev && ev.anFin != null ? ev.anFin : '';
+    const cle = ev?.categorie || 'fondation';
+    if (ev && !CATS[cle]) { catSel.value = '__autre'; catLibre.value = cle; } else { catSel.value = cle; catLibre.value = ''; }
+    majCatLibre();
+    $('ev-statut').value = ev?.statut || 'atteste';
+    $('ev-couleur').value = ev?.couleur || catDe(cle).couleur;
+    $('ev-resume').value = ev?.resume || '';
+    $('ev-image').value = ev?.image || '';
+    $('ev-lieu').value = ev?.lieu || '';
+    $('ev-acteurs').value = ev?.acteurs || '';
+    $('ev-consequence').value = ev?.consequence || '';
+    $('ev-cit-texte').value = ev?.citation?.texte || '';
+    $('ev-cit-source').value = ev?.citation?.source || '';
+    $('ev-tags').value = (ev?.tags || []).join(', ');
+    $('ev-lien').value = ev?.lien || '';
+    $('ev-etat').textContent = '';
+    $('ev-supprimer').hidden = !ev;
+    majLectureAn();
+    modaleEvt.hidden = false;
+    $('ev-titre').focus();
+  }
+
   $('ev-enregistrer').addEventListener('click', async () => {
     const etat = $('ev-etat');
     const titre = $('ev-titre').value.trim();
-    if (!titre) return exiger($('ev-titre'), 'Il manque le titre — c’est ici, tout en haut.');
-    if ($('ev-an').value.trim() === '') return exiger($('ev-an'), 'Il manque l’année (un nombre, négatif si avant l’origine).');
+    if (!titre) return exiger($('ev-titre'), 'Il manque le titre.');
+    if ($('ev-an').value.trim() === '') return exiger($('ev-an'), 'Il manque la date.');
     const categorie = catSel.value === '__autre' ? catLibre.value.trim() : catSel.value;
     etat.textContent = 'Enregistrement…';
+    const avant = new Set(EV.map((e) => e.id));
     const chroniques = await envoyer({
       action: 'evenement', id: $('ev-id').value || undefined, chronique: meta.slug, titre,
-      an: $('ev-an').value, anFin: $('ev-anfin').value, ere: $('ev-ere').value,
+      an: $('ev-an').value, anFin: $('ev-duree').checked ? $('ev-anfin').value : '',
       categorie, statut: $('ev-statut').value, couleur: $('ev-couleur').value,
       resume: $('ev-resume').value, lieu: $('ev-lieu').value, acteurs: $('ev-acteurs').value,
       consequence: $('ev-consequence').value,
       citation: { texte: $('ev-cit-texte').value, source: $('ev-cit-source').value },
       tags: $('ev-tags').value, lien: $('ev-lien').value, image: $('ev-image').value,
     }, etat);
-    if (chroniques) location.reload();
+    if (!chroniques) return;
+    const neuf = chroniques.evenements.find((e) => e.chronique === meta.slug && !avant.has(e.id));
+    modaleEvt.hidden = true;
+    rafraichir(chroniques, neuf?.id || $('ev-id').value);
   });
 
   $('ev-supprimer').addEventListener('click', async () => {
     const id = $('ev-id').value; if (!id) return;
     if (!confirm('Supprimer cet événement et sa page ?')) return;
     const chroniques = await envoyer({ action: 'supprimer-evenement', id }, $('ev-etat'));
-    if (chroniques) location.reload();
+    if (!chroniques) return;
+    modaleEvt.hidden = true;
+    if (idOuvert === id) fermerTuile();
+    rafraichir(chroniques);
   });
 
-  /* ===================== propriétés de la chronique ===================== */
+  /* ---------------------------------------------------------- les âges */
+  const modaleAges = $('modale-ages');
+  for (const b of modaleAges.querySelectorAll('[data-fermer]')) b.addEventListener('click', () => (modaleAges.hidden = true));
+
+  function listerAges() {
+    const ul = $('liste-ages');
+    ul.innerHTML = '';
+    for (const a of AGES) {
+      const li = document.createElement('li');
+      li.innerHTML =
+        '<span class="pastille-couleur" style="background:' + esc(a.couleur) + '"></span>' +
+        '<span class="nom">' + esc(a.nom) + '</span>' +
+        '<span class="ans">' + esc(libelleAn(a.debut)) + ' → ' + esc(libelleAn(a.fin)) + '</span>';
+      const mod = document.createElement('button'); mod.type = 'button'; mod.textContent = 'Modifier';
+      mod.addEventListener('click', () => remplirAge(a));
+      const sup = document.createElement('button'); sup.type = 'button'; sup.textContent = 'Supprimer';
+      sup.addEventListener('click', async () => {
+        if (!confirm('Supprimer l’âge « ' + a.nom + ' » ?')) return;
+        const ch = await envoyer({ action: 'supprimer-age', id: a.id }, $('age-etat'));
+        if (ch) { rafraichir(ch); listerAges(); remplirAge(null); }
+      });
+      li.append(mod, sup);
+      ul.appendChild(li);
+    }
+  }
+  function remplirAge(a) {
+    $('age-id').value = a?.id || '';
+    $('age-nom').value = a?.nom || '';
+    $('age-debut').value = a && a.debut != null ? a.debut : '';
+    $('age-fin').value = a && a.fin != null ? a.fin : '';
+    $('age-couleur').value = a?.couleur || D.teinte;
+    $('age-etat').textContent = '';
+    $('age-annuler').hidden = !a?.id;
+    $('age-tete').textContent = a?.id ? 'Modifier un âge' : 'Les âges';
+  }
+  function ouvrirAges(a) {
+    listerAges();
+    remplirAge(a || null);
+    modaleAges.hidden = false;
+    if (a && !a.id) $('age-nom').focus();
+  }
+  $('age-annuler').addEventListener('click', () => remplirAge(null));
+  $('age-enregistrer').addEventListener('click', async () => {
+    const etat = $('age-etat');
+    if (!$('age-nom').value.trim()) { etat.textContent = 'Donne un nom à l’âge.'; return $('age-nom').focus(); }
+    if ($('age-debut').value === '' || $('age-fin').value === '') { etat.textContent = 'Donne un début et une fin.'; return; }
+    etat.textContent = 'Enregistrement…';
+    const ch = await envoyer({
+      action: 'age', id: $('age-id').value || undefined, chronique: meta.slug,
+      nom: $('age-nom').value, debut: $('age-debut').value, fin: $('age-fin').value, couleur: $('age-couleur').value,
+    }, etat);
+    if (!ch) return;
+    rafraichir(ch);
+    listerAges();
+    remplirAge(null);
+    etat.textContent = 'Âge enregistré.';
+  });
+
+  /* -------------------------------------------- propriétés de la chronique */
   const props = $('modale-props');
   $('ouvrir-props').addEventListener('click', () => (props.hidden = false));
   for (const b of props.querySelectorAll('[data-fermer]')) b.addEventListener('click', () => (props.hidden = true));
-
   $('pc-enregistrer').addEventListener('click', async () => {
     $('pc-etat').textContent = 'Enregistrement…';
-    const chroniques = await envoyer({ action: 'chronique', slug: meta.slug, titre: $('pc-titre').value, couleur: $('pc-couleur').value, image: $('pc-image').value, intro: $('pc-intro').value }, $('pc-etat'));
-    if (chroniques) location.reload();
+    const ch = await envoyer({
+      action: 'chronique', slug: meta.slug, titre: $('pc-titre').value, couleur: $('pc-couleur').value,
+      image: $('pc-image').value, intro: $('pc-intro').value,
+      anMin: $('pc-anmin').value, anMax: $('pc-anmax').value,
+      suffixeAvant: $('pc-avant').value, suffixeApres: $('pc-apres').value,
+    }, $('pc-etat'));
+    if (ch) location.reload();
   });
   const suppr = $('pc-supprimer');
   if (suppr) suppr.addEventListener('click', async () => {
     if (!confirm('Supprimer cette chronique et tous ses événements ?')) return;
-    const chroniques = await envoyer({ action: 'supprimer-chronique', slug: meta.slug }, $('pc-etat'));
-    if (chroniques) location.href = '/chronologie';
+    const ch = await envoyer({ action: 'supprimer-chronique', slug: meta.slug }, $('pc-etat'));
+    if (ch) location.href = '/chronologie';
   });
 
-  /* Tout est prêt : on construit la frise en dernier, `bubble` et l'éditeur en place. */
-  if (hasFrise) construireFrise();
+  /* ------------------------------------------------------------ départ */
+  construireFiltres();
+
+  /**
+   * L'échelle dépend de la largeur de la vue. Tant que la mise en page n'est
+   * pas faite, cette largeur vaut zéro et la frise se dessinerait tassée : on
+   * attend donc la première image où elle est connue.
+   */
+  let essais = 0;
+  (function demarrer() {
+    if (vue.clientWidth < 40 && essais++ < 60) return requestAnimationFrame(demarrer);
+    calculerPxMin();
+    pxParAn = pxMin;
+    dessiner();
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      axe.style.setProperty('--tracer', '0');
+      requestAnimationFrame(() => {
+        axe.style.transition = 'transform 1s cubic-bezier(.22,.7,.2,1)';
+        axe.style.setProperty('--tracer', '1');
+      });
+    }
+  })();
+
+  // La frise se réajuste si la fenêtre change de taille (ou la barre latérale).
+  if (window.ResizeObserver) {
+    let derniere = 0;
+    new ResizeObserver(() => {
+      const l = vue.clientWidth;
+      if (!l || Math.abs(l - derniere) < 2) return;
+      const premiere = derniere === 0;
+      derniere = l;
+      calculerPxMin();
+      if (premiere || pxParAn < pxMin) { pxParAn = pxMin; dessiner(); }
+    }).observe(vue);
+  }
 </script>

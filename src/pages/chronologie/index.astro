@@ -97,8 +97,29 @@ const donnees = {
           </select>
         </label>
         <label class="champ"><span>Couleur</span>
-          <input id="ch-couleur" type="color" value="#b24634" />
+          <input id="ch-couleur" type="color" value="#8a2f3c" />
         </label>
+        <div class="separateur-ch"><span>L'étendue du temps</span></div>
+        <div class="duo-ch">
+          <label class="champ"><span>Première année</span>
+            <input id="ch-anmin" type="number" step="1" value="0" />
+          </label>
+          <label class="champ"><span>Dernière année</span>
+            <input id="ch-anmax" type="number" step="1" value="500" />
+          </label>
+        </div>
+        <div class="duo-ch">
+          <label class="champ"><span>Avant l'origine</span>
+            <input id="ch-avant" type="text" maxlength="16" value="av." placeholder="av. F." />
+          </label>
+          <label class="champ"><span>Après l'origine</span>
+            <input id="ch-apres" type="text" maxlength="16" value="ap." placeholder="ap. F." />
+          </label>
+        </div>
+        <p class="modale__aide-ch">
+          Ces bornes fixent l'étendue de la frise. Elles se règlent à tout moment
+          dans les propriétés de la chronique.
+        </p>
         <p class="modale__etat" id="ch-etat"></p>
       </div>
       <footer class="modale__pied modale__pied--simple">
@@ -112,6 +133,19 @@ const donnees = {
 
 <style is:global>
   .modale__tete .fermer { position: static; margin-left: auto; }
+  .duo-ch { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+  .separateur-ch {
+    display: flex; align-items: center; gap: 0.7rem; margin-top: 0.3rem;
+    font-family: var(--chrome); font-size: 0.5625rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .separateur-ch::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+  .modale__aide-ch { margin: 0; font-family: var(--chrome); font-size: 0.66rem; color: var(--muted); line-height: 1.5; }
+  .modale__corps input[type='number'] {
+    padding: 0.5rem 0.7rem; background: var(--saisie); border: 1px solid var(--line);
+    border-radius: var(--rayon-s); color: var(--ink); font-family: var(--texte-police);
+    font-size: 1.0625rem; width: 100%;
+  }
   .tete-lore {
     display: flex; align-items: flex-start; gap: 1.5rem;
     margin: 2rem 0 2.5rem; flex-wrap: wrap;
@@ -174,7 +208,11 @@ const donnees = {
       const r = await fetch('/api/chroniques', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-mot-de-passe': mdp },
-        body: JSON.stringify({ action: 'chronique', titre, portee: $('ch-portee').value, couleur: $('ch-couleur').value }),
+        body: JSON.stringify({
+          action: 'chronique', titre, portee: $('ch-portee').value, couleur: $('ch-couleur').value,
+          anMin: $('ch-anmin').value, anMax: $('ch-anmax').value,
+          suffixeAvant: $('ch-avant').value, suffixeApres: $('ch-apres').value,
+        }),
       });
       const res = await r.json().catch(() => ({}));
       if (r.status === 401) { sessionStorage.removeItem(CLE_MDP); return (etat.textContent = res.erreur || 'Mot de passe refusé.'); }

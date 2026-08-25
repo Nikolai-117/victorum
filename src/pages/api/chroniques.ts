@@ -15,6 +15,8 @@ import {
   supprimerChronique,
   enregistrerEvenement,
   supprimerEvenement,
+  enregistrerAge,
+  supprimerAge,
 } from '../../lib/chroniques';
 
 export const prerender = false;
@@ -60,6 +62,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
         return json({ ok: true, chroniques: await enregistrerEvenement(locals, corps) });
       case 'supprimer-evenement':
         return json({ ok: true, chroniques: await supprimerEvenement(locals, id) });
+      case 'age':
+        return json({ ok: true, chroniques: await enregistrerAge(locals, corps) });
+      case 'supprimer-age':
+        return json({ ok: true, chroniques: await supprimerAge(locals, id) });
       default:
         return json({ erreur: 'Action inconnue.' }, 400);
     }

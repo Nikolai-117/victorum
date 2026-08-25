@@ -23,6 +23,26 @@ export interface Chronique {
   image?: string;
   fixe?: boolean;
   ordre: number;
+  /** Bornes de la frise : le temps qu'elle couvre, choisi par Romain. */
+  anMin?: number;
+  anMax?: number;
+  /** Comment se lisent les dates de part et d'autre de l'origine. */
+  suffixeAvant?: string;
+  suffixeApres?: string;
+}
+
+/**
+ * Un âge : une plage datée qui colore le fond de la frise et la nomme.
+ * Ce sont des bandes, pas des étiquettes recopiées sur chaque événement —
+ * on peut donc les tracer directement à la souris sur la frise.
+ */
+export interface Age {
+  id: string;
+  chronique: string;
+  nom: string;
+  debut: number;
+  fin: number;
+  couleur: string;
 }
 
 export interface Citation {
@@ -109,6 +129,7 @@ export const statutEvt = (cle: string | undefined): StatutEvt =>
 export interface Chroniques {
   chroniques: Chronique[];
   evenements: Evenement[];
+  ages: Age[];
 }
 
 /** La frise du monde existe toujours : c'est la grande chronologie. */
@@ -128,7 +149,7 @@ const CLE = 'chroniques';
 
 export async function lireChroniques(locals: App.Locals): Promise<Chroniques> {
   const espace = stockage(locals);
-  const vide: Chroniques = { chroniques: [], evenements: [] };
+  const vide: Chroniques = { chroniques: [], evenements: [], ages: [] };
   if (!espace) return vide;
   try {
     const brut = await espace.get<Chroniques>(CLE, 'json');
@@ -136,11 +157,18 @@ export async function lireChroniques(locals: App.Locals): Promise<Chroniques> {
     return {
       chroniques: Array.isArray(brut.chroniques) ? brut.chroniques : [],
       evenements: Array.isArray(brut.evenements) ? brut.evenements : [],
+      ages: Array.isArray(brut.ages) ? brut.ages : [],
     };
   } catch {
     return vide;
   }
 }
+
+/** Les âges d'une chronique, du plus ancien au plus récent. */
+export const agesDe = (data: Chroniques, chroniqueSlug: string): Age[] =>
+  data.ages
+    .filter((a) => a.chronique === chroniqueSlug)
+    .sort((a, b) => a.debut - b.debut || a.nom.localeCompare(b.nom, 'fr'));
 
 /** Toutes les chroniques : le monde d'abord, puis les siennes. */
 export function chroniquesDe(data: Chroniques): Chronique[] {
@@ -154,6 +182,10 @@ export function chroniquesDe(data: Chroniques): Chronique[] {
       if (c.couleur) monde.couleur = c.couleur;
       if (c.intro) monde.intro = c.intro;
       if (c.image) monde.image = c.image;
+      if (c.anMin !== undefined) monde.anMin = c.anMin;
+      if (c.anMax !== undefined) monde.anMax = c.anMax;
+      if (c.suffixeAvant) monde.suffixeAvant = c.suffixeAvant;
+      if (c.suffixeApres) monde.suffixeApres = c.suffixeApres;
     } else {
       parSlug.set(c.slug, { ...c, fixe: false, ordre: c.ordre ?? rang++ });
     }
@@ -260,6 +292,70 @@ async function ecrire(locals: App.Locals, data: Chroniques): Promise<Chroniques>
 const chroniqueConnue = (data: Chroniques, slug: string) =>
   slug === CHRONIQUE_MONDE.slug || data.chroniques.some((c) => c.slug === slug);
 
+/**
+ * Les bornes d'une frise et la façon de lire ses dates. Un champ absent de la
+ * requête garde sa valeur ; on refuse seulement une plage inversée ou nulle,
+ * qui rendrait la frise indessinable.
+ */
+function bornesValides(
+  brut: Record<string, unknown>,
+  ancien?: Chronique
+): Partial<Pick<Chronique, 'anMin' | 'anMax' | 'suffixeAvant' | 'suffixeApres'>> {
+  const out: Partial<Chronique> = {};
+  const min = brut.anMin !== undefined ? nombre(brut.anMin) : ancien?.anMin;
+  const max = brut.anMax !== undefined ? nombre(brut.anMax) : ancien?.anMax;
+  if (min !== undefined && max !== undefined && max > min) {
+    out.anMin = min;
+    out.anMax = max;
+  } else if (ancien?.anMin !== undefined && ancien?.anMax !== undefined) {
+    out.anMin = ancien.anMin;
+    out.anMax = ancien.anMax;
+  }
+  const avant = brut.suffixeAvant !== undefined ? texte(brut.suffixeAvant, 16) : ancien?.suffixeAvant;
+  const apres = brut.suffixeApres !== undefined ? texte(brut.suffixeApres, 16) : ancien?.suffixeApres;
+  if (avant) out.suffixeAvant = avant;
+  if (apres) out.suffixeApres = apres;
+  return out;
+}
+
+/** Crée ou met à jour un âge : une bande datée sur la frise. */
+export async function enregistrerAge(
+  locals: App.Locals,
+  brut: Record<string, unknown>
+): Promise<Chroniques> {
+  const data = await lireChroniques(locals);
+  const chronique = texte(brut.chronique, 60);
+  if (!chroniqueConnue(data, chronique)) throw new Error('Chronique inconnue.');
+
+  const nom = texte(brut.nom, 60);
+  if (!nom) throw new Error('Un âge a besoin d’un nom.');
+  const debut = nombre(brut.debut);
+  const fin = nombre(brut.fin);
+  if (debut === undefined || fin === undefined) throw new Error('Un âge a besoin d’un début et d’une fin.');
+  if (fin <= debut) throw new Error('La fin d’un âge doit suivre son début.');
+
+  const id = typeof brut.id === 'string' && brut.id ? brut.id : identifiant();
+  const existant = data.ages.find((a) => a.id === id);
+
+  const age: Age = {
+    id,
+    chronique,
+    nom,
+    debut,
+    fin,
+    couleur: couleurValide(brut.couleur, existant?.couleur ?? '#8a2f3c'),
+  };
+
+  data.ages = existant ? data.ages.map((a) => (a.id === id ? age : a)) : [...data.ages, age];
+  return ecrire(locals, data);
+}
+
+export async function supprimerAge(locals: App.Locals, id: string): Promise<Chroniques> {
+  const data = await lireChroniques(locals);
+  data.ages = data.ages.filter((a) => a.id !== id);
+  return ecrire(locals, data);
+}
+
 /** Crée ou met à jour une chronique. Le monde ne reçoit que des enrichissements. */
 export async function enregistrerChronique(
   locals: App.Locals,
@@ -267,6 +363,10 @@ export async function enregistrerChronique(
 ): Promise<Chroniques> {
   const data = await lireChroniques(locals);
   const slugDemande = typeof brut.slug === 'string' ? brut.slug : '';
+
+  // Les bornes de la frise : fournies ou héritées, jamais inversées.
+  const ancien = data.chroniques.find((c) => c.slug === slugDemande);
+  const bornes = bornesValides(brut, ancien);
 
   if (slugDemande === CHRONIQUE_MONDE.slug) {
     const enrich: Partial<Chronique> & { slug: string } = { slug: 'monde' };
@@ -276,8 +376,12 @@ export async function enregistrerChronique(
     if (couleur !== CHRONIQUE_MONDE.couleur) enrich.couleur = couleur;
     if (intro) enrich.intro = intro;
     if (image) enrich.image = image;
+    Object.assign(enrich, bornes);
     const autres = data.chroniques.filter((c) => c.slug !== 'monde');
-    const aQuelqueChose = enrich.couleur || enrich.intro || enrich.image;
+    const aQuelqueChose =
+      enrich.couleur || enrich.intro || enrich.image ||
+      enrich.anMin !== undefined || enrich.anMax !== undefined ||
+      enrich.suffixeAvant || enrich.suffixeApres;
     data.chroniques = aQuelqueChose ? [...autres, enrich as Chronique] : autres;
     return ecrire(locals, data);
   }
@@ -297,6 +401,7 @@ export async function enregistrerChronique(
     image: imageValide(brut.image),
     fixe: false,
     ordre: existant?.ordre ?? CHRONIQUE_MONDE.ordre + 1 + data.chroniques.length,
+    ...bornes,
   };
 
   data.chroniques = existant
@@ -317,6 +422,7 @@ export async function supprimerChronique(locals: App.Locals, slug: string): Prom
   }
   data.chroniques = data.chroniques.filter((c) => c.slug !== slug);
   data.evenements = data.evenements.filter((e) => e.chronique !== slug);
+  data.ages = data.ages.filter((a) => a.chronique !== slug);
   return ecrire(locals, data);
 }
 
