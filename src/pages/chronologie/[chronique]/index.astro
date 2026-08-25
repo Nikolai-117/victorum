@@ -321,7 +321,12 @@ const donneesFrise = {
     font-family: var(--chrome); font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--parchemin-doux);
   }
   .lien-mini:hover { color: var(--or); }
-  .modale__boite--large { width: min(620px, 100%); }
+  .modale__boite--large { width: min(600px, 100%); max-height: min(82svh, 720px); }
+  /* Le corps défile dans la fenêtre plafonnée : elle ne déborde plus de l'écran. */
+  .modale__corps {
+    padding: 1.05rem 1.35rem 1.2rem; display: flex; flex-direction: column; gap: 0.7rem;
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  }
   .modale__corps input[type='text'],
   .modale__corps input[type='number'],
   .modale__corps select,
