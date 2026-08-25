@@ -17,40 +17,58 @@
 @import './blocs.css';
 
 :root {
-  /* Palette imposée (éditoriale) : 6 codes, aucun autre.
-     page #EFE7D9 · carte #F8F3E9 · bordure #DDD2BF
-     encre #2A2420 · label #6C6055 · accent #B24634  (+ blanc sur l'accent). */
+  /* Thème « Parchemin & Bordeaux » : clair, éditorial, haut contraste.
+     Fond parchemin neutre + blocs sombres (nav, pied) + un seul accent
+     bordeaux tenu court (boutons, liens, titres de section, actifs).
 
-  --encre: #efe7d9;          /* fond général de la page */
-  --encre-2: #f8f3e9;        /* surface des cartes et encadrés */
-  --velin: #f8f3e9;
-  --velin-haut: #efe7d9;
-  --sombre: #f8f3e9;         /* l'entête flottante, désormais claire */
-  --sombre-2: #efe7d9;
-  --sur-sombre: #2a2420;
+     bg #F1EBDD · surface #F7F2E7 · ink #26201C · muted #726555 · line #D8CCB9
+     accent #8A2F3C · accent-fort #732530 · sombre #241F1B. */
 
-  --trait: #ddd2bf;          /* bordure fine, 1px */
-  --trait-vif: #ddd2bf;
+  /* Jetons canoniques du thème (source de vérité). */
+  --bg: #f1ebdd;
+  --surface: #f7f2e7;
+  --ink: #26201c;
+  --muted: #726555;
+  --line: #d8ccb9;
+  --accent: #8a2f3c;
+  --accent-strong: #732530;
+  --on-accent: #ffffff;
+  --dark: #241f1b;
+  --on-dark: #f1ebdd;
+  --on-dark-muted: #c9b9a6;
 
-  --parchemin: #2a2420;      /* titres, grands chiffres, texte courant */
-  --parchemin-doux: #6c6055; /* labels, méta, descriptions */
-  --parchemin-faible: #6c6055;
+  /* Alias historiques : tout le CSS existant les emploie, ils pointent
+     désormais vers les jetons ci-dessus. */
+  --encre: var(--bg);            /* fond général de la page */
+  --encre-2: var(--surface);     /* surface des cartes et encadrés */
+  --velin: var(--surface);
+  --velin-haut: var(--bg);
+  --sombre: var(--dark);         /* blocs sombres : nav, pied */
+  --sombre-2: var(--dark);
+  --sur-sombre: var(--on-dark);
 
-  --or: #b24634;             /* accent : bouton principal, nav active, titres « Explorer » */
-  --or-clair: #b24634;
-  --or-sourd: #ddd2bf;
-  --sang: #b24634;
-  --peche: #ddd2bf;
-  --verdet: #6c6055;
-  --degrade: linear-gradient(135deg, #f8f3e9 0%, #efe7d9 100%);
-  --degrade-doux: linear-gradient(135deg, #f8f3e9 0%, #efe7d9 100%);
+  --trait: var(--line);          /* bordure fine, 1px */
+  --trait-vif: var(--line);
 
-  --carte: #f8f3e9;
-  --verre: #f8f3e9;
+  --parchemin: var(--ink);       /* titres, grands chiffres, texte courant */
+  --parchemin-doux: var(--muted);/* labels, méta, descriptions */
+  --parchemin-faible: var(--muted);
+
+  --or: var(--accent);           /* accent : bouton principal, nav active, liens, titres « Explorer » */
+  --or-clair: var(--accent);
+  --or-sourd: var(--line);
+  --sang: var(--accent);
+  --peche: var(--line);
+  --verdet: var(--muted);
+  --degrade: linear-gradient(135deg, #f7f2e7 0%, #f1ebdd 100%);
+  --degrade-doux: linear-gradient(135deg, #f7f2e7 0%, #f1ebdd 100%);
+
+  --carte: var(--surface);
+  --verre: var(--surface);
   --verre-haut: #ffffff;
   --flou: blur(18px) saturate(1.02);
-  --ombre: 0 12px 30px -18px rgba(42, 36, 32, 0.18);
-  --ombre-basse: 0 6px 18px -14px rgba(42, 36, 32, 0.12);
+  --ombre: 0 10px 30px -20px rgba(38, 32, 28, 0.28);
+  --ombre-basse: 0 6px 18px -14px rgba(38, 32, 28, 0.16);
   --lueur: inset 0 1px 0 rgba(255, 255, 255, 0.6);
   --saisie: #ffffff;
 
@@ -109,8 +127,8 @@ body {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 80% 55% at 50% -5%, rgba(248, 243, 233, 0.55), transparent 62%),
-    linear-gradient(180deg, rgba(239, 231, 217, 0.55), rgba(239, 231, 217, 0.94) 68%);
+    radial-gradient(ellipse 80% 55% at 50% -5%, rgba(247, 242, 231, 0.55), transparent 62%),
+    linear-gradient(180deg, rgba(241, 235, 221, 0.55), rgba(241, 235, 221, 0.94) 68%);
 }
 
 /* Grain de papier : un bruit SVG en donnée intégrée, aucun fichier à charger. */
@@ -161,12 +179,12 @@ h4 {
 }
 
 ::selection {
-  background: rgba(178, 70, 52, 0.2);
+  background: rgba(138, 47, 60, 0.2);
   color: var(--parchemin);
 }
 
 :focus-visible {
-  outline: 1px solid var(--or);
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
   border-radius: var(--rayon-xs);
 }
@@ -201,6 +219,10 @@ h4 {
   text-transform: uppercase;
   color: var(--parchemin-faible);
   margin: 0;
+}
+/** Eyebrow de tête (au-dessus du grand titre) : le seul en accent. */
+.etiquette--accent {
+  color: var(--accent);
 }
 
 /** Étiquette prolongée d'un filet, pour ouvrir une section. */
@@ -272,10 +294,10 @@ h4 {
   max-width: calc(100vw - 1.4rem);
   overflow-x: auto;
   scrollbar-width: none;
-  background: var(--carte);
-  border: 1px solid var(--trait);
+  background: var(--dark);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--pilule);
-  box-shadow: var(--ombre);
+  box-shadow: 0 14px 34px -20px rgba(0, 0, 0, 0.55);
 }
 .entete::-webkit-scrollbar {
   display: none;
@@ -287,17 +309,17 @@ h4 {
   letter-spacing: 0.13em;
   text-transform: uppercase;
   white-space: nowrap;
-  color: var(--parchemin);
+  color: var(--on-dark);
   background: none;
   padding: 0.32rem 0.75rem;
   border-radius: var(--pilule);
 }
 .marque:hover {
-  color: var(--or);
-  background: var(--velin-haut);
+  color: var(--on-dark);
+  background: rgba(255, 255, 255, 0.08);
 }
 .marque span {
-  color: var(--or);
+  color: var(--on-dark);
 }
 
 .nav {
@@ -310,7 +332,7 @@ h4 {
   font-family: var(--chrome);
   font-size: 0.6875rem;
   letter-spacing: 0.02em;
-  color: var(--parchemin-doux);
+  color: var(--on-dark-muted);
   background: none;
   padding: 0.36rem 0.7rem;
   border-radius: var(--pilule);
@@ -318,28 +340,29 @@ h4 {
   transition: background 0.18s, color 0.18s;
 }
 .nav a:hover {
-  color: var(--parchemin);
-  background: var(--velin-haut);
+  color: var(--on-dark);
+  background: rgba(255, 255, 255, 0.08);
 }
 .nav a[aria-current='page'] {
-  color: var(--or);
-  background: var(--velin-haut);
+  color: var(--on-dark);
+  background: rgba(255, 255, 255, 0.1);
+  font-weight: 600;
 }
 
 /** La date du monde, comme une horloge : on sait toujours quand on est. */
 .date-monde {
   margin: 0 0.7rem 0 0.55rem;
   padding-left: 0.8rem;
-  border-left: 1px solid var(--trait);
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
   font-family: var(--chrome);
   font-size: 0.6875rem;
   letter-spacing: 0.08em;
-  color: var(--parchemin-faible);
+  color: var(--on-dark-muted);
   white-space: nowrap;
 }
 .date-monde b {
   font-weight: 500;
-  color: var(--parchemin-doux);
+  color: var(--on-dark);
 }
 
 /** Le corps commence sous la pilule flottante. */
@@ -368,12 +391,20 @@ h4 {
 .pied {
   margin-top: 6rem;
   padding: 2.4rem 0 3rem;
-  background: transparent;
-  border-top: 1px solid var(--trait);
+  background: var(--dark);
+  border-top: 0;
   font-family: var(--chrome);
   font-size: 0.75rem;
   line-height: 1.7;
-  color: var(--parchemin-doux);
+  color: var(--on-dark-muted);
+}
+.pied a {
+  color: var(--on-dark);
+  background-image: linear-gradient(rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.4));
+}
+.pied a:hover {
+  color: var(--on-dark);
+  background-image: linear-gradient(var(--on-dark), var(--on-dark));
 }
 .pied__interne {
   display: flex;
@@ -706,15 +737,15 @@ h4 {
   font-size: 0.6875rem;
 }
 .bouton--plein {
-  background: var(--or);
+  background: var(--accent);
   border-color: transparent;
-  color: #ffffff;
+  color: var(--on-accent);
   font-weight: 500;
-  box-shadow: 0 10px 22px -12px rgba(178, 70, 52, 0.6);
+  box-shadow: 0 10px 22px -14px rgba(115, 37, 48, 0.55);
 }
 .bouton--plein:hover {
-  filter: brightness(1.05);
-  color: #ffffff;
+  background: var(--accent-strong);
+  color: var(--on-accent);
   transform: translateY(-1px);
 }
 
