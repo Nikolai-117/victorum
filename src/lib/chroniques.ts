@@ -25,6 +25,11 @@ export interface Chronique {
   ordre: number;
 }
 
+export interface Citation {
+  texte: string;
+  source: string;
+}
+
 export interface Evenement {
   id: string;
   slug: string;
@@ -33,12 +38,73 @@ export interface Evenement {
   an: number;
   anFin?: number;
   resume: string;
-  type: string; // libellé libre : Bataille, Fondation, Catastrophe…
+  /** Clé de catégorie (icône + couleur par défaut) ; libellé libre toléré. */
+  categorie: string;
+  /** 'atteste' | 'legende' | 'conteste' : l'Histoire, la légende, le contesté. */
+  statut: string;
   couleur: string;
+  /** Nom d'âge (« Âge des Cendres ») : regroupe la frise en bandes. */
+  ere?: string;
+  lieu?: string;
+  acteurs?: string;
+  consequence?: string;
+  citation?: Citation;
+  tags?: string[];
+  /** Lien facultatif : une fiche, une source, une page. */
+  lien?: string;
   image?: string;
+  /** Ancien champ de type libre, conservé en lecture pour ne rien perdre. */
+  type?: string;
   creeLe: string;
   modifieLe: string;
 }
+
+/**
+ * Les natures d'événement : du vocabulaire, pas du lore. Chacune porte une
+ * icône et une teinte par défaut, à la manière des doctrines. Romain peut en
+ * saisir d'autres — une catégorie inconnue retombe sur l'icône neutre.
+ */
+export interface CategorieEvt {
+  cle: string;
+  label: string;
+  couleur: string;
+  /** Contenu interne d'un <svg> 24×24, trait courant. */
+  icone: string;
+}
+
+export const CATEGORIES_EVT: CategorieEvt[] = [
+  { cle: 'fondation', label: 'Fondation', couleur: '#c0895a', icone: '<path d="M4 21h16M5 21V9l7-4 7 4v12M9 21v-6h6v6"/>' },
+  { cle: 'guerre', label: 'Guerre', couleur: '#e5675f', icone: '<path d="M14.5 4.5l5 5-8 8-2 .5.5-2 8-8-4-4z"/><path d="M5 21l4-4M3 14l3 3M14 3l3 3"/>' },
+  { cle: 'dynastie', label: 'Dynastie', couleur: '#d5a044', icone: '<path d="M4 8l3.5 3L12 5l4.5 6L20 8l-1.5 10h-13L4 8z"/>' },
+  { cle: 'magie', label: 'Magie', couleur: '#b06e96', icone: '<path d="M12 3l1.8 4.7L18.5 9l-4.7 1.3L12 15l-1.8-4.7L5.5 9l4.7-1.3L12 3z"/><path d="M18 15l.7 1.8L20.5 17l-1.8.6L18 19l-.7-1.4L15.5 17l1.8-.2L18 15z"/>' },
+  { cle: 'cataclysme', label: 'Cataclysme', couleur: '#d65a2e', icone: '<path d="M13 2L5 13h5l-1 9 8-12h-5l1-8z"/>' },
+  { cle: 'pacte', label: 'Pacte', couleur: '#7e9b6e', icone: '<path d="M4 6h10l-1.5 2H4zM4 6v13l6-3 6 3M14 6l6 2v11M8 11h6M8 14h4"/>' },
+];
+
+const ICONE_NEUTRE = '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>';
+
+export const categorieEvt = (cle: string | undefined): CategorieEvt =>
+  CATEGORIES_EVT.find((c) => c.cle === cle) ?? {
+    cle: cle || 'autre',
+    label: cle ? cle.charAt(0).toUpperCase() + cle.slice(1) : 'Événement',
+    couleur: '#b24634',
+    icone: ICONE_NEUTRE,
+  };
+
+export interface StatutEvt {
+  cle: string;
+  label: string;
+  couleur: string;
+}
+
+export const STATUTS_EVT: StatutEvt[] = [
+  { cle: 'atteste', label: 'Attesté', couleur: '#6f8f6a' },
+  { cle: 'legende', label: 'Légende', couleur: '#c6982f' },
+  { cle: 'conteste', label: 'Contesté', couleur: '#9a8c82' },
+];
+
+export const statutEvt = (cle: string | undefined): StatutEvt =>
+  STATUTS_EVT.find((s) => s.cle === cle) ?? STATUTS_EVT[0];
 
 export interface Chroniques {
   chroniques: Chronique[];
@@ -51,7 +117,7 @@ export const CHRONIQUE_MONDE: Chronique = {
   slug: 'monde',
   titre: 'Chronologie du monde',
   portee: 'monde',
-  couleur: '#df7f83',
+  couleur: '#b24634',
   fixe: true,
   ordre: 0,
 };
@@ -135,6 +201,41 @@ function imageValide(brut: unknown): string {
   return /^(https?:\/\/|\/)[^\s"'<>]+$/i.test(v) ? v : '';
 }
 
+/** Une clé de catégorie : slug court, catalogue ou libre. */
+const categorieValide = (brut: unknown): string =>
+  texte(brut, 30)
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'autre';
+
+const statutValide = (brut: unknown): string =>
+  STATUTS_EVT.some((s) => s.cle === brut) ? String(brut) : 'atteste';
+
+/** Une liste de mots-clés : depuis un tableau ou une saisie séparée de virgules. */
+function tagsValides(brut: unknown): string[] {
+  const source = Array.isArray(brut) ? brut : texte(brut, 400).split(',');
+  const vus = new Set<string>();
+  const out: string[] = [];
+  for (const t of source) {
+    const v = texte(t, 40);
+    if (v && !vus.has(v.toLowerCase())) {
+      vus.add(v.toLowerCase());
+      out.push(v);
+    }
+    if (out.length >= 10) break;
+  }
+  return out;
+}
+
+function citationValide(brut: unknown): Citation | undefined {
+  const src = brut as { texte?: unknown; source?: unknown } | null;
+  const t = texte(src?.texte, 300);
+  if (!t) return undefined;
+  return { texte: t, source: texte(src?.source, 120) };
+}
+
 /** La portée : le monde, un royaume (`etat:<id>`), ou libre. */
 function porteeValide(brut: unknown): string {
   const v = texte(brut, 40);
@@ -191,7 +292,7 @@ export async function enregistrerChronique(
     slug: existant?.slug ?? slugLibre(nom, (s) => chroniqueConnue(data, s), 'chronique'),
     titre: nom,
     portee: porteeValide(brut.portee ?? existant?.portee),
-    couleur: couleurValide(brut.couleur, existant?.couleur ?? '#df7f83'),
+    couleur: couleurValide(brut.couleur, existant?.couleur ?? '#b24634'),
     intro: texte(brut.intro, 400),
     image: imageValide(brut.image),
     fixe: false,
@@ -237,6 +338,26 @@ export async function enregistrerEvenement(
   const id = typeof brut.id === 'string' && brut.id ? brut.id : identifiant();
   const existant = data.evenements.find((e) => e.id === id);
 
+  // La catégorie donne l'icône, et sa teinte sert de couleur par défaut : une
+  // couleur explicite l'emporte toujours, sinon on suit la nature choisie.
+  const categorie = categorieValide(brut.categorie ?? existant?.categorie);
+  const couleurCat = categorieEvt(categorie).couleur;
+  const secoursCouleur = existant?.couleur ?? couleurCat;
+
+  // Fusion sûre : un champ absent de la requête garde sa valeur ; un champ
+  // fourni vide l'efface. Un éditeur partiel (la page d'un événement) ne perd
+  // donc jamais les champs riches qu'il n'affiche pas.
+  const present = (cle: string) => brut[cle] !== undefined;
+  const resume = present('resume') ? texte(brut.resume, 600) : existant?.resume ?? '';
+  const ere = present('ere') ? texte(brut.ere, 60) : existant?.ere ?? '';
+  const lieu = present('lieu') ? texte(brut.lieu, 120) : existant?.lieu ?? '';
+  const acteurs = present('acteurs') ? texte(brut.acteurs, 160) : existant?.acteurs ?? '';
+  const consequence = present('consequence') ? texte(brut.consequence, 400) : existant?.consequence ?? '';
+  const lien = present('lien') ? imageValide(brut.lien) : existant?.lien ?? '';
+  const citation = present('citation') ? citationValide(brut.citation) : existant?.citation;
+  const tags = present('tags') ? tagsValides(brut.tags) : existant?.tags ?? [];
+  const image = present('image') ? imageValide(brut.image) : existant?.image ?? '';
+
   const evenement: Evenement = {
     id,
     slug: slugLibre(titre, (s) => data.evenements.some((e) => e.slug === s && e.id !== id), 'evenement'),
@@ -244,10 +365,18 @@ export async function enregistrerEvenement(
     titre,
     an,
     ...(anFin !== undefined && anFin !== an ? { anFin } : {}),
-    resume: texte(brut.resume, 240),
-    type: texte(brut.type, 40),
-    couleur: couleurValide(brut.couleur, existant?.couleur ?? '#df7f83'),
-    image: imageValide(brut.image),
+    resume,
+    categorie,
+    statut: statutValide(brut.statut ?? existant?.statut),
+    couleur: couleurValide(brut.couleur, secoursCouleur),
+    ...(ere ? { ere } : {}),
+    ...(lieu ? { lieu } : {}),
+    ...(acteurs ? { acteurs } : {}),
+    ...(consequence ? { consequence } : {}),
+    ...(citation ? { citation } : {}),
+    ...(tags.length ? { tags } : {}),
+    ...(lien ? { lien } : {}),
+    ...(image ? { image } : {}),
     creeLe: existant?.creeLe ?? new Date().toISOString(),
     modifieLe: new Date().toISOString(),
   };

@@ -6,7 +6,7 @@
  */
 import Base from '../../../layouts/Base.astro';
 import Atelier from '../../../components/Atelier.astro';
-import { lireChroniques, chroniqueParSlug, evenementParSlug, evenementsDe } from '../../../lib/chroniques';
+import { lireChroniques, chroniqueParSlug, evenementParSlug, evenementsDe, categorieEvt, CATEGORIES_EVT, STATUTS_EVT } from '../../../lib/chroniques';
 import { lirePage, motDePasseDefini, stockage } from '../../../lib/stockage';
 import { rendrePage, dispositionParDefaut, markdownCourt, CATALOGUE_LORE } from '../../../lib/blocs.js';
 import { monde } from '../../../lib/monde';
@@ -35,7 +35,7 @@ const contexte = {
   type: 'lore',
   slug: evenement.slug,
   titre: evenement.titre,
-  surtitre: [dateLisible, evenement.type].filter(Boolean).join(' · '),
+  surtitre: [dateLisible, categorieEvt(evenement.categorie).label].filter(Boolean).join(' · '),
   couleur: evenement.couleur,
   symbole: null,
   blason: null,
@@ -96,7 +96,7 @@ const mdpDefini = await motDePasseDefini(Astro.locals);
             {voisins.slice(0, 6).map((v) => (
               <a class="carte" href={`/chronologie/${evenement.chronique}/${v.slug}`}>
                 <span class="carte__titre">{v.titre}</span>
-                <span class="carte__meta">{fmt.format(v.an)} {ere}{v.type ? ` · ${v.type}` : ''}</span>
+                <span class="carte__meta">{fmt.format(v.an)} {ere} · {categorieEvt(v.categorie).label}</span>
               </a>
             ))}
           </div>
@@ -132,15 +132,29 @@ const mdpDefini = await motDePasseDefini(Astro.locals);
           </label>
         </div>
         <div class="duo">
-          <label class="champ"><span>Type</span>
-            <input id="pe-type" type="text" maxlength="40" value={evenement.type} />
+          <label class="champ"><span>Nature</span>
+            <select id="pe-cat" class="select">
+              {CATEGORIES_EVT.map((c) => (
+                <option value={c.cle} selected={c.cle === evenement.categorie}>{c.label}</option>
+              ))}
+              {!CATEGORIES_EVT.some((c) => c.cle === evenement.categorie) && evenement.categorie && (
+                <option value={evenement.categorie} selected>{categorieEvt(evenement.categorie).label}</option>
+              )}
+            </select>
           </label>
-          <label class="champ"><span>Couleur</span>
-            <input id="pe-couleur" type="color" value={evenement.couleur} />
+          <label class="champ"><span>Statut</span>
+            <select id="pe-statut" class="select">
+              {STATUTS_EVT.map((s) => (
+                <option value={s.cle} selected={s.cle === evenement.statut}>{s.label}</option>
+              ))}
+            </select>
           </label>
         </div>
+        <label class="champ"><span>Couleur</span>
+          <input id="pe-couleur" type="color" value={evenement.couleur} />
+        </label>
         <label class="champ"><span>Accroche</span>
-          <input id="pe-resume" type="text" maxlength="240" value={evenement.resume} />
+          <input id="pe-resume" type="text" maxlength="600" value={evenement.resume} />
         </label>
         <label class="champ"><span>Image (facultative)</span>
           <input id="pe-image" type="text" maxlength="500" value={evenement.image ?? ''} placeholder="/illustrations/… ou https://…" />
@@ -217,7 +231,7 @@ const mdpDefini = await motDePasseDefini(Astro.locals);
       action: 'evenement', id: donnees.id,
       titre: $('pe-titre').value, chronique: $('pe-chronique').value,
       an: $('pe-an').value, anFin: $('pe-anfin').value,
-      type: $('pe-type').value, couleur: $('pe-couleur').value,
+      categorie: $('pe-cat').value, statut: $('pe-statut').value, couleur: $('pe-couleur').value,
       resume: $('pe-resume').value, image: $('pe-image').value,
     });
     if (!chroniques) return;

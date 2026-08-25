@@ -446,7 +446,7 @@ import { monde } from '../lib/monde';
        Éclaircie pour l'affichage : le pourpre d'un royaume, posé tel quel sur
        ce noir, ne se verrait pas. */
     --teinte: var(--or);
-    --teinte-vive: color-mix(in srgb, var(--teinte) 60%, #464646);
+    --teinte-vive: color-mix(in srgb, var(--teinte) 60%, #2a2420);
     animation: panneau-entree 0.22s ease-out;
   }
   .panneau[hidden] {
@@ -632,7 +632,7 @@ import { monde } from '../lib/monde';
     border-radius: 50%;
     font-size: 0.75rem;
     line-height: 1;
-    color: color-mix(in srgb, var(--teinte-courant) 65%, #464646);
+    color: color-mix(in srgb, var(--teinte-courant) 65%, #2a2420);
     background: color-mix(in srgb, var(--teinte-courant) 18%, transparent);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teinte-courant) 45%, transparent);
   }
@@ -2399,7 +2399,7 @@ import { monde } from '../lib/monde';
       cercle.setAttribute('cy', entree.y);
       cercle.setAttribute('r', 7);
       cercle.setAttribute('fill', 'none');
-      cercle.setAttribute('stroke', '#f87472');
+      cercle.setAttribute('stroke', '#b24634');
       cercle.setAttribute('vector-effect', 'non-scaling-stroke');
       cercle.setAttribute('stroke-width', '2');
       gSurbrillance.appendChild(cercle);
