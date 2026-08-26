@@ -457,7 +457,16 @@ const stats = [
   .atelier .hero h1 em { font-style: italic; }
   .atelier .hero .lede { margin: 20px 0 0; color: var(--muted); max-width: 52ch; font-size: 1.04rem; }
   .atelier .cta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 30px; }
-  .atelier .btn { display: inline-flex; align-items: center; gap: 9px; font-family: var(--font-body); font-weight: 600; font-size: .93rem; padding: 13px 22px; border-radius: 10px; cursor: pointer; transition: background .2s, border-color .2s, color .2s; text-decoration: none; border: 1px solid transparent; }
+  .atelier .btn {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-family: var(--font-body); font-weight: 600; font-size: .93rem;
+    padding: 13px 22px; border-radius: 10px; cursor: pointer; text-decoration: none;
+    border: 1px solid transparent;
+    /* Un <button> hérite sinon du gris `buttonface` du navigateur, et jure
+       au milieu des <a> du même geste. */
+    background-color: transparent;
+    transition: background .2s, border-color .2s, color .2s;
+  }
   .atelier .btn:hover { text-decoration: none; }
   .atelier .btn svg { width: 15px; height: 15px; flex: none; }
   .atelier .btn.primary {
