@@ -995,8 +995,20 @@ const donneesFrise = {
   }
 
   /* ------------------------------------------------------------- le zoom */
+  /**
+   * La largeur disponible. `clientWidth` vaut zéro tant que la mise en page
+   * n'a pas eu lieu ; on retombe alors sur la largeur du document. Sans ce
+   * garde-fou, l'échelle se calculait sur zéro et toute la frise se dessinait
+   * tassée sur 260 px, jusqu'à ce qu'on clique « Tout voir ».
+   */
+  function largeurUtile() {
+    return vue.clientWidth
+      || Math.round(vue.getBoundingClientRect().width)
+      || document.documentElement.clientWidth
+      || 1024;
+  }
   function calculerPxMin() {
-    pxMin = Math.max(0.01, (vue.clientWidth - MARGE * 2) / etendue());
+    pxMin = Math.max(0.01, (largeurUtile() - MARGE * 2) / etendue());
     pxMax = Math.max(pxMin * 1.5, 26);
   }
   function majZoom() {
@@ -1461,7 +1473,7 @@ const donneesFrise = {
    * raison.
    */
   function reajuster(force) {
-    const large = vue.clientWidth;
+    const large = largeurUtile();
     if (!large) return;
     const avant = pxMin;
     calculerPxMin();
@@ -1475,6 +1487,14 @@ const donneesFrise = {
   dessiner();
   setTimeout(() => reajuster(true), 0);
   addEventListener('load', () => reajuster(true));
+  // Filet supplémentaire : on repasse quelques fois, au cas où la largeur
+  // n'arrive que plus tard (onglet ouvert en arrière-plan, police tardive).
+  let verifs = 0;
+  (function verifierEchelle() {
+    if (verifs++ > 12) return;
+    if (vue.clientWidth > 40) reajuster(true);
+    setTimeout(verifierEchelle, 80);
+  })();
 
   // La frise se réajuste si la largeur disponible change.
   if (window.ResizeObserver) {
