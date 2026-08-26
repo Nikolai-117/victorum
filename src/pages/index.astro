@@ -17,7 +17,7 @@
 import Base from '../layouts/Base.astro';
 import {
   monde, etats, provinces, burgs, cultures, religions,
-  chiffresDuMonde, nombre, nomAffiche, etatParId,
+  chiffresDuMonde, nombre, habitants, nomAffiche, etatParId,
 } from '../lib/monde';
 import { listerPagesEcrites, listerLieux, stockage } from '../lib/stockage';
 import { lireLore, categoriesDe } from '../lib/lore';
@@ -180,7 +180,7 @@ const epingles = [
   ton: teinte(b.etatId),
   gauche: (b.x / 1920) * 100,
   haut: (b.y / 919) * 100,
-  sous: b.capitale ? 'capitale' : `${nombre(b.population * 1000)} habitants`,
+  sous: b.capitale ? 'capitale' : `${habitants(b.population)} habitants`,
 }));
 
 const pluriel = (n: number, un: string, plusieurs: string) => (n > 1 ? plusieurs : un);
