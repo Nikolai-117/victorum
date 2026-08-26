@@ -1084,6 +1084,21 @@ const donneesFrise = {
     pxMin = Math.max(0.01, (largeurUtile() - MARGE * 2) / etendue());
     pxMax = Math.max(pxMin * 1.5, 26);
   }
+
+  /**
+   * L'échelle d'ouverture.
+   *
+   * Tout faire tenir à l'écran tasse les cartes : au-delà d'une poignée
+   * d'événements, elles se marchent dessus et se réduisent à leurs nœuds. On
+   * ouvre donc sur une densité confortable — de l'ordre d'une carte et demie
+   * par événement — quitte à devoir faire défiler. « Tout voir » reste là pour
+   * embrasser l'ensemble d'un coup d'œil.
+   */
+  function echelleConfort() {
+    const large = largeurUtile();
+    const aise = Math.max(large, EV.length * (LARG_CARTE * 0.78) + MARGE * 2);
+    return Math.min(pxMax, Math.max(pxMin, (aise - MARGE * 2) / etendue()));
+  }
   function majZoom() {
     const pct = pxMin > 0 ? Math.round((pxParAn / pxMin) * 100) : 100;
     $('niveau-zoom').textContent = pct + ' %';
@@ -1611,13 +1626,13 @@ const donneesFrise = {
     if (!large) return;
     const avant = pxMin;
     calculerPxMin();
-    if (force || pxParAn < pxMin || Math.abs(avant - pxMin) > 0.001 && pxParAn === avant) {
-      pxParAn = pxMin;
+    if (force || pxParAn < pxMin || (Math.abs(avant - pxMin) > 0.001 && pxParAn === avant)) {
+      pxParAn = echelleConfort();
       dessiner();
     }
   }
   calculerPxMin();
-  pxParAn = pxMin;
+  pxParAn = echelleConfort();
   dessiner();
   setTimeout(() => reajuster(true), 0);
   addEventListener('load', () => reajuster(true));
