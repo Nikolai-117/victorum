@@ -598,8 +598,13 @@ const donneesFrise = {
   }
   .frise__vue.glisse { cursor: grabbing; scroll-behavior: auto; }
   .frise--edition .frise__vue { cursor: crosshair; }
-  .frise__vue::-webkit-scrollbar { height: 9px; }
-  .frise__vue::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--teinte) 40%, transparent); border-radius: 9px; }
+  .frise__vue { scroll-behavior: auto; overscroll-behavior-x: contain; }
+  .frise__vue::-webkit-scrollbar { height: 11px; }
+  .frise__vue::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--teinte) 45%, transparent);
+    border-radius: 9px; border: 3px solid transparent; background-clip: padding-box;
+  }
+  .frise__vue::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--teinte) 70%, transparent); background-clip: padding-box; }
   .frise__vue::-webkit-scrollbar-track { background: transparent; }
   .frise__ruban { position: relative; }
 
@@ -616,8 +621,28 @@ const donneesFrise = {
     animation: age-pousse .35s cubic-bezier(.2,.8,.3,1);
   }
   @keyframes age-pousse { from { transform: scaleX(.85); opacity: 0; } to { transform: none; opacity: 1; } }
+  .age__nom { pointer-events: none; overflow: hidden; text-overflow: ellipsis; padding: 0 14px; }
+  /* Les poignées : on reste appuyé dessus et l'on glisse pour étirer l'âge. */
+  .age__poignee {
+    position: absolute; top: 0; bottom: 0; width: 14px; display: none;
+    cursor: ew-resize; touch-action: none;
+  }
+  .age__poignee--g { left: 0; border-radius: 999px 0 0 999px; }
+  .age__poignee--d { right: 0; border-radius: 0 999px 999px 0; }
+  .age__poignee::after {
+    content: ''; position: absolute; top: 50%; left: 50%; width: 2px; height: 12px;
+    transform: translate(-50%, -50%); border-radius: 2px;
+    background: color-mix(in srgb, var(--ton) 70%, var(--ink)); opacity: .55;
+  }
+  .age__poignee:hover::after { opacity: 1; }
   .frise--edition .age { cursor: pointer; }
+  .frise--edition .age .age__poignee { display: block; }
   .frise--edition .age:hover { background: color-mix(in srgb, var(--ton) 26%, transparent); }
+  .age--etire {
+    background: color-mix(in srgb, var(--ton) 30%, transparent) !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ton) 55%, transparent);
+    animation: none;
+  }
 
   .frise__piste { position: relative; }
   /* Le fond coloré d'un âge, derrière les événements. */
@@ -634,6 +659,14 @@ const donneesFrise = {
       color-mix(in srgb, var(--teinte) 30%, transparent) 100%);
   }
   @keyframes axe-trace { from { transform: translateY(-50%) scaleX(0); } to { transform: translateY(-50%) scaleX(1); } }
+  /* Le fil qui relie un événement au suivant : deux teintes qui se fondent. */
+  .liaison {
+    position: absolute; top: 50%; height: 3px; z-index: 1; border-radius: 3px;
+    transform: translateY(-50%);
+    background: linear-gradient(90deg, var(--de), var(--vers));
+    opacity: .9;
+  }
+
   .graduation {
     position: absolute; top: 50%; transform: translate(-50%, 20px); z-index: 1;
     font-family: var(--chrome); font-size: 0.62rem; font-variant-numeric: tabular-nums;
@@ -689,8 +722,22 @@ const donneesFrise = {
     border: 1px solid var(--bord-frise); box-shadow: var(--ombre);
     transition: transform .26s cubic-bezier(.34,1.4,.64,1), box-shadow .24s, border-color .24s;
   }
-  .carte-evt:hover { transform: translateX(-50%) translateY(-3px); box-shadow: 0 20px 40px -18px rgba(38,32,28,.42); }
-  .evt--actif .carte-evt { border-color: color-mix(in srgb, var(--ton) 55%, var(--bord-frise)); }
+  .carte-evt:hover {
+    transform: translateX(-50%) translateY(-4px) scale(1.025);
+    box-shadow: 0 22px 44px -18px rgba(38,32,28,.45);
+    border-color: color-mix(in srgb, var(--ton) 40%, var(--bord-frise));
+  }
+  .evt--actif .carte-evt {
+    transform: translateX(-50%) translateY(-4px) scale(1.03);
+    border-color: color-mix(in srgb, var(--ton) 60%, var(--bord-frise));
+    box-shadow: 0 22px 44px -18px rgba(38,32,28,.45),
+                0 0 0 2px color-mix(in srgb, var(--ton) 38%, transparent);
+  }
+  /* Focus : quand un événement est choisi, les autres s'effacent doucement. */
+  .frise--focus .evt:not(.evt--actif) .carte-evt,
+  .frise--focus .evt:not(.evt--actif) .evt__noeud,
+  .frise--focus .evt:not(.evt--actif) .evt__tige { opacity: .38; }
+  .frise--focus .liaison { opacity: .45; }
   .carte-evt__an {
     display: flex; align-items: center; gap: 0.35rem;
     font-family: var(--chrome); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase;
@@ -807,10 +854,17 @@ const donneesFrise = {
   .voile-tuile { position: fixed; inset: 0; z-index: 65; opacity: 0; pointer-events: none; transition: opacity .2s; }
   .voile-tuile--ouvert { opacity: 1; pointer-events: auto; }
 
+  @media (max-width: 860px) {
+    .frise__rang { gap: 0.6rem; }
+    .frise__zoom { padding-left: 0; border-left: 0; }
+  }
   @media (max-width: 640px) {
-    .frise__barre { gap: 0.5rem; }
-    .frise__zoom { margin-left: auto; }
-    .carte-evt { width: 168px; }
+    .frise__barre { gap: 0.55rem; }
+    .carte-evt { width: 164px; height: 92px; padding: 0.5rem 0.62rem; }
+    .carte-evt__titre { font-size: 0.92rem; }
+    .outil span { display: none; }        /* les icônes suffisent */
+    .outil { padding: 0.42rem 0.6rem; }
+    .frise__astuce { font-size: 0.6rem; }
   }
   @media (prefers-reduced-motion: reduce) {
     .evt--neuf .evt__noeud, .evt--neuf .carte-evt, .age, .frise__axe { animation: none; }
@@ -931,10 +985,29 @@ const donneesFrise = {
       eti.style.left = g + 'px';
       eti.style.width = (d - g) + 'px';
       eti.style.setProperty('--ton', age.couleur);
-      eti.textContent = age.nom;
+      eti.innerHTML = '<span class="age__nom"></span>' +
+        '<i class="age__poignee age__poignee--g" data-cote="debut"></i>' +
+        '<i class="age__poignee age__poignee--d" data-cote="fin"></i>';
+      eti.querySelector('.age__nom').textContent = age.nom;
       eti.dataset.age = age.id;
       eti.title = age.nom + ' · ' + libelleAn(age.debut) + ' → ' + libelleAn(age.fin);
       bandeAges.appendChild(eti);
+    }
+
+    // Les liaisons : d'un événement au suivant, l'axe prend leurs deux teintes.
+    // C'est ce qui fait lire la frise comme un fil continu et non comme des
+    // jalons isolés.
+    for (let i = 0; i < tries.length - 1; i++) {
+      const a = tries[i], b = tries[i + 1];
+      const xa = xDe(a.an), xb = xDe(b.an);
+      if (xb - xa < 1) continue;
+      const seg = document.createElement('div');
+      seg.className = 'liaison';
+      seg.style.left = xa + 'px';
+      seg.style.width = (xb - xa) + 'px';
+      seg.style.setProperty('--de', a.couleur);
+      seg.style.setProperty('--vers', b.couleur);
+      frag.appendChild(seg);
     }
 
     // Les graduations, à intervalle rond.
@@ -1108,6 +1181,7 @@ const donneesFrise = {
     $('t-editer').onclick = () => { fermerTuile(); ouvrirEditeur(ev); };
     voileTuile.classList.add('voile-tuile--ouvert');
     tuile.classList.add('tuile--ouverte');
+    frise.classList.add('frise--focus');
     placerTuile();
   }
   function ageDe(an) {
@@ -1138,6 +1212,7 @@ const donneesFrise = {
   function fermerTuile() {
     tuile.classList.remove('tuile--ouverte');
     voileTuile.classList.remove('voile-tuile--ouvert');
+    frise.classList.remove('frise--focus');
     if (elOuvert) elOuvert.classList.remove('evt--actif');
     elOuvert = null; idOuvert = null;
   }
@@ -1146,7 +1221,7 @@ const donneesFrise = {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerTuile(); });
 
   /* --------------------------------------------- parcourir, zoomer, poser */
-  let glisse = false, departX = 0, departScroll = 0, aBouge = false;
+  let glisse = false, departX = 0, departScroll = 0, aBouge = false, capture = 0;
 
   vue.addEventListener('wheel', (e) => {
     if (e.ctrlKey || e.metaKey) {           // molette + Ctrl : zoom, comme au montage
@@ -1162,18 +1237,30 @@ const donneesFrise = {
     if (modeEdition && e.target.closest('.frise__ages')) return;   // tracé d'âge
     glisse = true; aBouge = false;
     departX = e.clientX; departScroll = vue.scrollLeft;
-    vue.classList.add('glisse');
-    vue.setPointerCapture(e.pointerId);
   });
   vue.addEventListener('pointermove', (e) => {
     if (glisse) {
       const d = e.clientX - departX;
-      if (Math.abs(d) > 4) aBouge = true;
-      vue.scrollLeft = departScroll - d;
+      if (!aBouge && Math.abs(d) > 4) {
+        aBouge = true;
+        vue.classList.add('glisse');
+        /* On ne capture le pointeur qu'ici, une fois le glissé engagé.
+           Capturer dès l'appui réattribue au conteneur tous les événements
+           suivants, clic compris : « poser un événement » ne recevait alors
+           jamais rien. C'est le même piège que sur l'atlas. */
+        try { vue.setPointerCapture(e.pointerId); capture = e.pointerId; } catch (_) {}
+      }
+      if (aBouge) vue.scrollLeft = departScroll - d;
     }
     if (modeEdition && !glisse) majGuide(e.clientX);
   });
-  const relacher = () => { glisse = false; vue.classList.remove('glisse'); };
+  const relacher = () => {
+    glisse = false;
+    vue.classList.remove('glisse');
+    if (capture) { try { vue.releasePointerCapture(capture); } catch (_) {} capture = 0; }
+    // Le drapeau ne retombe qu'après le clic : un glissé ne pose pas d'événement.
+    setTimeout(() => { aBouge = false; }, 0);
+  };
   vue.addEventListener('pointerup', relacher);
   vue.addEventListener('pointercancel', relacher);
   vue.addEventListener('pointerleave', () => { guide.hidden = true; });
@@ -1198,9 +1285,26 @@ const donneesFrise = {
   });
 
   // Tracer un âge à la souris, dans la bande du haut.
-  let traceDepart = null;
+  let traceDepart = null, redim = null;
+
   bandeAges.addEventListener('pointerdown', (e) => {
     if (!modeEdition) return;
+
+    // Une poignée : on étire l'âge en restant appuyé, vers la gauche ou la droite.
+    const poignee = e.target.closest('.age__poignee');
+    if (poignee) {
+      const el = poignee.closest('.age');
+      const age = AGES.find((a) => a.id === el.dataset.age);
+      if (age) {
+        redim = { age, cote: poignee.dataset.cote, el, bouge: false };
+        el.classList.add('age--etire');
+        bandeAges.setPointerCapture(e.pointerId);
+        e.stopPropagation();
+        e.preventDefault();
+      }
+      return;
+    }
+
     const cible = e.target.closest('.age');
     if (cible) { ouvrirAges(AGES.find((a) => a.id === cible.dataset.age)); return; }
     const r = bandeAges.getBoundingClientRect();
@@ -1212,13 +1316,43 @@ const donneesFrise = {
     e.stopPropagation();
   });
   bandeAges.addEventListener('pointermove', (e) => {
+    // Étirement en cours : on repositionne la bande à la volée, sans redessiner
+    // toute la frise — c'est ce qui rend le geste fluide.
+    if (redim) {
+      const r = bandeAges.getBoundingClientRect();
+      const an = Math.round(anDe(e.clientX - r.left));
+      const autre = redim.cote === 'debut' ? redim.age.fin : redim.age.debut;
+      if (redim.cote === 'debut' ? an < autre : an > autre) {
+        redim.valeur = an;
+        redim.bouge = true;
+        const g = xDe(Math.min(an, autre)), d = xDe(Math.max(an, autre));
+        redim.el.style.left = g + 'px';
+        redim.el.style.width = (d - g) + 'px';
+        guide.hidden = false;
+        guide.style.left = xDe(an) + 'px';
+        $('guide-date').textContent = libelleAn(an);
+      }
+      return;
+    }
     if (traceDepart == null) return;
     const r = bandeAges.getBoundingClientRect();
     const x = e.clientX - r.left;
     traceAge.style.left = Math.min(traceDepart, x) + 'px';
     traceAge.style.width = Math.abs(x - traceDepart) + 'px';
   });
-  bandeAges.addEventListener('pointerup', (e) => {
+  bandeAges.addEventListener('pointerup', async (e) => {
+    if (redim) {
+      const { age, cote, valeur, bouge, el } = redim;
+      el.classList.remove('age--etire');
+      redim = null;
+      guide.hidden = true;
+      if (!bouge || valeur == null) return;
+      const corps = { action: 'age', id: age.id, chronique: meta.slug, nom: age.nom, couleur: age.couleur,
+        debut: cote === 'debut' ? valeur : age.debut, fin: cote === 'fin' ? valeur : age.fin };
+      const ch = await envoyer(corps, null);
+      if (ch) rafraichir(ch); else dessiner();
+      return;
+    }
     if (traceDepart == null) return;
     const r = bandeAges.getBoundingClientRect();
     const x = e.clientX - r.left;
