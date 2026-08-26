@@ -169,6 +169,31 @@ const premiere = questions[0] ?? {
   url: '/chronologie/monde',
 };
 
+/**
+ * Le cadrage de la carte.
+ *
+ * Le canevas d'Azgaar fait 1920×919, mais les terres n'en occupent qu'un
+ * quart : affiché entier, le monde n'était qu'une tache dans un grand aplat
+ * d'océan. On cadre donc sur ce qui est habité, avec de l'air autour, puis on
+ * étire jusqu'au format du panneau. Les épingles se placent dans ce même
+ * repère : image et épingles ne peuvent pas se désynchroniser.
+ */
+const CANEVAS = { l: 1920, h: 919 };
+const cadre = (() => {
+  const xs = burgs.map((b) => b.x), ys = burgs.map((b) => b.y);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  const y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const air = 0.22;
+  let l = (x1 - x0) * (1 + air * 2);
+  let h = (y1 - y0) * (1 + air * 2);
+  const format = 1.9;                       // le panneau, un peu plus large que haut
+  if (l / h < format) l = h * format; else h = l / format;
+  l = Math.min(l, CANEVAS.l); h = Math.min(h, CANEVAS.h);
+  const x = Math.max(0, Math.min((x0 + x1) / 2 - l / 2, CANEVAS.l - l));
+  const y = Math.max(0, Math.min((y0 + y1) / 2 - h / 2, CANEVAS.h - h));
+  return { x, y, l, h };
+})();
+
 /* Les épingles de la carte : capitales d'abord, puis les plus grandes villes. */
 const epingles = [
   ...burgs.filter((b) => b.capitale),
@@ -178,8 +203,8 @@ const epingles = [
   slug: b.slug,
   etat: etatParId.get(b.etatId ?? -1)?.nom ?? '',
   ton: teinte(b.etatId),
-  gauche: (b.x / 1920) * 100,
-  haut: (b.y / 919) * 100,
+  gauche: ((b.x - cadre.x) / cadre.l) * 100,
+  haut: ((b.y - cadre.y) / cadre.h) * 100,
   sous: b.capitale ? 'capitale' : `${habitants(b.population)} habitants`,
 }));
 
@@ -272,8 +297,14 @@ const stats = [
           </a>
         </div>
         <div class="mapcard">
-          <div class="map">
-            <img src="/carte/apercu.svg" alt={`Carte de ${monde.nom}`} width="1920" height="919" loading="lazy" />
+          <div
+            class="map"
+            style={`aspect-ratio:${cadre.l} / ${cadre.h};` +
+              `--carte-l:${(CANEVAS.l / cadre.l) * 100}%;` +
+              `--carte-x:${-(cadre.x / CANEVAS.l) * 100}%;` +
+              `--carte-y:${-(cadre.y / CANEVAS.h) * 100}%;`}
+          >
+            <img src="/carte/apercu.svg" alt={`Carte de ${monde.nom}`} loading="lazy" />
             {epingles.map((p) => (
               <a class="pin" href={`/villes/${p.slug}`} style={`left:${p.gauche}%;top:${p.haut}%;--pk:${p.ton}`}>
                 <span class="tip">{p.nom}<small>{[p.sous, p.etat].filter(Boolean).join(' · ')}</small></span>
@@ -470,8 +501,15 @@ const stats = [
   /* -------------------------------------------------------- la carte */
   .atelier .mapcard { position: relative; background: var(--surface); background-image: var(--glass-strong); backdrop-filter: var(--blur); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow), var(--glass-hi); overflow: hidden; }
   .atelier .mapcard::before { content: ''; position: absolute; inset: 0 0 auto; height: 1px; background: linear-gradient(90deg, transparent, var(--glass-line), transparent); z-index: 2; pointer-events: none; }
-  .atelier .mapcard .map { position: relative; display: block; }
-  .atelier .mapcard img { display: block; width: 100%; height: auto; }
+  .atelier .mapcard .map { position: relative; display: block; overflow: hidden; }
+  /* L'image déborde volontairement : on n'en montre que la fenêtre cadrée.
+     Les pourcentages de `translate` portent sur l'image, ceux des épingles
+     sur la fenêtre — chacun dans son repère, jamais de décalage. */
+  .atelier .mapcard img {
+    position: absolute; top: 0; left: 0; display: block;
+    width: var(--carte-l, 100%); height: auto;
+    transform: translate(var(--carte-x, 0), var(--carte-y, 0));
+  }
   .atelier .pin { position: absolute; transform: translate(-50%, -50%); width: 14px; height: 14px; border-radius: 50%; background: var(--pk, var(--accent)); border: 2px solid var(--surface); box-shadow: 0 1px 4px rgba(38,32,28,.4); cursor: pointer; transition: transform .2s; }
   .atelier .pin:hover { transform: translate(-50%, -50%) scale(1.35); }
   .atelier .pin .tip { position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%) translateY(3px); white-space: nowrap; background-image: var(--dark-glass); backdrop-filter: blur(10px); color: var(--on-dark); font-size: .74rem; font-weight: 600; padding: 7px 12px; border-radius: 9px; box-shadow: 0 10px 24px -14px rgba(38,32,28,.9), inset 0 1px 0 rgba(255,255,255,.09); opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; }
