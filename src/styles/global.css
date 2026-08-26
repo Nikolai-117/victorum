@@ -72,8 +72,8 @@
   --lueur: inset 0 1px 0 rgba(255, 255, 255, 0.6);
   --saisie: #ffffff;
 
-  --display: 'Almendra SC', 'Iowan Old Style', Georgia, serif;
-  --texte-police: 'EB Garamond', 'Iowan Old Style', Georgia, serif;
+  --display: 'Cormorant Garamond', 'Iowan Old Style', Georgia, serif;
+  --texte-police: 'Hanken Grotesk', -apple-system, system-ui, 'Segoe UI', sans-serif;
   --chrome: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
   --mono: var(--chrome);
 
@@ -114,8 +114,8 @@ body {
   background: var(--encre);
   color: var(--parchemin);
   font-family: var(--texte-police);
-  font-size: 19px;
-  line-height: 1.65;
+  font-size: 17px;
+  line-height: 1.6;
   font-feature-settings: 'kern' 1, 'liga' 1;
   -webkit-font-smoothing: antialiased;
 }

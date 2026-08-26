@@ -193,13 +193,6 @@ const stats = [
 ---
 
 <Base titre={monde.nom} description={`L'atelier de ${monde.nom} : reprendre une page, creuser une question, ouvrir l'atlas.`}>
-  {/* Les deux voix de l'atelier. Un <link> dans le corps est valide et
-      n'empêche pas le rendu : le reste du site garde ses polices. */}
-  <link
-    rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap"
-  />
-
   <div class="atelier">
     <div class="aura" aria-hidden="true"><i class="a1"></i><i class="a2"></i><i class="a3"></i><i class="a4"></i></div>
 
@@ -386,9 +379,10 @@ const stats = [
      lui ajoute ses deux voix typographiques et ses plaques de verre.
      ===================================================================== */
   .atelier {
-    --font-display: 'Cormorant Garamond', Georgia, serif;
-    --font-body: 'Hanken Grotesk', -apple-system, system-ui, sans-serif;
-    --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+    /* Les polices viennent des jetons du site : une seule source de vérité. */
+    --font-display: var(--display);
+    --font-body: var(--texte-police);
+    --font-mono: var(--chrome);
     --k-levanzia: #6d3a7a;
     --k-varenhold: #c8912f;
     --k-ornebois: #5b86b0;
