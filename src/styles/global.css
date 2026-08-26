@@ -91,6 +91,18 @@
   box-sizing: border-box;
 }
 
+/**
+ * `hidden` doit toujours l'emporter.
+ * La règle par défaut du navigateur (`[hidden] { display: none }`) a la même
+ * force qu'une classe : n'importe quel `display` posé sur une classe la
+ * neutralise silencieusement, et l'élément « caché » reste à l'écran. C'est
+ * ce qui laissait l'état vide de la frise s'afficher par-dessus la frise
+ * pleine, et le bouton « Supprimer » apparaître sur un élément neuf.
+ */
+[hidden] {
+  display: none !important;
+}
+
 html {
   color-scheme: light;
   scroll-behavior: smooth;

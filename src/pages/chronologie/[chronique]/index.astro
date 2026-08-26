@@ -143,29 +143,31 @@ const donneesFrise = {
   <!-- ================== LA FRISE, PLEIN ÉCRAN ================== -->
   <section class="frise" style={`--teinte:${chronique.couleur}`}>
     <div class="contenant frise__barre">
+      <div class="frise__rang">
       <div class="frise__outils">
-        <button class="pastille pastille--geste" id="mode-edition" type="button" aria-pressed="false" title="Mode modification">
+        <button class="outil outil--actif" id="mode-edition" type="button" aria-pressed="false" title="Mode modification">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
           <span>Modifier</span>
         </button>
-        <button class="pastille" id="ajouter-evt" type="button" title="Poser un événement au centre de la vue">
+        <button class="outil" id="ajouter-evt" type="button" title="Poser un événement au centre de la vue">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
           <span>Événement</span>
         </button>
-        <button class="pastille" id="ouvrir-ages" type="button" title="Les âges de cette frise">
+        <button class="outil" id="ouvrir-ages" type="button" title="Les âges de cette frise">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h13"/></svg>
           <span>Âges</span>
         </button>
       </div>
 
-      <div class="frise__filtres" id="filtres"></div>
-
       <div class="frise__zoom">
-        <button class="pastille pastille--carree" id="zoom-moins" type="button" aria-label="Dézoomer">−</button>
+        <button class="outil outil--carre" id="zoom-moins" type="button" aria-label="Dézoomer">−</button>
         <span class="frise__niveau chiffre" id="niveau-zoom">100 %</span>
-        <button class="pastille pastille--carree" id="zoom-plus" type="button" aria-label="Zoomer">+</button>
-        <button class="pastille" id="zoom-ajuster" type="button" title="Voir toute la frise">Tout voir</button>
+        <button class="outil outil--carre" id="zoom-plus" type="button" aria-label="Zoomer">+</button>
+        <button class="outil" id="zoom-ajuster" type="button" title="Voir toute la frise">Tout voir</button>
       </div>
+      </div>
+
+      <div class="frise__filtres" id="filtres"></div>
     </div>
 
     <!-- L'astuce du mode modification, affichée seulement quand il est actif. -->
@@ -253,9 +255,9 @@ const donneesFrise = {
         <div class="reglage-date">
           <span class="reglage-date__lb">Date</span>
           <div class="reglage-date__champs">
-            <button class="pastille pastille--carree" id="ev-an-moins" type="button" aria-label="Année précédente">−</button>
+            <button class="outil outil--carre" id="ev-an-moins" type="button" aria-label="Année précédente">−</button>
             <input id="ev-an" type="number" step="1" placeholder="0" />
-            <button class="pastille pastille--carree" id="ev-an-plus" type="button" aria-label="Année suivante">+</button>
+            <button class="outil outil--carre" id="ev-an-plus" type="button" aria-label="Année suivante">+</button>
             <label class="reglage-date__fin">
               <input id="ev-duree" type="checkbox" /> <span>sur une durée</span>
             </label>
@@ -532,31 +534,42 @@ const donneesFrise = {
   }
 
   .frise__barre {
-    display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap;
-    margin-bottom: 0.9rem;
+    display: flex; flex-direction: column; gap: 0.75rem;
+    margin-bottom: 1rem;
   }
-  .frise__filtres { display: flex; gap: 0.4rem; flex-wrap: wrap; flex: 1; min-width: 0; }
-  .frise__outils, .frise__zoom { display: flex; align-items: center; gap: 0.4rem; }
+  /* Rang du haut : les gestes à gauche, le zoom à droite. */
+  .frise__rang {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .frise__filtres { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .frise__filtres:empty { display: none; }
+  .frise__outils, .frise__zoom { display: flex; align-items: center; gap: 0.45rem; flex: none; }
+  .frise__outils { padding-right: 0.6rem; }
+  .frise__zoom { padding-left: 0.6rem; border-left: 1px solid var(--line); }
   .frise__niveau { font-family: var(--chrome); font-size: 0.66rem; color: var(--muted); min-width: 3.4rem; text-align: center; }
 
-  .pastille {
+  .outil {
     display: inline-flex; align-items: center; gap: 0.4rem;
+    flex: none; white-space: nowrap;
     font-family: var(--chrome); font-size: 0.7rem; letter-spacing: 0.02em;
     padding: 0.42rem 0.8rem; border: 1px solid var(--line); border-radius: var(--pilule);
     background: var(--surface); color: var(--ink); cursor: pointer;
+    min-height: 30px;
     transition: border-color .18s, color .18s, background .18s, transform .18s;
   }
-  .pastille svg { width: 14px; height: 14px; }
-  .pastille:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
-  .pastille--carree { padding: 0.42rem 0; width: 2rem; justify-content: center; font-size: 0.95rem; line-height: 1; }
-  .pastille--geste[aria-pressed='true'] {
+  .outil svg { width: 14px; height: 14px; }
+  .outil:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+  .outil--carre { padding: 0 0; width: 2rem; height: 30px; justify-content: center; font-size: 0.95rem; line-height: 1; }
+  .outil--actif[aria-pressed='true'] {
     background: var(--accent); border-color: var(--accent); color: var(--on-accent);
     box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--accent) 70%, transparent);
   }
-  .pastille--geste[aria-pressed='true']:hover { background: var(--accent-strong); color: var(--on-accent); }
+  .outil--actif[aria-pressed='true']:hover { background: var(--accent-strong); color: var(--on-accent); }
 
   .puce {
     display: inline-flex; align-items: center; gap: 0.4rem;
+    flex: none; white-space: nowrap;
     font-family: var(--chrome); font-size: 0.68rem;
     padding: 0.36rem 0.72rem 0.36rem 0.6rem; border: 1px solid var(--line);
     border-radius: var(--pilule); background: var(--surface); color: var(--muted);
@@ -613,19 +626,26 @@ const donneesFrise = {
 
   .frise__axe {
     position: absolute; top: 50%; left: 0; height: 3px; border-radius: 3px; z-index: 1;
-    transform: translateY(-50%) scaleX(var(--tracer, 1)); transform-origin: left center;
+    transform: translateY(-50%); transform-origin: left center;
+    animation: axe-trace 1s cubic-bezier(.22,.7,.2,1);
     background: linear-gradient(90deg,
       color-mix(in srgb, var(--teinte) 30%, transparent) 0%,
       var(--teinte) 12%, var(--teinte) 88%,
       color-mix(in srgb, var(--teinte) 30%, transparent) 100%);
   }
+  @keyframes axe-trace { from { transform: translateY(-50%) scaleX(0); } to { transform: translateY(-50%) scaleX(1); } }
   .graduation {
-    position: absolute; top: 50%; transform: translate(-50%, -50%); z-index: 1;
+    position: absolute; top: 50%; transform: translate(-50%, 20px); z-index: 1;
     font-family: var(--chrome); font-size: 0.62rem; font-variant-numeric: tabular-nums;
     color: var(--muted); background: var(--surface); padding: 0.16rem 0.45rem;
     border: 1px solid var(--line); border-radius: 7px; pointer-events: none; white-space: nowrap;
   }
   .graduation--zero { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); font-weight: 600; }
+  /* Un petit trait relie l'étiquette à l'axe, comme sur une règle. */
+  .graduation::before {
+    content: ''; position: absolute; left: 50%; top: -13px; width: 1px; height: 11px;
+    transform: translateX(-50%); background: color-mix(in srgb, var(--muted) 45%, transparent);
+  }
 
   /* Le guide du mode modification : on voit où l'on va poser la date. */
   .frise__guide { position: absolute; top: 0; bottom: 0; width: 0; z-index: 4; pointer-events: none; border-left: 1px dashed color-mix(in srgb, var(--accent) 65%, transparent); }
@@ -701,6 +721,9 @@ const donneesFrise = {
     position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 0.3rem;
     pointer-events: none;
   }
+  /* Un `display` de classe l'emporte sur la règle par défaut de [hidden] :
+     sans cette ligne, l'état vide restait affiché par-dessus la frise pleine. */
+  .frise__vide[hidden] { display: none; }
   .frise__vide p { margin: 0; font-family: var(--display); font-size: 1.35rem; color: var(--ink); }
   .frise__vide-aide { font-family: var(--texte-police) !important; font-size: 0.95rem !important; color: var(--muted) !important; max-width: 42ch; }
 
@@ -731,6 +754,7 @@ const donneesFrise = {
     width: calc(100% + 2.4rem); margin: 0 -1.2rem 0.9rem; display: block;
     aspect-ratio: 16 / 9; object-fit: cover;
   }
+  .tuile__image[hidden] { display: none; }
   .tuile__tete { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; padding-top: 1rem; }
   .tuile__image + .tuile__tete { padding-top: 0; }
   .tuile__badge {
@@ -789,8 +813,7 @@ const donneesFrise = {
     .carte-evt { width: 168px; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .evt--neuf .evt__noeud, .evt--neuf .carte-evt, .age { animation: none; }
-    .frise__axe { transform: translateY(-50%); }
+    .evt--neuf .evt__noeud, .evt--neuf .carte-evt, .age, .frise__axe { animation: none; }
   }
 </style>
 
@@ -1430,22 +1453,30 @@ const donneesFrise = {
    * pas faite, cette largeur vaut zéro et la frise se dessinerait tassée : on
    * attend donc la première image où elle est connue.
    */
-  let essais = 0;
-  (function demarrer() {
-    if (vue.clientWidth < 40 && essais++ < 60) return requestAnimationFrame(demarrer);
+  /**
+   * On dessine immediatement, quelle que soit la largeur connue, puis on
+   * réajuste dès qu'elle l'est. Passer par `requestAnimationFrame` seul
+   * laisserait la frise blanche dans un onglet ouvert en arrière-plan, où il
+   * n'est jamais appelé. Le tracé de l'axe est confié au CSS pour la même
+   * raison.
+   */
+  function reajuster(force) {
+    const large = vue.clientWidth;
+    if (!large) return;
+    const avant = pxMin;
     calculerPxMin();
-    pxParAn = pxMin;
-    dessiner();
-    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      axe.style.setProperty('--tracer', '0');
-      requestAnimationFrame(() => {
-        axe.style.transition = 'transform 1s cubic-bezier(.22,.7,.2,1)';
-        axe.style.setProperty('--tracer', '1');
-      });
+    if (force || pxParAn < pxMin || Math.abs(avant - pxMin) > 0.001 && pxParAn === avant) {
+      pxParAn = pxMin;
+      dessiner();
     }
-  })();
+  }
+  calculerPxMin();
+  pxParAn = pxMin;
+  dessiner();
+  setTimeout(() => reajuster(true), 0);
+  addEventListener('load', () => reajuster(true));
 
-  // La frise se réajuste si la fenêtre change de taille (ou la barre latérale).
+  // La frise se réajuste si la largeur disponible change.
   if (window.ResizeObserver) {
     let derniere = 0;
     new ResizeObserver(() => {
@@ -1453,8 +1484,7 @@ const donneesFrise = {
       if (!l || Math.abs(l - derniere) < 2) return;
       const premiere = derniere === 0;
       derniere = l;
-      calculerPxMin();
-      if (premiere || pxParAn < pxMin) { pxParAn = pxMin; dessiner(); }
+      reajuster(premiere);
     }).observe(vue);
   }
 </script>
