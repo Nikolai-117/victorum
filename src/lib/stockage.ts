@@ -159,8 +159,51 @@ export async function ecrirePage(
   if (apport.blocs !== undefined) fusion.blocs = apport.blocs;
   if (apport.texte !== undefined) fusion.texte = apport.texte;
 
-  await espace.put(clePage(section, slug), JSON.stringify(fusion));
+  // La date part aussi en métadonnée : `list()` la renvoie alors sans qu'on
+  // ait à relire chaque fiche, ce qui tient l'accueil en une seule lecture.
+  await espace.put(clePage(section, slug), JSON.stringify(fusion), {
+    metadata: { modifieLe: fusion.modifieLe },
+  });
   return fusion;
+}
+
+/** Une fiche écrite, telle que la liste du stockage la connaît. */
+export interface PageListee {
+  section: string;
+  slug: string;
+  modifieLe?: string;
+}
+
+/**
+ * Toutes les fiches déjà écrites, sans lire leur contenu.
+ * Un seul appel `list()` suffit : la date vit en métadonnée. Les fiches
+ * enregistrées avant cette bascule n'en ont pas — on les rend sans date
+ * plutôt que d'en inventer une.
+ */
+export async function listerPagesEcrites(locals: App.Locals): Promise<PageListee[]> {
+  const espace = stockage(locals);
+  if (!espace) return [];
+  const out: PageListee[] = [];
+  try {
+    let curseur: string | undefined;
+    do {
+      const lot = await espace.list({ prefix: 'page:', cursor: curseur, limit: 1000 });
+      for (const cle of lot.keys) {
+        const reste = cle.name.slice('page:'.length);
+        const coupe = reste.indexOf('/');
+        if (coupe < 1) continue;
+        out.push({
+          section: reste.slice(0, coupe),
+          slug: reste.slice(coupe + 1),
+          modifieLe: (cle.metadata as { modifieLe?: string } | null)?.modifieLe,
+        });
+      }
+      curseur = lot.list_complete ? undefined : lot.cursor;
+    } while (curseur);
+  } catch {
+    return out;
+  }
+  return out;
 }
 
 /* ---------------------------------------------------------------- lieux */
