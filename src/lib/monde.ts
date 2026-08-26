@@ -27,6 +27,24 @@ export type Religion = (typeof religions)[number];
 
 const parId = <T extends { id: number }>(liste: readonly T[]) => new Map(liste.map((e) => [e.id, e]));
 
+/**
+ * L'identité visuelle des royaumes.
+ *
+ * Azgaar sort des teintes très saturées (#ffcc1e pour Varenhold) qui jurent
+ * avec le parchemin du site. Le thème en fixe des versions sourdes, appliquées
+ * ici au chargement : la carte, les pastilles et les légendes parlent ainsi
+ * d'une seule voix, et un réimport ne les efface pas.
+ */
+const IDENTITE_ROYAUMES: Record<string, string> = {
+  levanzia: '#6d3a7a',
+  varenhold: '#c8912f',
+  ornebois: '#5b86b0',
+};
+for (const e of etats) {
+  const t = IDENTITE_ROYAUMES[e.slug];
+  if (t) e.couleur = t;
+}
+
 export const etatParId = parId(etats);
 export const provinceParId = parId(provinces);
 export const burgParId = parId(burgs);

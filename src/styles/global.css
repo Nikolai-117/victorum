@@ -37,6 +37,13 @@
   --on-dark: #f1ebdd;
   --on-dark-muted: #c9b9a6;
 
+  /* Identité des royaumes. Ce sont des repères de données — pastilles,
+     aplats de la carte, légendes — et non des accents : elles ne suivent
+     jamais le bordeaux. */
+  --k-levanzia: #6d3a7a;
+  --k-varenhold: #c8912f;
+  --k-ornebois: #5b86b0;
+
   /* Alias historiques : tout le CSS existant les emploie, ils pointent
      désormais vers les jetons ci-dessus. */
   --encre: var(--bg);            /* fond général de la page */
