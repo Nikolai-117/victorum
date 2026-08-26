@@ -28,6 +28,20 @@ export type Religion = (typeof religions)[number];
 const parId = <T extends { id: number }>(liste: readonly T[]) => new Map(liste.map((e) => [e.id, e]));
 
 /**
+ * Le nom du site.
+ *
+ * À distinguer du nom du MONDE : Victorum est le monde de Romain, décrit par
+ * les données ; Enluminure est l'ouvrage qui le met en pages. Le bandeau, les
+ * titres d'onglet et le pied de page parlent donc d'Enluminure, tandis que le
+ * contenu continue de parler de Victorum.
+ */
+export const SITE = {
+  nom: 'Enluminure',
+  /** Ce que le site est, en une ligne — pour les descriptions de page. */
+  baseline: 'le wiki et l’atlas de Victorum',
+};
+
+/**
  * L'identité visuelle des royaumes.
  *
  * Azgaar sort des teintes très saturées (#ffcc1e pour Varenhold) qui jurent

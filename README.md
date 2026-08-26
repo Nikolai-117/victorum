@@ -1,4 +1,4 @@
-# Victorum
+# Enluminure
 
 Le wiki et l'atlas du monde de Victorum. Site statique : chaque page est du HTML
 pur, sans base de données ni serveur à administrer.

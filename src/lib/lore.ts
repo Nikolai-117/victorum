@@ -24,7 +24,51 @@ export interface Categorie {
   /** Les catégories intégrées ne se suppriment pas ; les siennes, si. */
   fixe?: boolean;
   ordre: number;
+  /** La reliure du volume sur l'étagère : une clé de la famille de cuirs. */
+  reliure?: string;
+  /** Le fer doré frappé sur le dos : une clé du catalogue de pictogrammes. */
+  fer?: string;
 }
+
+/**
+ * Les cuirs des reliures.
+ *
+ * Une famille tonale — jamais un arc-en-ciel : l'étagère doit se lire comme
+ * une bibliothèque, pas comme un nuancier. Les teintes sont fixes, seule leur
+ * répartition change.
+ */
+export const RELIURES: Record<string, string> = {
+  l1: '#5c4a3d', l2: '#4a4038', l3: '#6b5b4a',
+  l4: '#5e4b4e', l5: '#57503f', l6: '#6e5a52',
+};
+
+/** Les fers dorés que l'on peut frapper sur un dos de volume. */
+export const FERS: Record<string, string> = {
+  beast: '<path d="M5 13c0-4 3-7 7-7s7 3 7 7-3 6-7 6-7-2-7-6z"/><path d="M8 6C7 4 7 2 7 2s2 1 3 3M16 6c1-2 1-4 1-4s-2 1-3 3"/>',
+  crown: '<path d="M4 8l3.5 3L12 5l4.5 6L20 8l-1.5 10h-13L4 8z"/>',
+  person: '<circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.6 3-6 7-6s7 2.4 7 6"/>',
+  faith: '<path d="M12 3l1.8 4.7L18.5 9l-4.7 1.3L12 15l-1.8-4.7L5.5 9l4.7-1.3L12 3z"/><path d="M12 15v6M9 21h6"/>',
+  magic: '<path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/><circle cx="12" cy="12" r="3"/>',
+  map: '<path d="M9 20l-6-2V4l6 2m0 14l6-3m-6 3V6m6 11l6 2V6l-6-2m0 11V4M9 6l6-2"/>',
+  book: '<path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zm0 0a2 2 0 0 0 2 2h13"/>',
+  ship: '<path d="M3 17c3 3 5 4 9 4s6-1 9-4l-2-6H5l-2 6zM12 11V3M6 11l6-4 6 4"/>',
+  sword: '<path d="M14.5 4.5l5 5-8 8-2 .5.5-2 8-8-4-4z"/><path d="M5 21l4-4"/>',
+  coin: '<circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10h5M9.5 14h5"/>',
+  leaf: '<path d="M20 4C10 4 4 10 4 19c9 0 15-6 16-15z"/><path d="M4 19L14 9"/>',
+  star: '<path d="M12 3l2.5 6L21 10l-4.5 4.4L17.6 21 12 17.8 6.4 21l1.1-6.6L3 10l6.5-1L12 3z"/>',
+};
+
+const reliureValide = (v: unknown, secours: string): string =>
+  typeof v === 'string' && v in RELIURES ? v : secours;
+const ferValide = (v: unknown, secours: string): string =>
+  typeof v === 'string' && v in FERS ? v : secours;
+
+/** Le fer par défaut des rayons intégrés, quand Romain n'en a pas choisi. */
+export const FER_PAR_DEFAUT: Record<string, string> = {
+  bestiaire: 'beast', faune: 'leaf', geographie: 'map',
+  religion: 'faith', culture: 'person', magie: 'magic', science: 'star',
+  personnages: 'person',
+};
 
 export interface Article {
   id: string;
@@ -55,6 +99,7 @@ export const CATEGORIES_FIXES: Categorie[] = [
   { slug: 'faune', nom: 'Faune', symbole: '🦌', fixe: true, ordre: 1 },
   { slug: 'geographie', nom: 'Géographie', symbole: '⛰️', fixe: true, ordre: 2 },
   { slug: 'religion', nom: 'Religion', symbole: '✦', fixe: true, ordre: 3 },
+  { slug: 'personnages', nom: 'Personnages', symbole: '☗', fixe: true, ordre: 7 },
   { slug: 'culture', nom: 'Culture', symbole: '❧', fixe: true, ordre: 4 },
   { slug: 'magie', nom: 'Magie', symbole: '🔮', fixe: true, ordre: 5 },
   { slug: 'science', nom: 'Science', symbole: '⚗️', fixe: true, ordre: 6 },
@@ -96,6 +141,8 @@ export function categoriesDe(lore: Lore): Categorie[] {
       if (c.intro) fixe.intro = c.intro;
       if (c.image) fixe.image = c.image;
       if (c.symbole) fixe.symbole = c.symbole;
+      if (c.reliure) fixe.reliure = c.reliure;
+      if (c.fer) fixe.fer = c.fer;
     } else {
       parSlug.set(c.slug, { ...c, fixe: false, ordre: c.ordre ?? rang++ });
     }
@@ -228,8 +275,10 @@ export async function enregistrerCategorie(
     if (intro) enrich.intro = intro;
     if (image) enrich.image = image;
     if (sym !== fixe.symbole) enrich.symbole = sym;
+    if (typeof brut.reliure === 'string' && brut.reliure in RELIURES) enrich.reliure = brut.reliure;
+    if (typeof brut.fer === 'string' && brut.fer in FERS) enrich.fer = brut.fer;
     const autres = lore.categories.filter((c) => c.slug !== fixe.slug);
-    const aQuelqueChose = enrich.intro || enrich.image || enrich.symbole;
+    const aQuelqueChose = enrich.intro || enrich.image || enrich.symbole || enrich.reliure || enrich.fer;
     lore.categories = aQuelqueChose ? [...autres, enrich as Categorie] : autres;
     return ecrire(locals, lore);
   }
@@ -243,6 +292,8 @@ export async function enregistrerCategorie(
     image: imageValide(brut.image),
     fixe: false,
     ordre: existant?.ordre ?? CATEGORIES_FIXES.length + lore.categories.length,
+    reliure: reliureValide(brut.reliure, existant?.reliure ?? 'l1'),
+    fer: ferValide(brut.fer, existant?.fer ?? 'book'),
   };
 
   lore.categories = existant

@@ -1,6 +1,6 @@
 ---
 import '../styles/global.css';
-import { monde } from '../lib/monde';
+import { monde, SITE } from '../lib/monde';
 
 interface Props {
   titre: string;
@@ -27,7 +27,7 @@ const NAV = [
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{titre === monde.nom ? monde.nom : `${titre} — ${monde.nom}`}</title>
+    <title>{titre === SITE.nom ? SITE.nom : `${titre} — ${SITE.nom}`}</title>
     {description && <meta name="description" content={description} />}
     <meta name="color-scheme" content="dark" />
     <!-- Site privé : Romain décide qui le voit en partageant l'adresse.
@@ -51,7 +51,7 @@ const NAV = [
     {!pleinEcran && <div class="atmosphere" aria-hidden="true" />}
 
     <header class="entete">
-      <a class="marque" href="/">{monde.nom}<span>.</span></a>
+      <a class="marque" href="/">{SITE.nom}<span>.</span></a>
       <nav class="nav">
         {NAV.map((l) => <a href={l.url} aria-current={actif(l.url)}>{l.libelle}</a>)}
       </nav>
@@ -67,8 +67,8 @@ const NAV = [
         <footer class="pied">
           <div class="contenant pied__interne">
             <div>
-              {monde.nom} — an {monde.annee} {monde.ereCourte}. Carte générée avec Azgaar's Fantasy Map
-              Generator {monde.versionAzgaar}.
+              {SITE.nom} — {monde.nom}, an {monde.annee} {monde.ereCourte}. Carte générée avec
+              Azgaar's Fantasy Map Generator {monde.versionAzgaar}.
             </div>
             <div>Échelle {monde.echelleKmParPixel} km/px.</div>
           </div>

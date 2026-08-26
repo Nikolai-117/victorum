@@ -1,247 +1,826 @@
 ---
 /**
- * Le codex : l'index des catégories.
+ * Le Codex — l'armorial.
  *
- * À l'image de la page des royaumes, il ne fait que présenter les catégories
- * comme des portes ; chacune est une page composable (`/lore/[categorie]`), et
- * chaque article l'est aussi. Créer une catégorie se fait ici ; tout le reste
- * se compose sur la page concernée, avec le même atelier que les fiches.
+ * Une bibliothèque, pas une liste : les rayons se tiennent debout sur une
+ * étagère, reliés de cuir, frappés d'un fer doré. On en ouvre un, on en relie
+ * un neuf, et tout ce que le monde compte se retrouve dans l'index général.
+ *
+ * Tout ce qui s'affiche ici est VRAI : les rayons sont les catégories du
+ * codex, leurs compteurs les articles réellement écrits, l'index rassemble
+ * chaque fiche du monde en signalant celles qui restent blanches. Rien n'est
+ * inventé — le codex vierge le dit et s'arrête là.
  */
 import Base from '../../layouts/Base.astro';
-import { lireLore, categoriesDe, articlesDe } from '../../lib/lore';
-import { motDePasseDefini, stockage } from '../../lib/stockage';
-import { nombre, burgs } from '../../lib/monde';
+import { lireLore, categoriesDe, articlesDe, RELIURES, FERS, FER_PAR_DEFAUT } from '../../lib/lore';
+import { lireChroniques } from '../../lib/chroniques';
+import { listerPagesEcrites, listerLieux, motDePasseDefini, stockage } from '../../lib/stockage';
+import {
+  monde, SITE, etats, provinces, burgs, cultures, religions,
+  nombre, habitants, nomAffiche, formeEtat, etatParId,
+} from '../../lib/monde';
 
 export const prerender = false;
 
-const lore = await lireLore(Astro.locals);
+const [lore, chron, lieux, pages] = await Promise.all([
+  lireLore(Astro.locals),
+  lireChroniques(Astro.locals),
+  listerLieux(Astro.locals),
+  listerPagesEcrites(Astro.locals),
+]);
+
 const categories = categoriesDe(lore);
+const articles = lore.articles ?? [];
+const ecrites = new Set(pages.map((p) => `${p.section}/${p.slug}`));
+const teinte = (id: number | null | undefined) =>
+  (id != null ? etatParId.get(id)?.couleur : null) ?? 'var(--muted)';
+
+/* ------------------------------------------------------------------ rayons */
+const CUIRS = Object.keys(RELIURES);
+const rayons = categories.map((c, i) => {
+  const n = articlesDe(lore, c.slug).length;
+  // On garde la CLÉ du fer (pour le client) et son TRACÉ (pour le rendu ici).
+  const ferCle = c.fer ?? FER_PAR_DEFAUT[c.slug] ?? 'book';
+  return {
+    slug: c.slug,
+    nom: c.nom,
+    n,
+    ferCle,
+    cuir: RELIURES[c.reliure ?? CUIRS[i % CUIRS.length]],
+    fer: FERS[ferCle],
+    url: `/lore/${c.slug}`,
+    // Des hauteurs légèrement inégales : une étagère n'est jamais alignée.
+    hauteur: [250, 232, 262, 240, 256, 244, 236, 254][i % 8],
+  };
+});
+const totalArticles = articles.length;
+
+/* ------------------------------------------------- la pièce maîtresse */
+const derniere = [...articles].sort((a, b) => (b.modifieLe ?? '').localeCompare(a.modifieLe ?? ''))[0] ?? null;
+const nomCat = new Map(categories.map((c) => [c.slug, c.nom]));
+const feature = derniere
+  ? {
+      titre: derniere.titre,
+      resume: derniere.resume,
+      symbole: derniere.symbole || '❖',
+      couleur: derniere.couleur || 'var(--accent)',
+      rayon: nomCat.get(derniere.categorie) ?? 'Codex',
+      url: `/lore/${derniere.categorie}/${derniere.slug}`,
+      voisins: articlesDe(lore, derniere.categorie).length,
+    }
+  : null;
+
+/* ------------------------------------------------------------ les rayons montrés */
+const bestiaire = articlesDe(lore, 'bestiaire').slice(0, 3);
+const figures = articlesDe(lore, 'personnages').slice(0, 5);
+const nbBestiaire = articlesDe(lore, 'bestiaire').length;
+const nbFigures = articlesDe(lore, 'personnages').length;
+
+/* Les trois royaumes, tels que les données les décrivent. */
+const royaumes = etats.map((e) => ({
+  nom: e.nom,
+  url: `/etats/${e.slug}`,
+  couleur: e.couleur,
+  forme: formeEtat(e.forme),
+  provinces: provinces.filter((p) => p.etatId === e.id).length,
+  villes: e.nbBurgs,
+  population: habitants(e.population),
+}));
+
+/* --------------------------------------------------------- l'index général */
+type Entree = { nom: string; cat: string; url: string; vide: boolean };
+const index: Entree[] = [
+  ...articles.map((a) => ({ nom: a.titre, cat: nomCat.get(a.categorie) ?? 'Codex', url: `/lore/${a.categorie}/${a.slug}`, vide: false })),
+  ...chron.evenements.map((e) => ({ nom: e.titre, cat: 'Chronologie', url: `/chronologie/${e.chronique}/${e.slug}`, vide: false })),
+  ...etats.map((e) => ({ nom: e.nom, cat: 'Royaumes', url: `/etats/${e.slug}`, vide: !ecrites.has(`etats/${e.slug}`) })),
+  ...provinces.map((p) => ({ nom: p.nom, cat: 'Provinces', url: `/provinces/${p.slug}`, vide: !ecrites.has(`provinces/${p.slug}`) })),
+  ...burgs.map((b) => ({ nom: nomAffiche(b.nom), cat: 'Villes', url: `/villes/${b.slug}`, vide: !ecrites.has(`villes/${b.slug}`) })),
+  ...cultures.map((c) => ({ nom: c.nom, cat: 'Cultures', url: `/cultures/${c.slug}`, vide: !ecrites.has(`cultures/${c.slug}`) })),
+  ...religions.map((r) => ({ nom: r.nom, cat: 'Religions', url: `/religions/${r.slug}`, vide: !ecrites.has(`religions/${r.slug}`) })),
+  ...lieux.map((l) => ({ nom: l.nom, cat: 'Lieux', url: `/lieux/${l.slug}`, vide: !ecrites.has(`lieux/${l.slug}`) })),
+].sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
 
 const donnees = {
+  index,
+  cuirs: RELIURES,
+  fers: FERS,
+  rayons: rayons.map((r) => ({ slug: r.slug, nom: r.nom, n: r.n, cuir: r.cuir, fer: r.ferCle, url: r.url })),
   stockageActif: Boolean(stockage(Astro.locals)),
   motDePasseDefini: await motDePasseDefini(Astro.locals),
 };
+
+/* L'engravure générique d'un médaillon : une silhouette, pas un portrait. */
+const BUSTE = 'M56 18C44 18 34 26 32 38c-1 5-2 7-5 10-3 3-4 4-2 6 2 1 4 1 5 3-2 2-1 4 1 5-1 2 0 4 3 6 3 2 6 3 9 3 0 5-1 9-3 12-10 5-16 13-16 29h64c0-16-6-24-16-28-4-2-6-6-6-12 10-6 16-16 16-28C82 28 70 18 56 18z';
+const ECUS = [
+  '<path d="M28 3l23 8v22c0 15-11 24-23 28C16 57 5 48 5 33V11l23-8z"/><path d="M16 26l5 5 7-10 7 10 5-5-2 17H18l-2-17z" fill="currentColor" fill-opacity=".18"/>',
+  '<path d="M28 3l23 8v22c0 15-11 24-23 28C16 57 5 48 5 33V11l23-8z"/><path d="M28 16l12 7v14l-12 7-12-7V23l12-7z" fill="currentColor" fill-opacity=".18"/><path d="M16 23l12 7 12-7M28 30v14"/>',
+  '<path d="M28 3l23 8v22c0 15-11 24-23 28C16 57 5 48 5 33V11l23-8z"/><path d="M28 44V24M28 24l-8-8M28 30l8-8M28 36l-7-6M28 24c0-6 4-10 4-10"/><circle cx="28" cy="20" r="3" fill="currentColor" fill-opacity=".3"/>',
+];
 ---
 
-<Base titre="Codex" description="Le lore du monde de Victorum : bestiaire, géographie, magie et le reste.">
-  <div class="contenant">
-    <header class="cartouche">
-      <p class="etiquette">Le lore du monde</p>
-      <h1>Codex</h1>
-    </header>
+<Base titre="Codex" description={`Le codex de ${monde.nom} : bestiaire, royaumes, figures, croyances, magie, géographie.`}>
+  <div class="codex">
+    <div class="aura" aria-hidden="true"><i class="a1"></i><i class="a2"></i><i class="a3"></i><i class="a4"></i></div>
 
-    <div class="tete-lore">
-      <p class="discret tete-lore__intro">
-        Tout ce que la carte ne dit pas. Chaque catégorie est une page à part
-        entière : ouvre-la pour la mettre en page et y ranger tes articles,
-        comme tu composes un royaume.
-      </p>
-      <button id="nouvelle-categorie" class="bouton bouton--or" type="button">+ Catégorie</button>
-    </div>
-
-    <div class="grille grille--lore">
-      <a class="carte carte--porte carte--villes" href="/villes">
-        <span class="porte__cadre">
-          <span class="porte__vide"><i class="lore-marque lore-marque--grande">🏛️</i></span>
-        </span>
-        <span class="porte__pied">
-          <span class="carte__titre">🏛️ Villes</span>
-          <span class="carte__meta">{nombre(burgs.length)} localités du monde</span>
-        </span>
-      </a>
-      {
-        categories.map((cat) => {
-          const n = articlesDe(lore, cat.slug).length;
-          return (
-            <a class="carte carte--porte" href={`/lore/${cat.slug}`}>
-              <span class="porte__cadre">
-                {cat.image ? (
-                  <img class="porte__image" src={cat.image} alt="" loading="lazy" />
-                ) : (
-                  <span class="porte__vide"><i class="lore-marque lore-marque--grande">{cat.symbole}</i></span>
-                )}
-              </span>
-              <span class="porte__pied">
-                <span class="carte__titre">{cat.symbole} {cat.nom}</span>
-                <span class="carte__meta">
-                  {n ? `${nombre(n)} article${n > 1 ? 's' : ''}` : 'Vide pour l’instant'}
-                  {cat.fixe ? '' : ' · ajoutée'}
-                </span>
-              </span>
-            </a>
-          );
-        })
-      }
-    </div>
-  </div>
-
-  <!-- Créer une catégorie : une porte de plus dans le codex. -->
-  <div class="modale" id="modale-cat" hidden>
-    <div class="modale__voile" data-fermer></div>
-    <div class="modale__boite modale__boite--etroite" role="dialog" aria-label="Nouvelle catégorie">
-      <header class="modale__tete">
-        <h2>Nouvelle catégorie</h2>
-        <button class="fermer" type="button" data-fermer aria-label="Fermer">×</button>
+    <div class="wrap">
+      <!-- ============================ EN-TÊTE ============================ -->
+      <header class="head">
+        <div>
+          <p class="eyebrow rise">Codex · le savoir du monde</p>
+          <h1 class="rise" style="animation-delay:.08s">Tout ce que l'on sait,<br />et tout ce qu'on <em>invente</em>.</h1>
+          <p class="lede rise" style="animation-delay:.16s">
+            {categories.map((c) => c.nom).slice(0, 6).join(', ')}. {nombre(categories.length)} rayons,
+            une seule mémoire — la tienne.
+          </p>
+        </div>
+        <div class="head-fig rise" style="animation-delay:.2s">
+          <div class="n">{nombre(totalArticles)}</div>
+          <div class="l">{totalArticles > 1 ? 'entrées au codex' : 'entrée au codex'}</div>
+        </div>
       </header>
-      <div class="modale__corps">
-        <label class="champ"><span>Nom</span>
-          <input id="cat-nom" type="text" maxlength="60" placeholder="Astronomie, Héraldique…" />
-        </label>
-        <label class="champ"><span>Symbole</span>
-          <input id="cat-symbole" type="text" maxlength="4" value="❖" />
-        </label>
-        <p class="modale__etat" id="cat-etat"></p>
+
+      <div class="searchbar rise" style="animation-delay:.24s">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4.3-4.3"/></svg>
+        <input id="q" type="search" placeholder="Chercher une créature, un royaume, une figure, un rite…" autocomplete="off" />
+        <button class="go" id="goSearch" type="button">Chercher</button>
       </div>
-      <footer class="modale__pied modale__pied--simple">
-        <button class="bouton bouton--plein" id="cat-creer" type="button">Créer et composer</button>
-      </footer>
+
+      <!-- ============================ ÉTAGÈRE ============================ -->
+      <div class="shelf-sec">
+        <div class="shelf" id="shelf">
+          {
+            rayons.map((r, i) => (
+              <a class="spine" href={r.url} style={`--lb:${r.cuir};--h:${r.hauteur}px`} data-rayon={r.slug}>
+                <span class="gloss" />
+                <span class="em"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" set:html={r.fer} /></span>
+                <span class="tt">{r.nom}</span>
+                <span class="ct">{r.n}</span>
+              </a>
+            ))
+          }
+          <button class="spine add" id="newShelf" type="button">
+            <span class="em"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+            <span class="tt">Nouveau rayon</span>
+            <span class="ct" />
+          </button>
+        </div>
+        <div class="board" />
+        <div class="shelf-bar">
+          <span class="lbl">
+            <b>{nombre(rayons.length)}</b> rayons · <b>{nombre(totalArticles)}</b>
+            {totalArticles > 1 ? ' entrées' : ' entrée'}
+          </span>
+          <div class="shelf-acts">
+            <button class="pill solid" id="openAll" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h7v16H3zM14 4h7v16h-7z"/><path d="M6.5 8h1M17.5 8h1"/></svg>
+              Voir toute la bibliothèque
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================= PIÈCE MAÎTRESSE ======================= -->
+      <section id="sec-feature">
+        <div class="sec-head">
+          <div><p class="kicker">Pièce maîtresse</p><h2>La dernière entrée</h2></div>
+          <a class="more" href="#sec-index">Voir toutes les entrées<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        </div>
+        {
+          feature ? (
+            <article class="feature" style={`--sceau:${feature.couleur}`}>
+              <div class="plate">
+                <svg viewBox="0 0 240 240" role="img" aria-label={`Sceau de ${feature.titre}`}>
+                  <circle cx="120" cy="120" r="104" fill="none" stroke="#B9A98E" stroke-width="1.4" />
+                  <circle cx="120" cy="120" r="96" fill="none" stroke="#B9A98E" stroke-width="3" />
+                  <circle cx="120" cy="120" r="72" fill="none" stroke="#B9A98E" stroke-width="1" />
+                  <g stroke="#5C4A3D" stroke-width="1.8" fill="none" stroke-linecap="round">
+                    <path d="M120 60 L120 180" /><path d="M84 96 L120 120 L156 96" /><path d="M84 144 L120 120 L156 144" />
+                  </g>
+                  <circle cx="120" cy="120" r="30" fill="#F1EBDD" stroke="var(--sceau)" stroke-width="2.4" />
+                  <text x="120" y="132" text-anchor="middle" font-size="30">{feature.symbole}</text>
+                  <text x="120" y="212" text-anchor="middle" font-family="Cormorant Garamond,serif" font-style="italic" font-size="15" fill="#726555">{feature.rayon}</text>
+                </svg>
+              </div>
+              <div class="txt">
+                <span class="tag">{feature.rayon}</span>
+                <h3>{feature.titre}</h3>
+                {feature.resume && <p class="sub">{feature.resume}</p>}
+                <div class="meta">
+                  <div><div class="k">Rayon</div><div class="v">{feature.rayon}</div></div>
+                  <div><div class="k">Entrées du rayon</div><div class="v">{nombre(feature.voisins)}</div></div>
+                  <div><div class="k">Au codex</div><div class="v">{nombre(totalArticles)}</div></div>
+                </div>
+                <div class="acts">
+                  <a class="btn primary" href={feature.url}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    Enrichir l'entrée
+                  </a>
+                  <a class="btn ghost" href={feature.url}>Lire en entier<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+                </div>
+              </div>
+            </article>
+          ) : (
+            <p class="vide-bloc">
+              Le codex est vierge. Ouvre un rayon de l'étagère et écris-y ta
+              première entrée — elle prendra cette place.
+            </p>
+          )
+        }
+      </section>
+
+      <!-- ============================ BESTIAIRE ============================ -->
+      <section id="sec-bestiaire">
+        <div class="sec-head">
+          <div><p class="kicker">Rayon I</p><h2>Bestiaire</h2></div>
+          <a class="more" href="/lore/bestiaire">
+            {nbBestiaire ? `${nombre(nbBestiaire)} ${nbBestiaire > 1 ? 'créatures' : 'créature'}` : 'Ouvrir le rayon'}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+        </div>
+        {
+          bestiaire.length ? (
+            <div class="beasts">
+              {bestiaire.map((a) => (
+                <a class="beast" href={`/lore/bestiaire/${a.slug}`} style={`--sceau:${a.couleur || 'var(--accent)'}`}>
+                  <div class="plate"><span class="sceau">{a.symbole || '❖'}</span></div>
+                  <div class="bd">
+                    <h3>{a.titre}</h3>
+                    {a.resume && <p class="lat">{a.resume}</p>}
+                    <div class="rows">
+                      <div class="r"><span class="k">Rayon</span><span class="v">Bestiaire</span></div>
+                    </div>
+                    <span class="go">Ouvrir la fiche →</span>
+                  </div>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <p class="vide-bloc">
+              Aucune créature au bestiaire. <a href="/lore/bestiaire">Ouvre le rayon</a> pour y poser la première.
+            </p>
+          )
+        }
+      </section>
+
+      <!-- ============================ ROYAUMES ============================ -->
+      <section id="sec-royaumes">
+        <div class="sec-head">
+          <div><p class="kicker">Rayon II</p><h2>Royaumes &amp; maisons</h2></div>
+          <a class="more" href="/etats">
+            {nombre(royaumes.length)} couronnes · {nombre(provinces.length)} provinces
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+        </div>
+        <div class="realms">
+          {
+            royaumes.map((r, i) => (
+              <a class="realm" href={r.url} style={`--k:${r.couleur}`}>
+                <span class="crest">
+                  <svg viewBox="0 0 56 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" set:html={ECUS[i % ECUS.length]} />
+                </span>
+                <div>
+                  <h3>{r.nom}</h3>
+                  <p class="gov">{r.forme} · {nombre(r.provinces)} {r.provinces > 1 ? 'provinces' : 'province'}</p>
+                  <p class="desc">
+                    {nombre(r.villes)} {r.villes > 1 ? 'villes recensées' : 'ville recensée'} sur les terres de {r.nom}.
+                    Ouvre sa fiche pour en écrire l'histoire.
+                  </p>
+                </div>
+                <div class="figs">
+                  <span class="f"><span class="n">{nombre(r.villes)}</span><span class="l">villes</span></span>
+                  <span class="f"><span class="n">{r.population}</span><span class="l">habitants</span></span>
+                </div>
+              </a>
+            ))
+          }
+        </div>
+      </section>
+
+      <!-- =========================== PERSONNAGES =========================== -->
+      <section id="sec-personnages">
+        <div class="sec-head">
+          <div><p class="kicker">Rayon III</p><h2>Figures du monde</h2></div>
+          <a class="more" href="/lore/personnages">
+            {nbFigures ? `${nombre(nbFigures)} ${nbFigures > 1 ? 'personnages' : 'personnage'}` : 'Ouvrir le rayon'}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+        </div>
+        {
+          figures.length ? (
+            <div class="people">
+              {figures.map((a) => (
+                <a class="person" href={`/lore/personnages/${a.slug}`}>
+                  <span class="med">
+                    <svg viewBox="0 0 112 112" aria-hidden="true"><path d={BUSTE} fill="#5C4A3D" opacity=".72" /></svg>
+                    <span class="dot" style={`--k:${a.couleur || 'var(--accent)'}`} />
+                  </span>
+                  <h3>{a.titre}</h3>
+                  {a.resume && <span class="role">{a.resume}</span>}
+                </a>
+              ))}
+            </div>
+          ) : (
+            <p class="vide-bloc">
+              Aucune figure au codex. <a href="/lore/personnages">Ouvre le rayon</a> pour y graver la première.
+            </p>
+          )
+        }
+      </section>
+
+      <!-- ============================== INDEX ============================== -->
+      <section id="sec-index">
+        <div class="sec-head">
+          <div><p class="kicker">Toutes les entrées</p><h2>Index général</h2></div>
+          <button class="more more--bouton" id="newShelf2" type="button">
+            Ajouter un rayon<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </div>
+        <div class="indexcard">
+          <div class="alpha" id="alpha" />
+          <div class="cols" id="cols" />
+          <p class="empty" id="empty">Aucune entrée ne répond à cette recherche — c'est peut-être une page à écrire.</p>
+          <div class="idx-foot">
+            <span id="idxCount" />
+            <span>les entrées <i>en italique</i> restent à écrire</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============================ SURCOUCHES ============================ -->
+    <div class="scrim" id="scrim" />
+
+    <div class="sheet" id="sheetAll" role="dialog" aria-modal="true" aria-label="Tous les rayons">
+      <div class="cap" />
+      <div class="sh">
+        <div>
+          <p class="kick">Bibliothèque</p>
+          <h3>Tous les rayons</h3>
+          <p>Chaque rayon du codex, d'un seul coup d'œil — sans rien faire défiler.</p>
+        </div>
+        <button class="xbtn" data-close type="button" aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <div class="body"><div class="grid" id="allGrid" /></div>
+    </div>
+
+    <div class="sheet sheet--etroite" id="sheetNew" role="dialog" aria-modal="true" aria-label="Créer un rayon">
+      <div class="cap" />
+      <div class="sh">
+        <div>
+          <p class="kick">Nouveau rayon</p>
+          <h3>Relier un volume</h3>
+          <p>Nomme-le, choisis sa reliure et son fer. Il rejoindra l'étagère.</p>
+        </div>
+        <button class="xbtn" data-close type="button" aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <div class="body">
+        <div class="preview">
+          <div class="pv" id="pvSpine"><span class="i" id="pvIcon" /><span class="t" id="pvName">Sans titre</span></div>
+          <p class="cap2">Aperçu de la reliure.<br />Elle rejoindra l'étagère avec <b>0 entrée</b>.</p>
+        </div>
+        <div class="field">
+          <label for="rName">Nom du rayon</label>
+          <input id="rName" type="text" placeholder="Langues, Navires, Recettes…" maxlength="22" autocomplete="off" />
+        </div>
+        <div class="field"><label>Reliure</label><div class="picks" id="colPicks" /></div>
+        <div class="field"><label>Fer doré</label><div class="picks" id="icoPicks" /></div>
+        <div class="foot">
+          <span class="note" id="noteRayons">{nombre(rayons.length)} rayons existants</span>
+          <button class="pill solid" id="doCreate" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            Créer le rayon
+          </button>
+        </div>
+        <p class="modale__etat" id="etatNew" />
+      </div>
     </div>
   </div>
 
-  <script type="application/json" id="donnees-lore" set:html={JSON.stringify(donnees)} />
+  <script type="application/json" id="donnees-codex" set:html={JSON.stringify(donnees)} />
 </Base>
 
 <style is:global>
-  .modale__tete .fermer {
-    position: static;
-    margin-left: auto;
+  /* =====================================================================
+     LE CODEX — l'armorial.
+     Le thème Parchemin & Bordeaux reste la source de vérité ; cette page y
+     ajoute sa famille de cuirs et ses plaques gravées.
+     ===================================================================== */
+  .codex {
+    --l1: #5c4a3d; --l2: #4a4038; --l3: #6b5b4a;
+    --l4: #5e4b4e; --l5: #57503f; --l6: #6e5a52;
+    --shadow: 0 10px 30px -20px rgba(38, 32, 28, .25);
+    --shadow-lift: 0 20px 46px -26px rgba(38, 32, 28, .42);
+    --glass: linear-gradient(152deg, rgba(255,253,247,.78), rgba(247,242,231,.44));
+    --glass-strong: linear-gradient(152deg, rgba(255,254,250,.92), rgba(247,242,231,.70));
+    --glass-accent: linear-gradient(152deg, rgba(255,252,248,.90), rgba(250,236,235,.62) 55%, rgba(243,226,226,.52));
+    --accent-soft: rgba(138, 47, 60, .10);
+    --accent-line: linear-gradient(90deg, var(--accent), rgba(138, 47, 60, .35));
+    --glass-line: rgba(255,255,255,.72);
+    --glass-hi: inset 0 1px 0 rgba(255,255,255,.85);
+    --blur: blur(16px) saturate(140%);
+    --dark-glass: linear-gradient(160deg, rgba(38,33,29,.93), rgba(28,24,21,.90));
+    --font-display: var(--display);
+    --font-body: var(--texte-police);
+    --font-mono: var(--chrome);
+    position: relative;
+    font-family: var(--font-body);
+    line-height: 1.55;
   }
-  .tete-lore {
-    display: flex;
-    align-items: flex-start;
-    gap: 1.5rem;
-    margin: 2rem 0 2.5rem;
-    flex-wrap: wrap;
-  }
-  .tete-lore__intro {
-    flex: 1;
-    min-width: 20rem;
-    max-width: var(--mesure);
-    margin: 0;
-  }
-  .grille--lore {
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 1rem;
-  }
-  /* Une porte du codex : une image en couverture, un pied qui la nomme. */
-  .carte--porte {
-    padding: 0;
-    overflow: hidden;
-  }
-  .porte__cadre {
-    display: block;
-    aspect-ratio: 16 / 10;
-    background: var(--encre-2);
-  }
-  .porte__image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  .porte__vide {
-    width: 100%;
-    height: 100%;
-    display: grid;
-    place-items: center;
-    background: var(--velin);
-  }
-  .carte--villes .porte__vide {
-    background: var(--velin);
-  }
-  .lore-marque--grande {
-    width: 74px;
-    height: 74px;
-    font-size: 2.4rem;
-    color: var(--parchemin);
-    background: transparent;
-    box-shadow: inset 0 0 0 1px var(--trait);
-  }
-  .porte__pied {
-    display: block;
-    padding: 0.85rem 1.05rem 1rem;
-  }
-  .porte__pied .carte__titre {
-    font-size: 1.2rem;
-  }
+  .codex a { color: var(--accent); text-decoration: none; background-image: none; }
+  .codex a:hover { text-decoration: underline; color: var(--accent); }
 
-  /* Une modale étroite réutilise l'ossature de la chancellerie. */
-  .modale__boite--etroite {
-    width: min(440px, 100%);
+  .codex .aura { position: fixed; inset: -20%; z-index: 0; pointer-events: none; filter: blur(76px); opacity: .85; }
+  .codex .aura i { position: absolute; border-radius: 50%; display: block; }
+  .codex .aura .a1 { width: 52vw; height: 52vw; left: -10%; top: -14%; background: radial-gradient(circle, rgba(138,47,60,.20), transparent 66%); animation: cx1 34s ease-in-out infinite; }
+  .codex .aura .a2 { width: 46vw; height: 46vw; right: -8%; top: 2%; background: radial-gradient(circle, rgba(200,145,47,.22), transparent 66%); animation: cx2 42s ease-in-out infinite; }
+  .codex .aura .a3 { width: 56vw; height: 56vw; left: 24%; bottom: -30%; background: radial-gradient(circle, rgba(109,58,122,.16), transparent 64%); animation: cx3 38s ease-in-out infinite; }
+  .codex .aura .a4 { width: 40vw; height: 40vw; right: 14%; bottom: -6%; background: radial-gradient(circle, rgba(91,134,176,.16), transparent 66%); animation: cx2 46s ease-in-out infinite reverse; }
+  @keyframes cx1 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(5%,7%) scale(1.12); } }
+  @keyframes cx2 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-6%,5%) scale(1.1); } }
+  @keyframes cx3 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(4%,-5%) scale(1.14); } }
+
+  .codex .wrap { position: relative; z-index: 1; max-width: 1160px; margin: 0 auto; padding: 0 clamp(18px, 4vw, 44px); }
+
+  /* ------------------------------------------------------------- en-tête */
+  .codex .head { padding: clamp(28px,5vw,56px) 0 clamp(24px,3vw,36px); display: grid; grid-template-columns: 1fr auto; gap: 30px; align-items: end; }
+  @media (max-width: 820px) { .codex .head { grid-template-columns: 1fr; } }
+  .codex .eyebrow { font-family: var(--font-mono); font-size: .74rem; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; color: var(--accent); margin: 0 0 16px; }
+  .codex .head h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(2.6rem,6.2vw,4.2rem); line-height: 1; letter-spacing: -.01em; margin: 0; text-wrap: balance; color: var(--ink); }
+  .codex .head h1 em { font-style: italic; }
+  .codex .head .lede { margin: 18px 0 0; color: var(--muted); max-width: 50ch; font-size: 1.02rem; }
+  .codex .head-fig { text-align: right; }
+  .codex .head-fig .n { font-family: var(--font-display); font-weight: 700; font-size: 3.4rem; line-height: 1; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .codex .head-fig .l { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+
+  .codex .searchbar { display: flex; align-items: center; gap: 12px; margin-top: 26px; padding: 4px 4px 4px 18px; background-image: var(--glass-strong); backdrop-filter: var(--blur); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow), var(--glass-hi); }
+  .codex .searchbar svg { width: 17px; height: 17px; color: var(--muted); flex: none; }
+  .codex .searchbar input { flex: 1; border: 0; background: transparent; font-family: var(--font-body); font-size: 1rem; color: var(--ink); padding: 12px 0; outline: none; min-width: 0; }
+  .codex .searchbar input::placeholder { color: var(--muted); }
+  .codex .searchbar .go { flex: none; border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent); font-family: var(--font-body); font-weight: 600; font-size: .88rem; padding: 11px 20px; border-radius: 999px; cursor: pointer; box-shadow: 0 10px 22px -14px rgba(138,47,60,.85); }
+  .codex .searchbar .go:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+
+  /* ------------------------------------------------------------- étagère */
+  .codex .shelf-sec { margin-top: clamp(40px,6vw,64px); }
+  .codex .shelf { position: relative; display: flex; gap: 10px; align-items: flex-end; padding: 28px 22px 0; overflow-x: auto; scrollbar-width: none; }
+  .codex .shelf::-webkit-scrollbar { display: none; }
+  .codex .spine {
+    position: relative; flex: 1 1 96px; min-width: 86px; max-width: 170px; height: var(--h, 250px);
+    border: 0; padding: 14px 0 12px; cursor: pointer; border-radius: 5px 5px 2px 2px;
+    background: linear-gradient(100deg, var(--lb), color-mix(in srgb, var(--lb) 78%, black));
+    box-shadow: 0 14px 26px -16px rgba(38,32,28,.85), inset -3px 0 6px -3px rgba(0,0,0,.5), inset 2px 0 0 rgba(255,255,255,.09);
+    transition: transform .32s cubic-bezier(.34,1.4,.64,1), box-shadow .3s;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden;
+    text-decoration: none;
   }
-  .modale__corps {
-    padding: 1.1rem 1.4rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.8rem;
+  .codex .spine:hover, .codex .spine:focus-visible {
+    transform: translateY(-18px); text-decoration: none;
+    box-shadow: 0 26px 40px -18px rgba(38,32,28,.9), 0 0 26px -6px rgba(138,47,60,.55),
+                inset -3px 0 6px -3px rgba(0,0,0,.5), inset 2px 0 0 rgba(255,255,255,.14);
   }
-  .modale__corps input[type='text'] {
-    padding: 0.5rem 0.7rem;
-    background: var(--saisie);
-    border: 1px solid var(--trait);
-    border-radius: var(--rayon-s);
-    color: var(--parchemin);
-    font-family: var(--texte-police);
-    font-size: 1.0625rem;
-  }
-  .modale__pied--simple {
-    justify-content: flex-end;
+  .codex .spine::before, .codex .spine::after { content: ''; position: absolute; left: 9px; right: 9px; height: 1px; background: rgba(241,235,221,.34); }
+  .codex .spine::before { top: 40px; } .codex .spine::after { bottom: 40px; }
+  .codex .spine .gloss { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(104deg, rgba(255,255,255,0) 30%, rgba(255,255,255,.16) 46%, rgba(255,255,255,.05) 54%, rgba(255,255,255,0) 70%); transform: translateX(-30%); transition: transform .6s cubic-bezier(.3,.7,.3,1); }
+  .codex .spine:hover .gloss { transform: translateX(30%); }
+  .codex .spine .tt { writing-mode: vertical-rl; transform: rotate(180deg); font-family: var(--font-display); font-weight: 600; font-size: 1.12rem; letter-spacing: .06em; color: var(--on-dark); margin: auto 0; }
+  .codex .spine .ct { font-family: var(--font-mono); font-size: .62rem; font-weight: 600; color: var(--on-dark-muted); letter-spacing: .06em; background: rgba(241,235,221,.14); padding: 3px 8px; border-radius: 99px; }
+  .codex .spine .em { width: 16px; height: 16px; color: var(--on-dark-muted); opacity: .85; }
+  .codex .spine .em svg { width: 16px; height: 16px; }
+  .codex .spine.add { background: transparent; border: 2px dashed rgba(114,101,85,.45); box-shadow: none; height: 212px; }
+  .codex .spine.add:hover { background: rgba(138,47,60,.05); border-color: var(--accent); box-shadow: none; transform: translateY(-10px); }
+  .codex .spine.add .tt { font-size: 1rem; color: var(--muted); }
+  .codex .spine.add .em { color: var(--muted); }
+  .codex .spine.add:hover .tt, .codex .spine.add:hover .em { color: var(--accent); }
+  .codex .spine.add::before, .codex .spine.add::after { display: none; }
+  .codex .board { height: 12px; border-radius: 3px; background: linear-gradient(180deg, #C6B69E, #A08D75); box-shadow: 0 8px 18px -10px rgba(38,32,28,.6), inset 0 1px 0 rgba(255,255,255,.5); margin: 0 14px; position: relative; }
+  .codex .board::after { content: ''; position: absolute; left: 8%; right: 8%; bottom: -9px; height: 16px; border-radius: 50%; background: radial-gradient(ellipse, rgba(138,47,60,.22), transparent 72%); filter: blur(5px); }
+  .codex .shelf-bar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin: 18px 14px 0; }
+  .codex .shelf-bar .lbl { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .codex .shelf-bar .lbl b { color: var(--accent); }
+  .codex .shelf-acts { display: flex; gap: 9px; flex-wrap: wrap; }
+  .codex .pill { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-body); font-weight: 600; font-size: .85rem; padding: 10px 17px; border-radius: 999px; cursor: pointer; background-color: transparent; border: 1px solid transparent; transition: transform .2s, box-shadow .25s, border-color .2s, color .2s, background .2s; }
+  .codex .pill svg { width: 15px; height: 15px; }
+  .codex .pill.solid { border-color: var(--accent); background: var(--accent); color: var(--on-accent); box-shadow: 0 12px 26px -14px rgba(138,47,60,.9); }
+  .codex .pill.solid:hover { transform: translateY(-2px); background: var(--accent-strong); border-color: var(--accent-strong); }
+  .codex .pill.soft { border-color: rgba(138,47,60,.32); background-image: var(--glass-accent); backdrop-filter: var(--blur); color: var(--accent); box-shadow: var(--shadow), var(--glass-hi); }
+  .codex .pill.soft:hover { transform: translateY(-2px); border-color: var(--accent); }
+
+  /* --------------------------------------------------------- surcouches */
+  .codex .scrim { position: fixed; inset: 0; z-index: 60; background: rgba(36,31,27,.52); backdrop-filter: blur(9px); opacity: 0; pointer-events: none; transition: opacity .28s; }
+  .codex .scrim.on { opacity: 1; pointer-events: auto; }
+  .codex .sheet { position: fixed; z-index: 61; left: 50%; top: 50%; transform: translate(-50%,-50%) scale(.94); width: min(1080px,94vw); max-height: 88vh; display: flex; flex-direction: column; background-image: var(--glass-strong); background-color: var(--surface); backdrop-filter: blur(26px) saturate(150%); border: 1px solid var(--glass-line); border-radius: 22px; box-shadow: 0 44px 90px -34px rgba(30,20,14,.75), var(--glass-hi); opacity: 0; pointer-events: none; transition: opacity .28s, transform .34s cubic-bezier(.34,1.5,.64,1); overflow: hidden; }
+  .codex .sheet--etroite { width: min(620px, 94vw); }
+  .codex .sheet.on { opacity: 1; transform: translate(-50%,-50%) scale(1); pointer-events: auto; }
+  .codex .sheet .cap { height: 4px; background-image: var(--accent-line); }
+  .codex .sheet .sh { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 22px 26px 16px; border-bottom: 1px solid var(--line); }
+  .codex .sheet .sh .kick { font-family: var(--font-mono); font-size: .68rem; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--accent); margin: 0 0 6px; }
+  .codex .sheet .sh h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.9rem; line-height: 1; margin: 0; color: var(--ink); }
+  .codex .sheet .sh p { margin: 7px 0 0; color: var(--muted); font-size: .87rem; }
+  .codex .xbtn { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background-image: var(--glass); background-color: transparent; color: var(--muted); cursor: pointer; display: grid; place-items: center; transition: background .2s, color .2s, transform .25s, border-color .2s; }
+  .codex .xbtn:hover { background: var(--accent); color: var(--on-accent); border-color: var(--accent-strong); transform: rotate(90deg); }
+  .codex .xbtn svg { width: 15px; height: 15px; }
+  .codex .sheet .body { padding: 20px 26px 26px; overflow-y: auto; }
+  .codex .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 11px; }
+  .codex .tile { position: relative; display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-radius: 14px; border: 1px solid var(--line); background-image: var(--glass); background-color: transparent; backdrop-filter: var(--blur); box-shadow: var(--shadow), var(--glass-hi); cursor: pointer; text-align: left; transition: transform .24s cubic-bezier(.34,1.4,.64,1), box-shadow .25s, border-color .2s; overflow: hidden; text-decoration: none; color: inherit; }
+  .codex .tile:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift), var(--glass-hi); border-color: rgba(138,47,60,.42); text-decoration: none; }
+  .codex .tile .mini { position: relative; flex: none; width: 26px; height: 38px; border-radius: 3px 3px 1px 1px; background: linear-gradient(100deg, var(--lb), color-mix(in srgb, var(--lb) 76%, black)); box-shadow: inset -2px 0 4px -2px rgba(0,0,0,.55), inset 1px 0 0 rgba(255,255,255,.12); display: grid; place-items: center; color: rgba(241,235,221,.9); }
+  .codex .tile .mini svg { width: 13px; height: 13px; }
+  .codex .tile .tx { min-width: 0; display: flex; flex-direction: column; }
+  .codex .tile .nm { font-family: var(--font-display); font-weight: 600; font-size: 1.06rem; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+  .codex .tile .cn { font-family: var(--font-mono); font-size: .64rem; letter-spacing: .06em; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .codex .tile.mk { border-style: dashed; border-color: rgba(138,47,60,.45); background-image: none; background: var(--accent-soft); box-shadow: none; justify-content: center; color: var(--accent); }
+  .codex .tile.mk:hover { background: rgba(138,47,60,.15); transform: translateY(-3px); }
+  .codex .tile.mk .nm { color: var(--accent); }
+
+  .codex .field { margin-bottom: 18px; }
+  .codex .field label { display: block; font-family: var(--font-mono); font-size: .64rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .codex .field input[type='text'] { width: 100%; font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; color: var(--ink); padding: 12px 16px; border-radius: 12px; border: 1px solid var(--line); background-image: var(--glass); background-color: var(--saisie); outline: none; transition: border-color .2s, box-shadow .2s; }
+  .codex .field input[type='text']:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .codex .picks { display: flex; gap: 9px; flex-wrap: wrap; }
+  .codex .pick { width: 38px; height: 38px; border-radius: 10px; border: 2px solid transparent; cursor: pointer; display: grid; place-items: center; color: rgba(241,235,221,.9); background-color: transparent; transition: transform .2s, box-shadow .2s, border-color .2s; }
+  .codex .pick:hover { transform: translateY(-2px); }
+  .codex .pick[aria-pressed='true'] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .codex .pick.col { background: linear-gradient(100deg, var(--lb), color-mix(in srgb, var(--lb) 76%, black)); }
+  .codex .pick.ico { background-image: var(--glass); border: 2px solid var(--line); color: var(--muted); }
+  .codex .pick.ico[aria-pressed='true'] { border-color: var(--accent); color: var(--accent); }
+  .codex .pick svg { width: 17px; height: 17px; }
+  .codex .sheet .foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding-top: 16px; border-top: 1px solid var(--line); }
+  .codex .sheet .foot .note { font-family: var(--font-mono); font-size: .68rem; color: var(--muted); }
+  .codex .preview { display: flex; align-items: flex-end; gap: 14px; padding: 18px; border-radius: 14px; background: var(--accent-soft); border: 1px solid rgba(138,47,60,.22); margin-bottom: 18px; }
+  .codex .preview .pv { position: relative; width: 66px; height: 132px; border-radius: 4px 4px 2px 2px; background: linear-gradient(100deg, var(--lb), color-mix(in srgb, var(--lb) 76%, black)); box-shadow: 0 12px 22px -12px rgba(38,32,28,.85), inset -2px 0 5px -2px rgba(0,0,0,.5), inset 1px 0 0 rgba(255,255,255,.12); display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 9px 0 8px; overflow: hidden; }
+  .codex .preview .pv .t { writing-mode: vertical-rl; transform: rotate(180deg); font-family: var(--font-display); font-weight: 600; font-size: .84rem; color: var(--on-dark); margin: auto 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-height: 96px; }
+  .codex .preview .pv .i { color: rgba(241,235,221,.85); }
+  .codex .preview .pv .i svg { width: 13px; height: 13px; }
+  .codex .preview .cap2 { font-family: var(--font-mono); font-size: .68rem; color: var(--muted); line-height: 1.6; margin: 0; }
+  .codex .preview .cap2 b { color: var(--accent); }
+  .codex .modale__etat { margin: 12px 0 0; font-family: var(--font-mono); font-size: .68rem; color: var(--muted); min-height: 1em; }
+
+  /* ------------------------------------------------------------ sections */
+  .codex section { margin-top: clamp(52px,8vw,86px); scroll-margin-top: 92px; }
+  .codex .sec-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  .codex .sec-head .kicker { font-family: var(--font-mono); font-size: .7rem; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+  .codex .sec-head h2 { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.7rem,3.4vw,2.4rem); line-height: 1.05; margin: 0; color: var(--ink); }
+  .codex .sec-head .more { font-size: .88rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; color: var(--accent); }
+  .codex .sec-head .more--bouton { border: 0; background: none; cursor: pointer; font-family: var(--font-body); padding: 0; }
+  .codex .sec-head .more svg { width: 14px; height: 14px; transition: transform .2s; }
+  .codex .sec-head .more:hover svg { transform: translateX(3px); }
+  .codex .vide-bloc { margin: 0; padding: 30px; text-align: center; color: var(--muted); font-size: .95rem; border: 1px dashed var(--line); border-radius: 16px; background: var(--surface); }
+
+  /* ------------------------------------------------------ pièce maîtresse */
+  .codex .feature { position: relative; display: grid; grid-template-columns: .85fr 1.15fr; background-image: var(--glass-strong); background-color: var(--surface); backdrop-filter: var(--blur); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow), var(--glass-hi); overflow: hidden; }
+  @media (max-width: 820px) { .codex .feature { grid-template-columns: 1fr; } }
+  .codex .feature .plate { position: relative; background: linear-gradient(160deg, #EFE6D4, #E3D6BE); display: grid; place-items: center; padding: 26px; border-right: 1px solid var(--line); }
+  @media (max-width: 820px) { .codex .feature .plate { border-right: 0; border-bottom: 1px solid var(--line); } }
+  .codex .feature .plate svg { width: 100%; max-width: 290px; height: auto; }
+  .codex .feature .txt { padding: clamp(24px,3.4vw,40px); }
+  .codex .feature .tag { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: .66rem; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); border: 1px solid rgba(138,47,60,.35); background: rgba(138,47,60,.08); padding: 5px 12px; border-radius: 999px; }
+  .codex .feature h3 { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.9rem,3.4vw,2.6rem); line-height: 1.05; margin: 16px 0 0; color: var(--ink); }
+  .codex .feature .sub { font-family: var(--font-display); font-style: italic; color: var(--muted); font-size: 1.08rem; margin: 8px 0 0; }
+  .codex .feature .meta { display: flex; gap: 26px; flex-wrap: wrap; margin: 22px 0 0; padding-top: 18px; border-top: 1px solid var(--line); }
+  .codex .feature .meta div .k { font-family: var(--font-mono); font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .codex .feature .meta div .v { font-weight: 600; font-size: .92rem; margin-top: 2px; color: var(--ink); }
+  .codex .feature .acts { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+  .codex .btn { display: inline-flex; align-items: center; gap: 9px; font-family: var(--font-body); font-weight: 600; font-size: .9rem; padding: 11px 20px; border-radius: 10px; cursor: pointer; background-color: transparent; border: 1px solid transparent; transition: background .2s, border-color .2s, color .2s, transform .2s; }
+  .codex .btn:hover { text-decoration: none; }
+  .codex .btn svg { width: 15px; height: 15px; }
+  .codex .btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); box-shadow: 0 12px 26px -16px rgba(138,47,60,.8); }
+  .codex .btn.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--on-accent); }
+  .codex .btn.ghost { background-image: var(--glass); backdrop-filter: var(--blur); color: var(--ink); border-color: var(--line); box-shadow: var(--glass-hi); }
+  .codex .btn.ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ----------------------------------------------------------- bestiaire */
+  .codex .beasts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 900px) { .codex .beasts { grid-template-columns: 1fr; } }
+  .codex .beast { position: relative; display: flex; flex-direction: column; background-image: var(--glass); background-color: var(--surface); backdrop-filter: var(--blur); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow), var(--glass-hi); overflow: hidden; color: inherit; transition: transform .3s cubic-bezier(.34,1.4,.64,1), box-shadow .3s; }
+  .codex .beast:hover { transform: translateY(-5px); box-shadow: var(--shadow-lift), var(--glass-hi); text-decoration: none; }
+  .codex .beast .plate { position: relative; height: 180px; display: grid; place-items: center; background: linear-gradient(165deg, #EDE3D1, #E1D3BA); border-bottom: 1px solid var(--line); overflow: hidden; }
+  .codex .beast .sceau { font-size: 4.6rem; line-height: 1; filter: drop-shadow(0 6px 14px rgba(38,32,28,.25)); transition: transform .5s cubic-bezier(.34,1.3,.64,1); }
+  .codex .beast:hover .sceau { transform: scale(1.08) rotate(-2deg); }
+  .codex .beast .bd { padding: 17px 19px 19px; display: flex; flex-direction: column; flex: 1; }
+  .codex .beast h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.35rem; line-height: 1.1; margin: 0; color: var(--ink); }
+  .codex .beast .lat { font-family: var(--font-display); font-style: italic; font-size: .9rem; color: var(--muted); margin: 4px 0 0; }
+  .codex .beast .rows { margin: 14px 0 0; border-top: 1px solid var(--line); }
+  .codex .beast .r { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; font-size: .82rem; }
+  .codex .beast .r .k { font-family: var(--font-mono); font-size: .64rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .codex .beast .r .v { font-weight: 600; text-align: right; color: var(--ink); }
+  .codex .beast .go { margin-top: auto; padding-top: 14px; font-size: .83rem; font-weight: 600; color: var(--accent); }
+
+  /* ------------------------------------------------------------ royaumes */
+  .codex .realms { display: flex; flex-direction: column; gap: 12px; }
+  .codex .realm { position: relative; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: clamp(16px,3vw,34px); background-image: var(--glass); background-color: var(--surface); backdrop-filter: var(--blur); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow), var(--glass-hi); padding: 20px clamp(18px,3vw,28px); overflow: hidden; color: inherit; transition: transform .28s cubic-bezier(.34,1.4,.64,1), box-shadow .3s, border-color .3s; }
+  .codex .realm:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift), var(--glass-hi); border-color: color-mix(in srgb, var(--k) 40%, var(--line)); text-decoration: none; }
+  .codex .realm::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--k); }
+  .codex .realm .crest { width: 56px; height: 64px; flex: none; color: var(--k); }
+  .codex .realm .crest svg { width: 100%; height: 100%; }
+  .codex .realm h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.6rem; line-height: 1; margin: 0; color: var(--ink); }
+  .codex .realm .gov { font-family: var(--font-mono); font-size: .64rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--k); margin-top: 5px; }
+  .codex .realm .desc { font-size: .87rem; color: var(--muted); margin: 8px 0 0; max-width: 56ch; }
+  .codex .realm .figs { display: flex; gap: 22px; flex: none; }
+  @media (max-width: 820px) { .codex .realm { grid-template-columns: auto 1fr; } .codex .realm .figs { grid-column: 1/-1; padding-top: 14px; border-top: 1px solid var(--line); width: 100%; } }
+  .codex .realm .figs .f { display: flex; flex-direction: column; }
+  .codex .realm .figs .f .n { font-family: var(--font-display); font-weight: 700; font-size: 1.3rem; line-height: 1; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .codex .realm .figs .f .l { font-family: var(--font-mono); font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-top: 3px; }
+
+  /* --------------------------------------------------------- personnages */
+  .codex .people { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+  @media (max-width: 1000px) { .codex .people { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 600px) { .codex .people { grid-template-columns: repeat(2, 1fr); } }
+  .codex .person { text-align: center; color: inherit; display: flex; flex-direction: column; align-items: center; padding: 8px 4px 14px; border-radius: 16px; transition: background .25s; }
+  .codex .person:hover { background-image: var(--glass); text-decoration: none; }
+  .codex .person .med { position: relative; width: 112px; height: 112px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(160deg, #EFE6D4, #E0D2B9); border: 1px solid var(--line); box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.8); overflow: hidden; transition: transform .3s cubic-bezier(.34,1.4,.64,1), box-shadow .3s; }
+  .codex .person:hover .med { transform: translateY(-4px); box-shadow: var(--shadow-lift), inset 0 1px 0 rgba(255,255,255,.8); }
+  .codex .person .med svg { width: 100%; height: 100%; }
+  .codex .person .med::after { content: ''; position: absolute; inset: 5px; border-radius: 50%; border: 1px solid rgba(114,101,85,.28); pointer-events: none; }
+  .codex .person .dot { position: absolute; bottom: 6px; right: 14px; width: 13px; height: 13px; border-radius: 50%; background: var(--k); border: 2px solid var(--surface); z-index: 2; }
+  .codex .person h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.1rem; line-height: 1.15; margin: 12px 0 0; color: var(--ink); }
+  .codex .person .role { font-size: .76rem; color: var(--muted); margin-top: 2px; }
+
+  /* --------------------------------------------------------------- index */
+  .codex .indexcard { background-image: var(--glass-strong); background-color: var(--surface); backdrop-filter: var(--blur); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow), var(--glass-hi); padding: clamp(22px,3.4vw,34px); }
+  .codex .alpha { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 22px; }
+  .codex .alpha button { width: 29px; height: 29px; border-radius: 8px; border: 1px solid transparent; background: transparent; font-family: var(--font-mono); font-size: .76rem; font-weight: 600; color: var(--muted); cursor: pointer; transition: background .18s, color .18s, border-color .18s; }
+  .codex .alpha button:hover { background: rgba(138,47,60,.08); color: var(--accent); }
+  .codex .alpha button[aria-pressed='true'] { background: var(--accent); color: var(--on-accent); border-color: var(--accent-strong); }
+  .codex .alpha button:disabled { opacity: .28; cursor: default; }
+  .codex .cols { columns: 3; column-gap: 34px; }
+  @media (max-width: 900px) { .codex .cols { columns: 2; } }
+  @media (max-width: 560px) { .codex .cols { columns: 1; } }
+  .codex .grp { break-inside: avoid; margin-bottom: 20px; }
+  .codex .grp .ltr { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; color: var(--accent); border-bottom: 1px solid var(--line); padding-bottom: 3px; margin-bottom: 7px; }
+  .codex .grp a { display: flex; align-items: baseline; gap: 8px; padding: 4px 0; color: var(--ink); font-size: .88rem; border-bottom: 1px dotted transparent; }
+  .codex .grp a:hover { color: var(--accent); text-decoration: none; border-bottom-color: rgba(138,47,60,.4); }
+  .codex .grp a .cat { margin-left: auto; font-family: var(--font-mono); font-size: .6rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  .codex .grp a.todo { color: var(--muted); font-style: italic; }
+  .codex .grp a.todo .cat { color: var(--accent); }
+  .codex .idx-foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--line); font-family: var(--font-mono); font-size: .7rem; color: var(--muted); }
+  .codex .empty { display: none; padding: 26px 0; text-align: center; color: var(--muted); font-style: italic; font-family: var(--font-display); font-size: 1.15rem; }
+  .codex .empty.on { display: block; }
+
+  .codex .rise { opacity: 0; transform: translateY(14px); animation: cx-rise .6s cubic-bezier(.2,.7,.3,1) forwards; }
+  @keyframes cx-rise { to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .codex .rise { opacity: 1; transform: none; animation: none; }
+    .codex .aura i { animation: none !important; }
   }
 </style>
 
 <script>
-  const donnees = JSON.parse(document.getElementById('donnees-lore').textContent);
-  const CLE_MDP = 'victorum:mot-de-passe';
+  const D = JSON.parse(document.getElementById('donnees-codex').textContent);
   const $ = (id) => document.getElementById(id);
-  const modale = $('modale-cat');
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const svgFer = (cle, w) =>
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (w || 1.7) +
+    '" stroke-linecap="round" stroke-linejoin="round">' + (D.fers[cle] || D.fers.book) + '</svg>';
 
-  $('nouvelle-categorie').addEventListener('click', () => {
-    modale.hidden = false;
-    $('cat-nom').focus();
+  /* ===================== surcouches ===================== */
+  const scrim = $('scrim'), sheetAll = $('sheetAll'), sheetNew = $('sheetNew');
+  function fermer() { scrim.classList.remove('on'); sheetAll.classList.remove('on'); sheetNew.classList.remove('on'); }
+  scrim.addEventListener('click', fermer);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermer(); });
+  for (const b of document.querySelectorAll('[data-close]')) b.addEventListener('click', fermer);
+
+  /* La bibliothèque : tous les rayons d'un coup d'œil. */
+  $('openAll').addEventListener('click', () => {
+    const grille = $('allGrid');
+    grille.innerHTML = '';
+    for (const r of D.rayons) {
+      const a = document.createElement('a');
+      a.className = 'tile'; a.href = r.url; a.style.setProperty('--lb', r.cuir);
+      a.innerHTML = '<span class="mini">' + svgFer(r.fer, 1.9) + '</span>' +
+        '<span class="tx"><span class="nm">' + esc(r.nom) + '</span>' +
+        '<span class="cn">' + r.n + ' entrée' + (r.n > 1 ? 's' : '') + '</span></span>';
+      grille.appendChild(a);
+    }
+    const mk = document.createElement('button');
+    mk.className = 'tile mk'; mk.type = 'button';
+    mk.innerHTML = '<span class="tx"><span class="nm">+ Nouveau rayon</span></span>';
+    mk.addEventListener('click', () => { fermer(); setTimeout(ouvrirNouveau, 200); });
+    grille.appendChild(mk);
+    scrim.classList.add('on'); sheetAll.classList.add('on');
   });
-  for (const b of modale.querySelectorAll('[data-fermer]')) {
-    b.addEventListener('click', () => (modale.hidden = true));
-  }
 
+  /* ===================== relier un volume ===================== */
+  const CUIRS = Object.keys(D.cuirs);
+  let choix = { reliure: CUIRS[0], fer: 'book' };
+  const pvSpine = $('pvSpine'), pvNom = $('pvName'), pvIcone = $('pvIcon'), rNom = $('rName');
+
+  function majApercu() {
+    pvSpine.style.setProperty('--lb', D.cuirs[choix.reliure]);
+    pvIcone.innerHTML = svgFer(choix.fer, 1.9);
+    pvNom.textContent = rNom.value.trim() || 'Sans titre';
+  }
+  CUIRS.forEach((cle, i) => {
+    const b = document.createElement('button');
+    b.className = 'pick col'; b.type = 'button';
+    b.style.setProperty('--lb', D.cuirs[cle]);
+    b.setAttribute('aria-pressed', String(i === 0));
+    b.setAttribute('aria-label', 'Reliure ' + (i + 1));
+    b.addEventListener('click', () => {
+      choix.reliure = cle;
+      for (const x of b.parentNode.children) x.setAttribute('aria-pressed', String(x === b));
+      majApercu();
+    });
+    $('colPicks').appendChild(b);
+  });
+  Object.keys(D.fers).forEach((cle) => {
+    const b = document.createElement('button');
+    b.className = 'pick ico'; b.type = 'button'; b.innerHTML = svgFer(cle, 1.9);
+    b.setAttribute('aria-pressed', String(cle === 'book'));
+    b.setAttribute('aria-label', 'Fer ' + cle);
+    b.addEventListener('click', () => {
+      choix.fer = cle;
+      for (const x of b.parentNode.children) x.setAttribute('aria-pressed', String(x === b));
+      majApercu();
+    });
+    $('icoPicks').appendChild(b);
+  });
+  rNom.addEventListener('input', majApercu);
+
+  function ouvrirNouveau() {
+    scrim.classList.add('on'); sheetNew.classList.add('on');
+    $('etatNew').textContent = '';
+    majApercu();
+    setTimeout(() => rNom.focus(), 320);
+  }
+  $('newShelf').addEventListener('click', ouvrirNouveau);
+  $('newShelf2').addEventListener('click', ouvrirNouveau);
+
+  const CLE_MDP = 'victorum:mot-de-passe';
   function motDePasse() {
     let mdp = sessionStorage.getItem(CLE_MDP);
     if (!mdp) {
-      mdp = prompt(
-        donnees.motDePasseDefini
-          ? "Mot de passe de l'atelier :"
-          : "Choisis le mot de passe de ton atelier. Il te sera demandé pour toute modification, et personne d'autre ne pourra écrire sur ton site."
-      );
+      mdp = prompt(D.motDePasseDefini
+        ? "Mot de passe de l'atelier :"
+        : "Choisis le mot de passe de ton atelier. Il te sera demandé pour toute modification, et personne d'autre ne pourra écrire sur ton site.");
       if (mdp) sessionStorage.setItem(CLE_MDP, mdp);
     }
     return mdp;
   }
 
-  $('cat-creer').addEventListener('click', async () => {
-    const etat = $('cat-etat');
-    if (!donnees.stockageActif) return (etat.textContent = "Stockage non relié : impossible d'enregistrer.");
-    const nom = $('cat-nom').value.trim();
-    if (!nom) return (etat.textContent = 'Donne un nom à la catégorie.');
-    const mdp = motDePasse();
-    if (!mdp) return (etat.textContent = 'Mot de passe non saisi.');
-
-    etat.textContent = 'Création…';
+  $('doCreate').addEventListener('click', async () => {
+    const etat = $('etatNew');
+    const nom = rNom.value.trim();
+    if (!nom) { etat.textContent = 'Donne un nom au rayon.'; return rNom.focus(); }
+    if (!D.stockageActif) { etat.textContent = "Le stockage n'est pas relié : impossible de relier un volume."; return; }
+    const mdp = motDePasse(); if (!mdp) return;
+    etat.textContent = 'Reliure en cours…';
     try {
       const r = await fetch('/api/lore', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-mot-de-passe': mdp },
-        body: JSON.stringify({ action: 'categorie', nom, symbole: $('cat-symbole').value }),
+        body: JSON.stringify({ action: 'categorie', nom, reliure: choix.reliure, fer: choix.fer }),
       });
       const res = await r.json().catch(() => ({}));
-      if (r.status === 401) {
-        sessionStorage.removeItem(CLE_MDP);
-        return (etat.textContent = res.erreur || 'Mot de passe refusé.');
-      }
-      if (!r.ok) return (etat.textContent = res.erreur || 'Échec.');
-      // On ouvre la nouvelle catégorie pour la composer aussitôt.
+      if (r.status === 401) { sessionStorage.removeItem(CLE_MDP); etat.textContent = res.erreur || 'Mot de passe refusé.'; return; }
+      if (!r.ok) { etat.textContent = res.erreur || 'Échec.'; return; }
       const creee = (res.lore.categories || []).find((c) => c.nom === nom);
-      location.href = creee ? `/lore/${creee.slug}` : '/lore';
+      location.href = creee ? '/lore/' + creee.slug : '/lore';
     } catch {
       etat.textContent = 'Réseau indisponible.';
     }
   });
+
+  /* ===================== index général ===================== */
+  const cols = $('cols'), alpha = $('alpha'), vide = $('empty'), compte = $('idxCount');
+  const LETTRES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  let lettre = null, requete = '';
+  const sansAccent = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const initiale = (s) => (sansAccent(s)[0] || '?').toUpperCase();
+
+  for (const L of LETTRES) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = L; b.setAttribute('aria-pressed', 'false');
+    if (!D.index.some((e) => initiale(e.nom) === L)) b.disabled = true;
+    b.addEventListener('click', () => {
+      lettre = lettre === L ? null : L;
+      for (const x of alpha.children) x.setAttribute('aria-pressed', String(x.textContent === lettre));
+      rendre();
+    });
+    alpha.appendChild(b);
+  }
+
+  function rendre() {
+    const liste = D.index.filter((e) => {
+      const okL = !lettre || initiale(e.nom) === lettre;
+      const okQ = !requete || sansAccent(e.nom).includes(requete) || sansAccent(e.cat).includes(requete);
+      return okL && okQ;
+    });
+    const groupes = {};
+    for (const e of liste) (groupes[initiale(e.nom)] ??= []).push(e);
+    cols.innerHTML = '';
+    for (const L of Object.keys(groupes).sort()) {
+      const d = document.createElement('div');
+      d.className = 'grp';
+      d.innerHTML = '<div class="ltr">' + esc(L) + '</div>' + groupes[L].map((e) =>
+        '<a class="' + (e.vide ? 'todo' : '') + '" href="' + esc(e.url) + '"><span>' + esc(e.nom) +
+        '</span><span class="cat">' + (e.vide ? 'à écrire' : esc(e.cat)) + '</span></a>').join('');
+      cols.appendChild(d);
+    }
+    vide.classList.toggle('on', liste.length === 0);
+    compte.textContent = liste.length + ' entrée' + (liste.length > 1 ? 's affichées' : ' affichée') +
+      ' sur ' + D.index.length;
+  }
+
+  $('q').addEventListener('input', (e) => { requete = sansAccent(e.target.value.trim()); rendre(); });
+  $('goSearch').addEventListener('click', () => document.getElementById('sec-index').scrollIntoView({ behavior: 'smooth' }));
+  rendre();
 </script>
